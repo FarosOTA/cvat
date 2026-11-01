@@ -51,6 +51,7 @@ export enum SettingsActionTypes {
     SWITCH_SNAP_TO_POINT = 'SWITCH_SNAP_TO_POINT',
     SWITCH_ADAPTIVE_ZOOM = 'SWITCH_ADAPTIVE_ZOOM',
     SWITCH_RECTANGLE_PRECISION = 'SWITCH_RECTANGLE_PRECISION',
+    CHANGE_BORDER_MAGNIFIER = 'CHANGE_BORDER_MAGNIFIER',
     SWITCH_INTELLIGENT_POLYGON_CROP = 'SWITCH_INTELLIGENT_POLYGON_CROP',
     SWITCH_SHOWNIG_INTERPOLATED_TRACKS = 'SWITCH_SHOWNIG_INTERPOLATED_TRACKS',
     SWITCH_SHOWING_OBJECTS_TEXT_ALWAYS = 'SWITCH_SHOWING_OBJECTS_TEXT_ALWAYS',
@@ -374,6 +375,13 @@ export function switchRectanglePrecision(tool: 'editingCrosshair' | 'cursorMagni
     return {
         type: SettingsActionTypes.SWITCH_RECTANGLE_PRECISION,
         payload: { tool, enabled },
+    };
+}
+
+export function changeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): AnyAction {
+    return {
+        type: SettingsActionTypes.CHANGE_BORDER_MAGNIFIER,
+        payload: { setting, value },
     };
 }
 

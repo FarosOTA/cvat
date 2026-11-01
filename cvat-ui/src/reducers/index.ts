@@ -1086,6 +1086,8 @@ export interface WorkspaceSettingsState {
     adaptiveZoom: boolean;
     editingCrosshair: boolean;
     cursorMagnifier: boolean;
+    cursorMagnifierSize: number;
+    cursorMagnifierScale: number;
     showObjectsTextAlways: boolean;
     showAllInterpolationTracks: boolean;
     intelligentPolygonCrop: boolean;

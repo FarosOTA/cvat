@@ -121,6 +121,55 @@ context('Actions on rectangle', () => {
             cy.get('#cvat_canvas_shape_5').should('have.class', 'cvat_canvas_shape_activated');
         });
 
+        it('Adjust border size and magnification independently and retain them when disabled', () => {
+            cy.openSettings();
+            cy.get('.cvat-settings-modal').contains('Workspace').click();
+            for (const [size, scale] of [[16, 8], [48, 2], [32, 4]]) {
+                for (const [setting, value] of [['size', size], ['scale', scale]]) {
+                    cy.get(`.cvat-workspace-settings-magnifier-${setting}`).click();
+                    cy.get('.ant-select-dropdown:visible').contains('.ant-select-item-option',
+                        setting === 'size' ? `${value} px` : `${value}×`).click();
+                }
+                cy.closeSettings();
+                cy.get('#cvat_canvas_shape_5').trigger('mousemove');
+                cy.get('#cvat_canvas_shape_5').trigger('mouseover');
+                cy.get('#cvat_canvas_shape_5').click();
+                cy.get('#cvat_canvas_shape_5').then(([shape]) => {
+                    const box = shape.getBoundingClientRect();
+                    const centerX = box.left + box.width / 2;
+                    cy.get('.cvat-canvas-container').trigger('mousemove', {
+                        clientX: centerX, clientY: box.top + box.height / 2, buttons: 0,
+                    });
+                    cy.get('.cvat_canvas_cursor_magnifier').should('be.visible').and(([overlay]) => {
+                        const bounds = overlay.getBoundingClientRect();
+                        const context = overlay.getContext('2d');
+                        for (const [distance, alpha] of [[8 + size - 3, 255], [8 + size + 3, 0]]) {
+                            const pixel = context.getImageData(
+                                Math.floor(((centerX - bounds.left) * overlay.width) / bounds.width),
+                                Math.floor(((box.top - distance - bounds.top) * overlay.height) / bounds.height),
+                                1, 1,
+                            ).data;
+                            expect(pixel[3]).to.equal(alpha);
+                        }
+                    });
+                });
+                cy.get('body').type('{esc}', { scrollBehavior: false });
+                cy.window().should((window) => {
+                    const { workspace } = JSON.parse(window.localStorage.getItem('clientSettings'));
+                    expect(workspace.cursorMagnifierSize).to.equal(size);
+                    expect(workspace.cursorMagnifierScale).to.equal(scale);
+                });
+                cy.openSettings();
+                cy.get('.cvat-workspace-settings-cursor-magnifier input').uncheck();
+                cy.get('.cvat-workspace-settings-magnifier-size input').should('be.disabled');
+                cy.get('.cvat-workspace-settings-magnifier-scale input').should('be.disabled');
+                cy.get('.cvat-workspace-settings-cursor-magnifier input').check();
+                cy.get('.cvat-workspace-settings-magnifier-size').should('contain.text', `${size} px`);
+                cy.get('.cvat-workspace-settings-magnifier-scale').should('contain.text', `${scale}×`);
+            }
+            cy.closeSettings();
+        });
+
         for (const {
             part, pickup, anchor, delta,
         } of [

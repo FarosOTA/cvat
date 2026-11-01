@@ -37,6 +37,8 @@ const defaultState: SettingsState = {
         adaptiveZoom: true,
         editingCrosshair: true,
         cursorMagnifier: true,
+        cursorMagnifierSize: 32,
+        cursorMagnifierScale: 4,
         showObjectsTextAlways: false,
         showAllInterpolationTracks: false,
         intelligentPolygonCrop: true,
@@ -392,6 +394,15 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 workspace: {
                     ...state.workspace,
                     [action.payload.tool]: action.payload.enabled,
+                },
+            };
+        }
+        case SettingsActionTypes.CHANGE_BORDER_MAGNIFIER: {
+            return {
+                ...state,
+                workspace: {
+                    ...state.workspace,
+                    [action.payload.setting]: action.payload.value,
                 },
             };
         }

@@ -90,6 +90,8 @@ export interface Configuration {
     adaptiveZoom?: boolean;
     editingCrosshair?: boolean;
     cursorMagnifier?: boolean;
+    cursorMagnifierSize?: number;
+    cursorMagnifierScale?: number;
     displayAllText?: boolean;
     textFontSize?: number;
     textPosition?: 'auto' | 'center';
@@ -446,6 +448,8 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
                 focusedObjectPadding: 50,
                 editingCrosshair: true,
                 cursorMagnifier: true,
+                cursorMagnifierSize: 32,
+                cursorMagnifierScale: 4,
             },
             imageBitmap: false,
             image: null,
@@ -1019,6 +1023,12 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
         }
         if (typeof configuration.cursorMagnifier === 'boolean') {
             this.data.configuration.cursorMagnifier = configuration.cursorMagnifier;
+        }
+        if ([16, 32, 48].includes(configuration.cursorMagnifierSize)) {
+            this.data.configuration.cursorMagnifierSize = configuration.cursorMagnifierSize;
+        }
+        if ([2, 4, 8].includes(configuration.cursorMagnifierScale)) {
+            this.data.configuration.cursorMagnifierScale = configuration.cursorMagnifierScale;
         }
         if (typeof configuration.smoothImage === 'boolean') {
             this.data.configuration.smoothImage = configuration.smoothImage;

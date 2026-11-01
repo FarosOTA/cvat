@@ -2049,7 +2049,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
 
         const ctx = this.cursorMagnifier.getContext('2d');
         const matrix = this.content.getScreenCTM();
-        const thickness = 32;
+        const thickness = this.configuration.cursorMagnifierSize;
+        const magnification = this.configuration.cursorMagnifierScale;
         const gap = 8;
         ctx.setTransform(2, 0, 0, 2, 0, 0);
         ctx.clearRect(0, 0, width, height);
@@ -2062,7 +2063,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 width: box.width,
                 height: thickness,
                 scaleX: 1,
-                scaleY: 4,
+                scaleY: magnification,
                 anchorX: box.left + box.width / 2,
                 anchorY: box.top,
             },
@@ -2072,7 +2073,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 width: box.width,
                 height: thickness,
                 scaleX: 1,
-                scaleY: 4,
+                scaleY: magnification,
                 anchorX: box.left + box.width / 2,
                 anchorY: box.bottom,
             },
@@ -2081,7 +2082,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 y: box.top,
                 width: thickness,
                 height: box.height,
-                scaleX: 4,
+                scaleX: magnification,
                 scaleY: 1,
                 anchorX: box.left,
                 anchorY: box.top + box.height / 2,
@@ -2091,7 +2092,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 y: box.top,
                 width: thickness,
                 height: box.height,
-                scaleX: 4,
+                scaleX: magnification,
                 scaleY: 1,
                 anchorX: box.right,
                 anchorY: box.top + box.height / 2,
@@ -2113,7 +2114,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
             ctx.restore();
 
             ctx.beginPath();
-            if (strip.scaleY === 4) {
+            if (strip.scaleX === 1) {
                 ctx.moveTo(strip.x, strip.y + strip.height / 2);
                 ctx.lineTo(strip.x + strip.width, strip.y + strip.height / 2);
             } else {

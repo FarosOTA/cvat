@@ -20,6 +20,7 @@ import {
     switchShowingTagsOnFrame,
     switchAdaptiveZoom,
     switchRectanglePrecision,
+    changeBorderMagnifier,
 } from 'actions/settings-actions';
 
 import { CombinedState } from 'reducers';
@@ -36,6 +37,8 @@ interface StateToProps {
     adaptiveZoom: boolean;
     editingCrosshair: boolean;
     cursorMagnifier: boolean;
+    cursorMagnifierSize: number;
+    cursorMagnifierScale: number;
     intelligentPolygonCrop: boolean;
     textFontSize: number;
     controlPointsSize: number;
@@ -52,6 +55,7 @@ interface DispatchToProps {
     onSwitchShowingObjectsTextAlways(enabled: boolean): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
     onSwitchRectanglePrecision(tool: 'editingCrosshair' | 'cursorMagnifier', enabled: boolean): void;
+    onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeDefaultApproxPolyAccuracy(approxPolyAccuracy: number): void;
     onChangeTextFontSize(fontSize: number): void;
@@ -72,6 +76,8 @@ function mapStateToProps(state: CombinedState): StateToProps {
         adaptiveZoom,
         editingCrosshair,
         cursorMagnifier,
+        cursorMagnifierSize,
+        cursorMagnifierScale,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,
@@ -90,6 +96,8 @@ function mapStateToProps(state: CombinedState): StateToProps {
         adaptiveZoom,
         editingCrosshair,
         cursorMagnifier,
+        cursorMagnifierSize,
+        cursorMagnifierScale,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,
@@ -108,6 +116,7 @@ const mapDispatchToProps: DispatchToProps = {
     onSwitchShowingObjectsTextAlways: switchShowingObjectsTextAlways,
     onSwitchAdaptiveZoom: switchAdaptiveZoom,
     onSwitchRectanglePrecision: switchRectanglePrecision,
+    onChangeBorderMagnifier: changeBorderMagnifier,
     onSwitchIntelligentPolygonCrop: switchIntelligentPolygonCrop,
     onChangeDefaultApproxPolyAccuracy: changeDefaultApproxPolyAccuracy,
     onChangeTextFontSize: switchTextFontSize,

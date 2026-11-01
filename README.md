@@ -76,6 +76,12 @@ Crosshairs and magnified borders are enabled by default and can be toggled indep
 **Settings → Workspace** using **Crosshairs while editing bounding boxes** and
 **Magnified border while drawing and editing bounding boxes**.
 
+In the same section, **Border magnifier size** and **Border magnification** can be adjusted
+independently. Each offers **Low**, **Medium (default)**, and **High**: strip thicknesses are
+16/32/48 screen pixels, and magnification is 2×/4×/8× perpendicular to each edge. Medium preserves
+the original appearance. Both choices are saved in the browser and retained when the magnifier
+is disabled; the controls are disabled until it is enabled again.
+
 ## Frame loading, buffering, and playback
 
 - **Task-quality playback by default:** Opening or seeking an image job fetches the selected image
