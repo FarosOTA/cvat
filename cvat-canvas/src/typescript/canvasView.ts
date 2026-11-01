@@ -42,7 +42,7 @@ import {
     CanvasModel, Geometry, UpdateReasons, FrameZoom, ActiveElement,
     DrawData, MergeData, SplitData, Mode, Size, Configuration,
     InteractionResult, InteractionData, ColorBy, HighlightedElements,
-    HighlightSeverity, GroupData, JoinData, CanvasHint,
+    HighlightSeverity, GroupData, JoinData, CanvasHint, CanvasHistorySource,
 } from './canvasModel';
 
 export interface CanvasView {
@@ -272,6 +272,12 @@ export class CanvasViewImpl implements CanvasView, Listener {
         this.canvas.dispatchEvent(event);
     }
 
+    private restoreDrawHiddenObjects(): void {
+        for (const clientID of Object.keys(this.innerObjectsFlags.drawHidden)) {
+            this.setupInnerFlags(+clientID, 'drawHidden', false);
+        }
+    }
+
     private resetViewPosition(clientID: number): void {
         const drawnState = this.drawnStates[clientID];
         const drawnShape = this.svgShapes[clientID];
@@ -350,13 +356,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
         continueDraw?: boolean,
         prevDrawData?: DrawData,
     ): void => {
-        const hiddenBecauseOfDraw = Object.keys(this.innerObjectsFlags.drawHidden)
-            .map((_clientID): number => +_clientID);
-        if (hiddenBecauseOfDraw.length) {
-            for (const hidden of hiddenBecauseOfDraw) {
-                this.setupInnerFlags(hidden, 'drawHidden', false);
-            }
-        }
+        this.restoreDrawHiddenObjects();
 
         if (data) {
             const { clientID, elements } = data as any;
@@ -1415,6 +1415,13 @@ export class CanvasViewImpl implements CanvasView, Listener {
         };
 
         const contextMenuHandler = (e: MouseEvent): void => {
+            // Keep vertex menus, but do not open menus on resize or rotation handles.
+            if (!['polygon', 'polyline'].includes(shape.type)) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+
             const pointID = Array.prototype.indexOf.call(
                 ((e.target as HTMLElement).parentElement as HTMLElement).children,
                 e.target,
@@ -2274,6 +2281,13 @@ export class CanvasViewImpl implements CanvasView, Listener {
             this.onEditDone,
             this.drawHandler,
             this.masksContent,
+            (undoAction?: string, redoAction?: string): void => {
+                this.canvas.dispatchEvent(new CustomEvent('canvas.historychanged', {
+                    bubbles: false,
+                    cancelable: true,
+                    detail: { source: CanvasHistorySource.MASK, undoAction, redoAction },
+                }));
+            },
         );
         this.editHandler = new EditHandlerImpl(this.onEditDone, this.adoptedContent, this.autoborderHandler);
         this.mergeHandler = new MergeHandlerImpl(
@@ -2801,6 +2815,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 } else {
                     this.drawHandler.cancel();
                 }
+                this.restoreDrawHiddenObjects();
             } else if (this.mode === Mode.INTERACT) {
                 this.interactionHandler.cancel();
             } else if (this.mode === Mode.MERGE) {

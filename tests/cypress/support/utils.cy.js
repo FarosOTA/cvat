@@ -60,6 +60,8 @@ export function drawWithTriggers(pointsMap) {
  */
 export function drawWithClicks(pointsMap) {
     pointsMap.forEach((element) => {
+        // SVG drawing updates the pending vertex on mousemove, not on click.
+        cy.get('.cvat-canvas-container').trigger('mousemove', element.x, element.y);
         cy.get('.cvat-canvas-container').click(element.x, element.y);
     });
 }

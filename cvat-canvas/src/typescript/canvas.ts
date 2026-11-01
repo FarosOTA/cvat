@@ -11,7 +11,7 @@ import {
     CanvasModel, CanvasModelImpl, RectDrawingMethod,
     CuboidDrawingMethod, Configuration, Geometry, Mode,
     HighlightSeverity as _HighlightSeverity, CanvasHint as _CanvasHint,
-    PolyEditData, RenderData as _RenderData,
+    PolyEditData, RenderData as _RenderData, CanvasHistorySource,
 } from './canvasModel';
 import { Master } from './master';
 import { CanvasController, CanvasControllerImpl } from './canvasController';
@@ -210,5 +210,5 @@ export type HighlightSeverity = _HighlightSeverity;
 export type RenderData = _RenderData;
 
 export {
-    CanvasImpl as Canvas, RectDrawingMethod, CuboidDrawingMethod, Mode as CanvasMode,
+    CanvasImpl as Canvas, RectDrawingMethod, CuboidDrawingMethod, Mode as CanvasMode, CanvasHistorySource,
 };

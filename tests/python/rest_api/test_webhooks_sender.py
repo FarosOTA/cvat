@@ -32,7 +32,10 @@ from .utils import (
 #  2) check that webhook is sent by checking value of `response` field for the last delivery of this webhook
 
 # https://docs.pytest.org/en/7.1.x/example/markers.html#marking-whole-classes-or-modules
-pytestmark = [pytest.mark.with_external_services]
+pytestmark = [
+    pytest.mark.with_external_services,
+    pytest.mark.usefixtures("restore_redis_inmem_per_function"),
+]
 
 
 def _read_receiver_env():

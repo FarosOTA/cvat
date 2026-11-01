@@ -436,9 +436,9 @@ class TestListQualityReports(_PermissionTestBase):
         create_gt_job(admin_user, task["id"])
         report = create_quality_report(user=admin_user, task_id=task["id"])
         if allow:
-            self._test_list_reports_200(user=user["username"], parent_id=report["id"])
+            self._test_list_reports_200(user=user["username"], parent_id=report["id"], target="job")
         else:
-            self._test_list_reports_403(user=user["username"], parent_id=report["id"])
+            self._test_list_reports_403(user=user["username"], parent_id=report["id"], target="job")
 
     @pytest.mark.usefixtures("restore_db_per_function")
     @pytest.mark.parametrize(*_PermissionTestBase._default_org_cases)
@@ -454,9 +454,9 @@ class TestListQualityReports(_PermissionTestBase):
         create_gt_job(admin_user, task["id"])
         report = create_quality_report(user=admin_user, task_id=task["id"])
         if allow:
-            self._test_list_reports_200(user=user["username"], parent_id=report["id"])
+            self._test_list_reports_200(user=user["username"], parent_id=report["id"], target="job")
         else:
-            self._test_list_reports_403(user=user["username"], parent_id=report["id"])
+            self._test_list_reports_403(user=user["username"], parent_id=report["id"], target="job")
 
 
 class TestSimpleQualityReportsFilters(CollectionSimpleFilterTestBase):
@@ -499,8 +499,11 @@ class TestSimpleQualityReportsFilters(CollectionSimpleFilterTestBase):
 
         if field == "project_id":
             project_id, project_reports = super()._get_field_samples(field)
-            return project_id, list(project_reports) + _get_job_reports(
-                [r["task_id"] for r in project_reports]
+            task_ids = {t["id"] for t in self.task_samples if t["project_id"] == project_id}
+            return project_id, (
+                list(project_reports)
+                + [r for r in self.samples if r["task_id"] in task_ids]
+                + _get_job_reports(task_ids)
             )
         elif field == "task_id":
             task_id, task_reports = super()._get_field_samples(field)
@@ -531,7 +534,83 @@ class TestSimpleQualityReportsFilters(CollectionSimpleFilterTestBase):
         ("project_id", "task_id", "job_id", "parent_id", "target", "org_id"),
     )
     def test_can_use_simple_filter_for_object_list(self, field):
+        if field in {"project_id", "task_id"}:
+            value, expected_reports = self._get_field_samples(field)
+            for target in ("project", "task", "job"):
+                self._compare_results(
+                    [report for report in expected_reports if report["target"] == target],
+                    self._retrieve_collection(**{field: value, "target": target}),
+                )
+            return
+
+        if field == "parent_id":
+            project_report = next(r for r in self.samples if r["target"] == "project")
+            # Reused task reports may serialize a different first parent_id.
+            task_reports = self._retrieve_collection(parent_id=project_report["id"], target="task")
+            task_report_ids = {r["id"] for r in task_reports}
+            job_reports = [
+                r
+                for r in self.samples
+                if r["target"] == "job" and r["parent_id"] in task_report_ids
+            ]
+            assert task_reports
+            assert job_reports
+            project_task_ids = {
+                t["id"]
+                for t in self.task_samples
+                if t["project_id"] == project_report["project_id"]
+            }
+            assert all(
+                r["target"] == "task" and r["task_id"] in project_task_ids for r in task_reports
+            )
+            self._compare_results(
+                job_reports,
+                self._retrieve_collection(parent_id=project_report["id"], target="job"),
+            )
+            task_report = next(
+                r for r in task_reports if any(j["parent_id"] == r["id"] for j in job_reports)
+            )
+            self._compare_results(
+                [r for r in job_reports if r["parent_id"] == task_report["id"]],
+                self._retrieve_collection(parent_id=task_report["id"], target="job"),
+            )
+            return
+
         return super()._test_can_use_simple_filter_for_object_list(field)
+
+    @pytest.mark.parametrize("field", ("project_id", "task_id"))
+    @pytest.mark.parametrize("target", (None, "unknown", ""))
+    def test_cannot_use_object_filter_without_valid_target(self, field, target):
+        value, _ = self._get_field_samples(field)
+        params = {field: value}
+        if target is not None:
+            params["target"] = target
+        response = get_method(self.user, "quality/reports", **params)
+        assert response.status_code == HTTPStatus.BAD_REQUEST
+        assert "target" in response.json()[0]
+
+    @pytest.mark.parametrize(
+        ("parent_target", "target"),
+        [
+            ("job", None),
+            ("job", "job"),
+            ("job", "task"),
+            ("job", "project"),
+            ("task", None),
+            ("task", "task"),
+            ("task", "project"),
+            ("project", None),
+            ("project", "project"),
+            ("project", "unknown"),
+        ],
+    )
+    def test_cannot_use_invalid_parent_target_combination(self, parent_target, target):
+        parent_report = next(r for r in self.samples if r["target"] == parent_target)
+        params = {"parent_id": parent_report["id"]}
+        if target is not None:
+            params["target"] = target
+        response = get_method(self.user, "quality/reports", **params)
+        assert response.status_code == HTTPStatus.BAD_REQUEST
 
 
 @pytest.mark.usefixtures("restore_db_per_class")
@@ -664,7 +743,9 @@ class TestGetQualityReportData(_PermissionTestBase):
         fixture_report = next(report for report in quality_reports if report["target"] == "task")
         report_id = fixture_report["id"]
 
-        response = get_method(admin_user, "quality/reports", task_id=fixture_report["task_id"])
+        response = get_method(
+            admin_user, "quality/reports", task_id=fixture_report["task_id"], target="task"
+        )
         assert response.status_code == HTTPStatus.OK
         assert all(report["id"] != report_id for report in response.json()["results"])
 
@@ -676,6 +757,7 @@ class TestGetQualityReportData(_PermissionTestBase):
             admin_user,
             "quality/reports",
             task_id=fixture_report["task_id"],
+            target="task",
             include_legacy="true",
         )
         assert response.status_code == HTTPStatus.OK
@@ -770,7 +852,7 @@ class TestGetQualityReportData(_PermissionTestBase):
 
         with make_api_client(admin_user) as api_client:
             job_report = api_client.quality_api.list_reports(
-                job_id=normal_job["id"], parent_id=task_report["id"]
+                job_id=normal_job["id"], parent_id=task_report["id"], target="job"
             )[0].results[0]
 
         report_data = json.loads(self._test_get_report_data_200(admin_user, job_report["id"]).data)

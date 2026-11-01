@@ -12,6 +12,7 @@ are not necessarily fork-specific. This checkout reports CVAT **2.74.1**.
 - [Track timeline and navigation](#track-timeline-and-navigation)
 - [Precision bounding-box controls](#precision-bounding-box-controls)
 - [Frame loading, buffering, and playback](#frame-loading-buffering-and-playback)
+- [Security and correctness fixes](#security-and-correctness-fixes)
 - [Development setup and regression coverage](#development-setup-and-regression-coverage)
 
 ## Rectangle-track editing
@@ -112,6 +113,39 @@ version precautions, and rollback instructions, see
 The supplied [Compose override](docker-compose.buffering.yml) selects locally built fork images;
 the general upstream quick start below clones upstream and does not install these fork changes.
 
+## Security and correctness fixes
+
+This fork also includes selected upstream fixes without adopting optional annotation features:
+
+- **Safer imports and permissions:** Dataset media must remain inside the dataset root. Archive
+  extraction discards symlinks and other irregular files, and backups skip them. Membership changes
+  respect the requested role; organization membership alone does not expose nonmembers' user details.
+  Serverless function identifiers are validated before dispatch. Datumaro includes upstream path
+  traversal fixes, and the updated certificate bundle removes distrusted roots; services relying on
+  those roots must use a trusted certificate chain.
+- **Reliable chunk downloads:** Initial transfers use ordinary GET requests, with Range requests
+  reserved for resuming partial data. A server that ignores Range restarts the transfer safely rather
+  than duplicating bytes. Task/job chunk responses, including job previews, expose `X-Chunk-Size`
+  as the decoded payload size independently of HTTP compression. Failed background requests preserve
+  their error metadata. Existing preview fallback and progress-based retry behavior are retained.
+- **Editor correctness:** Canceling a redraw restores the object, including **Replace box**.
+  Bulk lock/hide changes undo together, copied skeleton tracks preserve element attributes, and
+  native selected-text copying remains available. Mask edits restore fully off-image moves, preserve
+  overlapped pixels on translations, and correctly refresh editing, slicing, and undo controls.
+  Rectangle precision controls and the fork's playback defaults remain unchanged.
+- **Task and account workflows:** Validation-mode changes keep the selected mode synchronized with
+  the form; **Submit & Continue** resets quality settings together with the rest of the form.
+  PDF stop frames are inclusive, with explicit zero still meaning through the final page.
+  Cloud listings omit empty directory names. Email confirmation
+  redirects back to the UI, model loading waits for organization initialization, and API documentation
+  uses the compatible ReDoc major version.
+- **Quality control:** Inherited task settings display the effective project settings and cannot be
+  saved as task-local changes until inheritance is disabled. Point/skeleton requirements expose the
+  existing OKS threshold. Rules referencing deleted attributes can be disabled or copied without
+  inventing new attribute IDs; the editor identifies those references. The quality-report list API
+  requires `target` when filtering by `task_id`, `project_id`, or `parent_id`. Parent filters support
+  task → job and project → task/job combinations; clients must specify the intended report type.
+
 ## Development setup and regression coverage
 
 - [`.agents/setup`](.agents/setup) prepares an Amp orb with native build dependencies, pinned Node.js
@@ -124,9 +158,11 @@ the general upstream quick start below clones upstream and does not install thes
   reinstalling dependencies. Local Amp files and Python test environments are excluded from Docker
   build contexts.
 - Added regression coverage includes rectangle-track editing/navigation, click-to-place and precision
-  controls, preview API behavior, chunk-queue expiry, and deterministic frame-buffering scenarios.
-  Run the standalone buffering suite with `yarn workspace cvat-core run test:frames`; UI and backend
-  regressions use the repository's existing Cypress and Python test infrastructure.
+  controls, preview API behavior, chunk-queue expiry, deterministic frame buffering, resumed downloads,
+  and editor correctness. Run the standalone buffering suite with
+  `yarn workspace cvat-core run test:frames` and download tests with
+  `yarn workspace cvat-core run test:downloads`; UI and backend regressions use the repository's
+  existing Cypress and Python test infrastructure.
 
 ---
 

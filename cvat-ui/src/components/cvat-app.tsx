@@ -389,7 +389,7 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
             initRequests();
         }
 
-        if (!modelsInitialized && !modelsFetching) {
+        if (organizationInitialized && !modelsInitialized && !modelsFetching) {
             initModels();
         }
 

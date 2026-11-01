@@ -2848,6 +2848,21 @@ paths:
       - basicAuth: []
       responses:
         '200':
+          headers:
+            X-Checksum:
+              schema:
+                type: string
+              description: Data checksum, applicable for chunks and preview chunks
+            X-Chunk-Size:
+              schema:
+                type: integer
+              description: Decoded chunk size in bytes, applicable for chunks and
+                preview chunks
+            X-Updated-Date:
+              schema:
+                type: string
+                format: date-time
+              description: Data update date, applicable for chunks and preview chunks
           content:
             application/vnd.cvat+json:
               schema:
@@ -2855,6 +2870,21 @@ paths:
                 format: binary
           description: Data of a specific type
         '206':
+          headers:
+            X-Checksum:
+              schema:
+                type: string
+              description: Data checksum, applicable for chunks and preview chunks
+            X-Chunk-Size:
+              schema:
+                type: integer
+              description: Decoded chunk size in bytes, applicable for chunks and
+                preview chunks
+            X-Updated-Date:
+              schema:
+                type: string
+                format: date-time
+              description: Data update date, applicable for chunks and preview chunks
           content:
             application/vnd.cvat+json:
               schema:
@@ -2862,6 +2892,12 @@ paths:
                 format: binary
           description: Partial chunk data
         '416':
+          headers:
+            X-Chunk-Size:
+              schema:
+                type: integer
+              description: Decoded chunk size in bytes, applicable for chunks and
+                preview chunks
           description: Requested range is not satisfiable
   /api/jobs/{id}/data/meta:
     get:
@@ -3341,7 +3377,7 @@ paths:
         name: func_id
         schema:
           type: string
-          pattern: ^[a-zA-Z0-9_.-]+$
+          pattern: ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$
         required: true
       tags:
       - lambda
@@ -3374,7 +3410,7 @@ paths:
         name: func_id
         schema:
           type: string
-          pattern: ^[a-zA-Z0-9_.-]+$
+          pattern: ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$
         required: true
       tags:
       - lambda
@@ -4522,19 +4558,17 @@ paths:
     get:
       operationId: quality_list_reports
       description: |
-        Please note that children reports are included by default
-        if the "task_id", "project_id" filters are used.
-        If you want to restrict the list of results to a specific report type,
-        use the "target" parameter.
+        The "target" parameter is required when the "task_id" or "project_id"
+        filter is used.
 
-        The "parent_id" filter includes all the nested reports recursively.
-        For instance, if the "parent_id" is a project report,
-        all the related task and job reports will be returned.
+        The "parent_id" filter requires the "target" parameter. Valid parent
+        report target to requested target combinations are: task to job,
+        project to task, and project to job.
 
         Please note that a report can be reused in several parent reports,
         but the "parent_id" field in responses will include only the first parent report id.
-        The "parent_id" filter still returns all the relevant nested reports,
-        even though the response "parent_id" values may be different from the requested one.
+        Filtering project report children with target "job" still returns all the relevant
+        nested job reports, even though their response "parent_id" values refer to task reports.
       summary: Method returns a paginated list of quality reports.
       parameters:
       - name: X-Organization
@@ -4595,7 +4629,7 @@ paths:
         name: parent_id
         schema:
           type: integer
-        description: A simple equality filter for parent id
+        description: A parent report id filter. Requires a compatible target filter
       - in: query
         name: project_id
         schema:
@@ -6344,6 +6378,10 @@ paths:
               schema:
                 type: string
               description: Data checksum, applicable for chunks only
+            X-Chunk-Size:
+              schema:
+                type: integer
+              description: Decoded chunk size in bytes, applicable for chunks only
             X-Updated-Date:
               schema:
                 type: string
@@ -6356,6 +6394,10 @@ paths:
               schema:
                 type: string
               description: Data checksum, applicable for chunks only
+            X-Chunk-Size:
+              schema:
+                type: integer
+              description: Decoded chunk size in bytes, applicable for chunks only
             X-Updated-Date:
               schema:
                 type: string
@@ -6363,6 +6405,11 @@ paths:
               description: Data update date, applicable for chunks only
           description: Partial chunk data
         '416':
+          headers:
+            X-Chunk-Size:
+              schema:
+                type: integer
+              description: Decoded chunk size in bytes, applicable for chunks only
           description: Requested range is not satisfiable
     post:
       operationId: tasks_create_data
@@ -6930,12 +6977,27 @@ paths:
       operationId: users_retrieve
       summary: Get user details
       parameters:
+      - in: header
+        name: X-Organization
+        schema:
+          type: string
+        description: Organization unique slug
       - in: path
         name: id
         schema:
           type: integer
         description: A unique integer value identifying this user.
         required: true
+      - in: query
+        name: org
+        schema:
+          type: string
+        description: Organization unique slug
+      - in: query
+        name: org_id
+        schema:
+          type: integer
+        description: Organization identifier
       tags:
       - users
       security:
@@ -10751,7 +10813,11 @@ components:
           maximum: 1
           minimum: 0
           nullable: true
-          description: Used for distinction between matched / unmatched shapes
+          description: |
+            The overlap threshold used for distinction between matched / unmatched objects.
+            The specific meaning can vary depending on the shape type:
+            for rectangles, polygons, ellipses, lines and masks it's the IoU threshold;
+            for points and skeletons, it's the OKS threshold.
         point_size:
           type: number
           format: double
@@ -10759,11 +10825,11 @@ components:
           minimum: 0
           nullable: true
           description: |-
-            Like IoU threshold, but for points.
-            The percent of the bbox side, used as the radius of the circle around the GT point,
-            where the checked point is expected to be. For boxes with different width and
-            height, the "side" is computed as a geometric mean of the width and height.
-            Read more: https://cocodataset.org/#keypoints-eval
+            The point "size" (the OKS sigma), as a fraction of the object size, defined by
+            the point size base. Corresponds to the standard deviation of the keypoint position.
+            Larger values give larger areas around the GT points, where the checked points
+            are accepted.
+            Read more about the point matching in the documentation.
         point_size_base:
           nullable: true
           description: |-
@@ -11526,7 +11592,11 @@ components:
           maximum: 1
           minimum: 0
           nullable: true
-          description: Used for distinction between matched / unmatched shapes
+          description: |
+            The overlap threshold used for distinction between matched / unmatched objects.
+            The specific meaning can vary depending on the shape type:
+            for rectangles, polygons, ellipses, lines and masks it's the IoU threshold;
+            for points and skeletons, it's the OKS threshold.
         point_size:
           type: number
           format: double
@@ -11534,11 +11604,11 @@ components:
           minimum: 0
           nullable: true
           description: |-
-            Like IoU threshold, but for points.
-            The percent of the bbox side, used as the radius of the circle around the GT point,
-            where the checked point is expected to be. For boxes with different width and
-            height, the "side" is computed as a geometric mean of the width and height.
-            Read more: https://cocodataset.org/#keypoints-eval
+            The point "size" (the OKS sigma), as a fraction of the object size, defined by
+            the point size base. Corresponds to the standard deviation of the keypoint position.
+            Larger values give larger areas around the GT points, where the checked points
+            are accepted.
+            Read more about the point matching in the documentation.
         point_size_base:
           nullable: true
           description: |-
@@ -11684,7 +11754,11 @@ components:
           maximum: 1
           minimum: 0
           nullable: true
-          description: Used for distinction between matched / unmatched shapes
+          description: |
+            The overlap threshold used for distinction between matched / unmatched objects.
+            The specific meaning can vary depending on the shape type:
+            for rectangles, polygons, ellipses, lines and masks it's the IoU threshold;
+            for points and skeletons, it's the OKS threshold.
         point_size:
           type: number
           format: double
@@ -11692,11 +11766,11 @@ components:
           minimum: 0
           nullable: true
           description: |-
-            Like IoU threshold, but for points.
-            The percent of the bbox side, used as the radius of the circle around the GT point,
-            where the checked point is expected to be. For boxes with different width and
-            height, the "side" is computed as a geometric mean of the width and height.
-            Read more: https://cocodataset.org/#keypoints-eval
+            The point "size" (the OKS sigma), as a fraction of the object size, defined by
+            the point size base. Corresponds to the standard deviation of the keypoint position.
+            Larger values give larger areas around the GT points, where the checked points
+            are accepted.
+            Read more about the point matching in the documentation.
         point_size_base:
           nullable: true
           description: |-
@@ -11869,7 +11943,11 @@ components:
           maximum: 1
           minimum: 0
           nullable: true
-          description: Used for distinction between matched / unmatched shapes
+          description: |
+            The overlap threshold used for distinction between matched / unmatched objects.
+            The specific meaning can vary depending on the shape type:
+            for rectangles, polygons, ellipses, lines and masks it's the IoU threshold;
+            for points and skeletons, it's the OKS threshold.
         point_size:
           type: number
           format: double
@@ -11877,11 +11955,11 @@ components:
           minimum: 0
           nullable: true
           description: |-
-            Like IoU threshold, but for points.
-            The percent of the bbox side, used as the radius of the circle around the GT point,
-            where the checked point is expected to be. For boxes with different width and
-            height, the "side" is computed as a geometric mean of the width and height.
-            Read more: https://cocodataset.org/#keypoints-eval
+            The point "size" (the OKS sigma), as a fraction of the object size, defined by
+            the point size base. Corresponds to the standard deviation of the keypoint position.
+            Larger values give larger areas around the GT points, where the checked points
+            are accepted.
+            Read more about the point matching in the documentation.
         point_size_base:
           nullable: true
           description: |-
@@ -12029,7 +12107,11 @@ components:
           maximum: 1
           minimum: 0
           nullable: true
-          description: Used for distinction between matched / unmatched shapes
+          description: |
+            The overlap threshold used for distinction between matched / unmatched objects.
+            The specific meaning can vary depending on the shape type:
+            for rectangles, polygons, ellipses, lines and masks it's the IoU threshold;
+            for points and skeletons, it's the OKS threshold.
         point_size:
           type: number
           format: double
@@ -12037,11 +12119,11 @@ components:
           minimum: 0
           nullable: true
           description: |-
-            Like IoU threshold, but for points.
-            The percent of the bbox side, used as the radius of the circle around the GT point,
-            where the checked point is expected to be. For boxes with different width and
-            height, the "side" is computed as a geometric mean of the width and height.
-            Read more: https://cocodataset.org/#keypoints-eval
+            The point "size" (the OKS sigma), as a fraction of the object size, defined by
+            the point size base. Corresponds to the standard deviation of the keypoint position.
+            Larger values give larger areas around the GT points, where the checked points
+            are accepted.
+            Read more about the point matching in the documentation.
         point_size_base:
           nullable: true
           description: |-
@@ -12181,7 +12263,11 @@ components:
           maximum: 1
           minimum: 0
           nullable: true
-          description: Used for distinction between matched / unmatched shapes
+          description: |
+            The overlap threshold used for distinction between matched / unmatched objects.
+            The specific meaning can vary depending on the shape type:
+            for rectangles, polygons, ellipses, lines and masks it's the IoU threshold;
+            for points and skeletons, it's the OKS threshold.
         point_size:
           type: number
           format: double
@@ -12189,11 +12275,11 @@ components:
           minimum: 0
           nullable: true
           description: |-
-            Like IoU threshold, but for points.
-            The percent of the bbox side, used as the radius of the circle around the GT point,
-            where the checked point is expected to be. For boxes with different width and
-            height, the "side" is computed as a geometric mean of the width and height.
-            Read more: https://cocodataset.org/#keypoints-eval
+            The point "size" (the OKS sigma), as a fraction of the object size, defined by
+            the point size base. Corresponds to the standard deviation of the keypoint position.
+            Larger values give larger areas around the GT points, where the checked points
+            are accepted.
+            Read more about the point matching in the documentation.
         point_size_base:
           nullable: true
           description: |-

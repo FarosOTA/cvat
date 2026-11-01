@@ -3,12 +3,47 @@
 # SPDX-License-Identifier: MIT
 
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
+from django.utils.functional import SimpleLazyObject
 from rest_framework import serializers
+from rest_framework.exceptions import NotFound, PermissionDenied
 
 from cvat.apps.engine.serializers import JobReadSerializer
 from cvat.apps.events import handlers
+
+
+class TestHandleViewsetException(unittest.TestCase):
+    def test_organization_context_does_not_mask_original_error(self):
+        org = SimpleNamespace(id=35127, slug="annotation-team")
+        for context, expected_id in (
+            ({"organization": org}, org.id),
+            ({"organization": None}, None),
+            (SimpleLazyObject(Mock(side_effect=NotFound("Unknown organization"))), None),
+        ):
+            with self.subTest(expected_id=expected_id):
+                request = SimpleNamespace(
+                    iam_context=context,
+                    user=SimpleNamespace(id=1, username="user", email="user@example.com"),
+                    get_full_path=lambda: "/api/jobs/42/annotations",
+                    query_params={},
+                    content_type="application/json",
+                    method="PATCH",
+                )
+                with (
+                    patch.object(handlers, "record_server_event") as record,
+                    patch.object(handlers, "request_info", return_value={}),
+                ):
+                    response = handlers.handle_viewset_exception(
+                        PermissionDenied("Not enough permissions"),
+                        {"request": request, "view": SimpleNamespace()},
+                    )
+                self.assertEqual(response.status_code, 403)
+                self.assertEqual(record.call_args.kwargs["org_id"], expected_id)
+                self.assertEqual(
+                    record.call_args.kwargs["org_slug"], org.slug if expected_id else None
+                )
 
 
 class TestGetCleanedUpSerializer(unittest.TestCase):

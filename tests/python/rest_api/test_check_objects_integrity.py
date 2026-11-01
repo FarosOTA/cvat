@@ -12,7 +12,7 @@ from deepdiff import DeepDiff
 from shared.utils import config
 
 
-@pytest.mark.usefixtures("restore_db_per_class")
+@pytest.mark.usefixtures("restore_db_per_class", "restore_redis_inmem_per_class")
 class TestGetResources:
     @pytest.mark.parametrize("path", config.ASSETS_DIR.glob("*.json"))
     def test_check_objects_integrity(self, path: Path):

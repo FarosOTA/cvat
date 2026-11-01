@@ -6,7 +6,7 @@
 import React from 'react';
 
 import { connect } from 'react-redux';
-import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
+import GlobalHotKeys, { Handlers, KeyMap } from 'utils/mousetrap-react';
 
 import ObjectsListComponent from 'components/annotation-page/standard-workspace/objects-side-bar/objects-list';
 import {
@@ -521,7 +521,7 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             objectState.lock = locked;
         }
 
-        updateAnnotations(filteredStates);
+        updateAnnotations(filteredStates, true);
     }
 
     private hideAllStates(hidden: boolean): void {
@@ -529,14 +529,14 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
         const { filteredStates } = this.state;
 
         if (editedState?.shapeType === ShapeType.MASK) {
-            changeHideEditedState(hidden);
+            changeHideEditedState(hidden, false);
         }
 
         for (const objectState of filteredStates) {
             objectState.hidden = hidden;
         }
 
-        updateAnnotations(filteredStates);
+        updateAnnotations(filteredStates, true);
     }
 
     private collapseAllStates(collapsed: boolean): void {
@@ -599,7 +599,7 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             return null;
         };
 
-        const handlers: Record<keyof typeof componentShortcuts, (event?: KeyboardEvent) => void> = {
+        const handlers: Record<keyof typeof componentShortcuts, Handlers[string]> = {
             SWITCH_ALL_LOCK: (event?: KeyboardEvent) => {
                 preventDefault(event);
                 this.lockAllStates(!statesLocked);
@@ -722,11 +722,15 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
                     updateAnnotations([state]);
                 }
             },
-            COPY_SHAPE: () => {
+            COPY_SHAPE: (_event: KeyboardEvent, combo: string) => {
+                if (['ctrl+c', 'command+c'].includes(combo) && window.getSelection()?.type === 'Range') {
+                    return true;
+                }
                 const state = activatedState(true);
                 if (state) {
                     copyShape(state);
                 }
+                return !state;
             },
             RUN_ANNOTATIONS_ACTION: () => {
                 const state = activatedState(true);

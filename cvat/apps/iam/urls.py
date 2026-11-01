@@ -14,6 +14,7 @@ from django.conf import settings
 from django.urls import path, re_path
 from django.urls.conf import include
 from django.utils.module_loading import import_string
+from django.views.generic import RedirectView
 
 from cvat.apps.iam.views import ConfirmEmailViewEx, LoginViewEx, RegisterViewEx, RulesView
 
@@ -22,6 +23,12 @@ BASIC_REGISTER_PATH_NAME = "rest_register"
 
 urlpatterns = [
     path("login", LoginViewEx.as_view(), name=BASIC_LOGIN_PATH_NAME),
+    # allauth resolves this when a pending email-verification login stage ends.
+    path(
+        "account-login",
+        RedirectView.as_view(url=f"{settings.UI_URL}/auth/login"),
+        name="account_login",
+    ),
     path("logout", LogoutView.as_view(), name="rest_logout"),
     path("rules", RulesView.as_view(), name="rules"),
 ]

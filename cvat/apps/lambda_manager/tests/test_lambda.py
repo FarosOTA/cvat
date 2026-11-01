@@ -636,6 +636,22 @@ class LambdaTestCases(_LambdaTestCaseBase):
         response = self._post_request(LAMBDA_REQUESTS_PATH, self.admin, data=data)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_api_v2_lambda_requests_reject_invalid_function_ids(self):
+        for function_id in [".", "..", "../functions", "foo/bar", "foo?bar", ".hidden"]:
+            with (
+                self.subTest(function_id=function_id),
+                mock.patch("cvat.apps.lambda_manager.views.LambdaGateway._http") as http,
+            ):
+                response = self._post_request(
+                    LAMBDA_REQUESTS_PATH,
+                    self.admin,
+                    data={"function": function_id, "task": self.main_task["id"]},
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn("Function ID is invalid", response.json())
+                http.assert_not_called()
+
     @skip("Fail: add mock")
     def test_api_v2_lambda_requests_create_two_requests(self):
         data = {

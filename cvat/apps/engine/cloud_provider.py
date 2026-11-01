@@ -365,6 +365,9 @@ class CloudStorageClient(ABC):
             for f in content:
                 f["name"] = f["name"][last_slash + 1 :]
 
+        # Empty directory markers must not invalidate an otherwise usable listing.
+        content = [item for item in content if item["name"]]
+
         if _use_sort:
             content = sorted(content, key=lambda x: x["type"])
 

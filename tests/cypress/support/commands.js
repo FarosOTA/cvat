@@ -659,7 +659,17 @@ Cypress.Commands.add('checkObjectParameters', (objectParameters, objectType) => 
             listCanvasShapeId.push(listCanvasShape[i].id.match(/\d+$/));
         }
         const maxId = Math.max(...listCanvasShapeId);
-        cy.get(`#cvat_canvas_shape_${maxId}`).should('be.visible');
+        cy.get(`#cvat_canvas_shape_${maxId}`).should('exist').then(($shape) => {
+            const shape = $shape[0];
+            // Cypress 14 considers zero-area SVG bounds hidden, even with a visible stroke.
+            if (shape.tagName.toLowerCase() === 'polyline') {
+                const { width, height } = shape.getBoundingClientRect();
+                if ((width === 0 && height !== 0) || (width !== 0 && height === 0)) {
+                    return;
+                }
+            }
+            cy.wrap($shape).should('be.visible');
+        });
         cy.get(`#cvat-objects-sidebar-state-item-${maxId}`)
             .should('contain', maxId)
             .and('contain', `${objectType} ${objectParameters.type.toUpperCase()}`)
@@ -1074,6 +1084,7 @@ Cypress.Commands.add('configureTaskQualityMode', (qualityConfigurationParams) =>
 });
 
 Cypress.Commands.add('removeAnnotations', () => {
+    cy.hideTooltips();
     cy.contains('.cvat-annotation-header-button', 'Menu').click();
     cy.get('.cvat-annotation-menu').within(() => {
         cy.contains('Remove annotations').click();

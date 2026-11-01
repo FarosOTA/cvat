@@ -9,6 +9,7 @@ import mimetypes
 import os
 import re
 import shutil
+import stat
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict, deque
 from collections.abc import Collection, Iterable
@@ -389,13 +390,17 @@ class _ExporterBase(metaclass=ABCMeta):
     @staticmethod
     def _write_files(source_dir, zip_object, files, target_dir):
         for filename in files:
-            arcname = os.path.normpath(
-                os.path.join(
-                    target_dir,
-                    os.path.relpath(filename, source_dir),
+            # Older tasks may contain irregular files uploaded before ArchiveReader filtered
+            # them out. Dereferencing symlinks can disclose outside files, while reading a
+            # named pipe can block indefinitely. Only back up regular files.
+            if stat.S_ISREG(os.lstat(filename).st_mode):
+                arcname = os.path.normpath(
+                    os.path.join(
+                        target_dir,
+                        os.path.relpath(filename, source_dir),
+                    )
                 )
-            )
-            zip_object.write(filename=filename, arcname=arcname)
+                zip_object.write(filename=filename, arcname=arcname)
 
     def _write_directory(
         self, source_dir, zip_object, target_dir, recursive=True, exclude_files=None

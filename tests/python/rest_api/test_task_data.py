@@ -1903,6 +1903,7 @@ class TestTaskData(TestTasksBase):
         assert partial_response.headers["Accept-Ranges"] == "bytes"
         assert partial_response.headers["Content-Range"] == f"bytes 0-99/{len(full_chunk)}"
         assert partial_response.headers["Content-Length"] == "100"
+        assert partial_response.headers["X-Chunk-Size"] == str(len(full_chunk))
         assert "X-Checksum" in partial_response.headers
         assert "X-Updated-Date" in partial_response.headers
 
@@ -1916,6 +1917,7 @@ class TestTaskData(TestTasksBase):
         assert open_ended_response.headers["Content-Range"] == (
             f"bytes {range_start}-{len(full_chunk) - 1}/{len(full_chunk)}"
         )
+        assert open_ended_response.headers["X-Chunk-Size"] == str(len(full_chunk))
 
         invalid_range_response = self._retrieve_data_with_range(
             api_client, resource, resource_id, range_header=f"bytes={len(full_chunk)}-", **params
@@ -1925,6 +1927,7 @@ class TestTaskData(TestTasksBase):
         assert invalid_range_response.data == b""
         assert invalid_range_response.headers["Accept-Ranges"] == "bytes"
         assert invalid_range_response.headers["Content-Range"] == f"bytes */{len(full_chunk)}"
+        assert invalid_range_response.headers["X-Chunk-Size"] == str(len(full_chunk))
 
         unsupported_unit_response = self._retrieve_data_with_range(
             api_client, resource, resource_id, range_header="items=0-99", **params
@@ -1933,6 +1936,7 @@ class TestTaskData(TestTasksBase):
         assert unsupported_unit_response.status == HTTPStatus.OK
         assert unsupported_unit_response.data == full_chunk
         assert unsupported_unit_response.headers["Accept-Ranges"] == "bytes"
+        assert unsupported_unit_response.headers["X-Chunk-Size"] == str(len(full_chunk))
         assert "Content-Range" not in unsupported_unit_response.headers
 
         malformed_range_response = self._retrieve_data_with_range(
@@ -1959,6 +1963,7 @@ class TestTaskData(TestTasksBase):
         assert gzip_range_response.status == HTTPStatus.PARTIAL_CONTENT
         assert response_data == full_chunk
         assert gzip_range_response.headers["Accept-Ranges"] == "bytes"
+        assert gzip_range_response.headers["X-Chunk-Size"] == str(len(full_chunk))
         assert gzip_range_response.headers["Content-Range"] == (
             f"bytes 0-{len(full_chunk) - 1}/{len(full_chunk)}"
         )
@@ -2030,6 +2035,7 @@ class TestTaskData(TestTasksBase):
             assert preview.status_code == HTTPStatus.OK
             assert preview.headers["Content-Type"] == "application/zip"
             assert preview.headers["Accept-Ranges"] == "bytes"
+            assert preview.headers["X-Chunk-Size"] == str(len(preview.content))
             assert preview.headers["X-Updated-Date"] == full_before.headers["X-Updated-Date"]
             assert preview.headers["X-Checksum"] != full_before.headers["X-Checksum"]
 

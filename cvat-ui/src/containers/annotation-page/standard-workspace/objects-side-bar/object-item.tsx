@@ -48,6 +48,7 @@ interface OwnProps {
 
 interface StateToProps {
     objectState: ObjectState;
+    editingStateID: number | null;
     labels: Label[];
     attributes: Attribute[];
     jobInstance: Job;
@@ -95,6 +96,7 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
                 frame: { number: frameNumber },
             },
             canvas: { instance: canvasInstance, ready, activeControl },
+            editing: { objectState: editingState },
             simplify: simplifyState,
         },
         settings: {
@@ -110,6 +112,7 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
 
     return {
         objectState: states[index],
+        editingStateID: editingState?.clientID ?? null,
         attributes: jobAttributes[states[index].label.id as number],
         labels,
         ready,
@@ -256,7 +259,7 @@ class ObjectItemContainer extends React.PureComponent<Props, State> {
 
     private edit = (): void => {
         const {
-            objectState, canvasInstance, updateActiveControl, redrawShape,
+            objectState, editingStateID, canvasInstance, updateActiveControl, redrawShape,
         } = this.props;
 
         if (canvasInstance instanceof Canvas && objectState.shapeType === ShapeType.RECTANGLE) {
@@ -267,7 +270,9 @@ class ObjectItemContainer extends React.PureComponent<Props, State> {
         if (canvasInstance instanceof Canvas &&
             [ShapeType.POLYGON, ShapeType.MASK].includes(objectState.shapeType)
         ) {
-            if (canvasInstance.mode() !== CanvasMode.IDLE) {
+            const mode = canvasInstance.mode();
+            const isEditingSameObject = mode === CanvasMode.EDIT && editingStateID === objectState.clientID;
+            if (mode !== CanvasMode.IDLE && !isEditingSameObject) {
                 canvasInstance.cancel();
             }
 

@@ -57,7 +57,7 @@ context('Retry chunk downloads on annotation page', () => {
             },
         }, (req) => {
             chunkRequests++;
-            expect(req.headers.range).to.equal('bytes=0-');
+            expect(req.headers.range).to.be.undefined;
 
             if (chunkRequests <= failedAttempts) {
                 req.reply({
@@ -74,7 +74,7 @@ context('Retry chunk downloads on annotation page', () => {
         for (let attempt = 0; attempt < failedAttempts; attempt++) {
             cy.wait('@getJobChunk').its('error').should('exist');
         }
-        cy.wait('@getJobChunk').its('response.statusCode').should('equal', 206);
+        cy.wait('@getJobChunk').its('response.statusCode').should('equal', 200);
 
         cy.get('.cvat-canvas-container').should('exist').and('be.visible');
         cy.get('#cvat_canvas_background').should('exist').and('be.visible');
@@ -98,7 +98,7 @@ context('Retry chunk downloads on annotation page', () => {
             chunkRequests++;
 
             if (chunkRequests === 1) {
-                expect(req.headers.range).to.equal('bytes=0-');
+                expect(req.headers.range).to.be.undefined;
                 req.continue((res) => {
                     const responseSize = res.body.byteLength ?? res.body.length;
                     truncatedSize = Math.floor(responseSize / 2);
@@ -120,7 +120,7 @@ context('Retry chunk downloads on annotation page', () => {
 
         cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
         cy.wait('@visitAnnotationView');
-        cy.wait('@getTruncatedJobChunk').its('response.statusCode').should('equal', 206);
+        cy.wait('@getTruncatedJobChunk').its('response.statusCode').should('equal', 200);
         cy.wait('@getTruncatedJobChunk').its('response.statusCode').should('equal', 206);
 
         cy.get('.cvat-canvas-container').should('exist').and('be.visible');
@@ -145,7 +145,7 @@ context('Retry chunk downloads on annotation page', () => {
             chunkRequests++;
 
             if (chunkRequests === 1) {
-                expect(req.headers.range).to.equal('bytes=0-');
+                expect(req.headers.range).to.be.undefined;
                 req.continue((res) => {
                     const responseSize = res.body.byteLength ?? res.body.length;
                     truncatedSize = Math.floor(responseSize / 2);
@@ -165,7 +165,7 @@ context('Retry chunk downloads on annotation page', () => {
                     res.headers['x-checksum'] = `${res.headers['x-checksum']}-changed`;
                 });
             } else {
-                expect(req.headers.range).to.equal('bytes=0-');
+                expect(req.headers.range).to.be.undefined;
                 req.continue();
             }
         }).as('getChangedJobChunk');
@@ -173,9 +173,9 @@ context('Retry chunk downloads on annotation page', () => {
 
         cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
         cy.wait('@visitAnnotationView');
+        cy.wait('@getChangedJobChunk').its('response.statusCode').should('equal', 200);
         cy.wait('@getChangedJobChunk').its('response.statusCode').should('equal', 206);
-        cy.wait('@getChangedJobChunk').its('response.statusCode').should('equal', 206);
-        cy.wait('@getChangedJobChunk').its('response.statusCode').should('equal', 206);
+        cy.wait('@getChangedJobChunk').its('response.statusCode').should('equal', 200);
 
         cy.get('.cvat-canvas-container').should('exist').and('be.visible');
         cy.get('#cvat_canvas_background').should('exist').and('be.visible');

@@ -10,10 +10,12 @@ from unittest import mock
 import django_rq
 from django.conf import settings
 from django_rq.queues import DjangoRQ
-from rq import Queue
+from fakeredis import FakeRedis
+from rest_framework.exceptions import NotFound
+from rq import Queue, SimpleWorker
 from rq.job import Dependency, Job, JobStatus
 
-from cvat.apps.engine.cache import Callback, enqueue_create_chunk_job
+from cvat.apps.engine.cache import Callback, enqueue_create_chunk_job, wait_for_rq_job
 from cvat.apps.engine.rq import define_dependent_job
 from cvat.apps.engine.tests.utils import clear_rq_jobs
 
@@ -22,6 +24,10 @@ DEFAULT_USER_ID = 1
 
 def dummy_task():
     return 2 + 2
+
+
+def missing_chunk_source():
+    raise NotFound("Cloud image is missing")
 
 
 def _dependency_should_be_none(dependency: Dependency | None):
@@ -48,6 +54,25 @@ def _set_rq_async_mode(is_async) -> None:
 
 
 class TestCreateChunkJob(unittest.TestCase):
+    def test_failed_chunk_exposes_original_error_before_global_handler(self):
+        connection = FakeRedis()
+        self.addCleanup(connection.close)
+        queue = Queue(settings.CVAT_QUEUES.CHUNKS.value, connection=connection)
+        job = enqueue_create_chunk_job(
+            queue, "missing-source", Callback(callable=missing_chunk_source)
+        )
+        worker = SimpleWorker([queue], connection=connection, prepare_for_work=False)
+
+        def read_failed_job(*args, **kwargs):
+            reader_job = Job.fetch(job.id, connection=connection)
+            self.assertTrue(reader_job.is_failed)
+            with self.assertRaises(NotFound) as caught:
+                wait_for_rq_job(reader_job)
+            self.assertEqual(str(caught.exception.detail), "Cloud image is missing")
+
+        with mock.patch.object(worker, "handle_exception", side_effect=read_failed_job):
+            self.assertFalse(worker.perform_job(job, queue))
+
     def test_replacement_survives_previous_result_expiry(self):
         queue = Queue(
             f"chunk-expiry-test-{uuid.uuid4().hex}",

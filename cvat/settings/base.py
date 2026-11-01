@@ -660,6 +660,9 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 
 CORS_EXPOSE_HEADERS = [
     "Content-Range",
+    "X-Checksum",
+    "X-Chunk-Size",
+    "X-Updated-Date",
 ]
 
 TUS_MAX_FILE_SIZE = 26843545600  # 25gb
@@ -756,6 +759,8 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": "/api",
     "SCHEMA_PATH_PREFIX_TRIM": False,
     "GENERIC_ADDITIONAL_PROPERTIES": None,
+    # Keep ReDoc compatible with drf-spectacular's generated page.
+    "REDOC_DIST": "https://cdn.jsdelivr.net/npm/redoc@2",
 }
 
 # set similar UI restrictions

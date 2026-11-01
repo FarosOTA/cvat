@@ -155,5 +155,71 @@ context('Redraw feature.', () => {
                 expect($sidebarItem.length).to.be.equal(5);
             });
         });
+
+        ['shortcut', 'Replace box'].forEach((entry) => {
+            it(`Restores a rectangle after canceling partial redraw via ${entry}.`, () => {
+                cy.removeAnnotations();
+                cy.createRectangle(createRectangleShape2Points);
+                cy.get('.cvat-canvas-container').trigger('mousemove', 200, 400);
+                cy.get('.cvat_canvas_shape').should('have.class', 'cvat_canvas_shape_activated');
+                cy.get('.cvat_canvas_shape').then(($shape) => {
+                    const original = ['x', 'y', 'width', 'height'].map((name) => $shape.attr(name));
+                    if (entry === 'shortcut') {
+                        cy.get('body').trigger('keydown', { keyCode: keyCodeN, code: 'KeyN', shiftKey: true });
+                    } else {
+                        cy.get('.cvat-objects-sidebar-state-item').first().invoke('attr', 'id').then((id) => {
+                            cy.interactAnnotationObjectMenu(`#${id}`, 'Replace box');
+                        });
+                    }
+                    cy.get('.cvat-canvas-container').click(150, 300);
+                    cy.get('body').type('{esc}');
+                    cy.get('.cvat_canvas_shape').should('have.length', 1).and('be.visible')
+                        .and('not.have.class', 'cvat_canvas_hidden').and(($restored) => {
+                            expect(['x', 'y', 'width', 'height'].map((name) => $restored.attr(name)))
+                                .to.deep.equal(original);
+                        });
+                });
+            });
+        });
+
+        it('Does not open a vertex context menu on rectangle transform handles.', () => {
+            cy.get('.cvat-canvas-container').trigger('mousemove', 200, 400);
+            cy.get('.svg_select_points').first().trigger('contextmenu', { button: 2, force: true });
+            cy.get('.cvat-canvas-context-menu').should('not.exist');
+            cy.get('.cvat-canvas-point-context-menu').should('not.exist');
+        });
+
+        it('Leaves native copy and editable shortcuts unconsumed.', () => {
+            cy.window().then((win) => {
+                const paragraph = win.document.createElement('p');
+                paragraph.textContent = 'Native selected text';
+                win.document.body.appendChild(paragraph);
+                const range = win.document.createRange();
+                range.selectNodeContents(paragraph);
+                win.getSelection().removeAllRanges();
+                win.getSelection().addRange(range);
+                const copy = new win.KeyboardEvent('keydown', {
+                    key: 'c', code: 'KeyC', keyCode: 67, ctrlKey: true, bubbles: true, cancelable: true,
+                });
+                paragraph.dispatchEvent(copy);
+                expect(copy.defaultPrevented).to.equal(false);
+                win.getSelection().removeAllRanges();
+                paragraph.remove();
+
+                ['input', 'textarea', 'select', 'div'].forEach((tag) => {
+                    const editable = win.document.createElement(tag);
+                    if (tag === 'div') editable.contentEditable = 'true';
+                    win.document.body.appendChild(editable);
+                    editable.focus();
+                    const event = new win.KeyboardEvent('keydown', {
+                        key: 'n', code: 'KeyN', keyCode: 78, bubbles: true, cancelable: true,
+                    });
+                    editable.dispatchEvent(event);
+                    expect(event.defaultPrevented, tag).to.equal(false);
+                    editable.remove();
+                });
+            });
+            cy.get('.cvat_canvas_shape_drawing').should('not.exist');
+        });
     });
 });

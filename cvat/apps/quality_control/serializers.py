@@ -423,11 +423,11 @@ class QualityRequirementSerializer(serializers.ModelSerializer):
         min_value=0,
         max_value=1,
         help_text=textwrap.dedent("""
-            Like IoU threshold, but for points.
-            The percent of the bbox side, used as the radius of the circle around the GT point,
-            where the checked point is expected to be. For boxes with different width and
-            height, the "side" is computed as a geometric mean of the width and height.
-            Read more: https://cocodataset.org/#keypoints-eval
+            The point "size" (the OKS sigma), as a fraction of the object size, defined by
+            the point size base. Corresponds to the standard deviation of the keypoint position.
+            Larger values give larger areas around the GT points, where the checked points
+            are accepted.
+            Read more about the point matching in the documentation.
             """).strip(),
     )
     match_orientation = serializers.BooleanField(
@@ -576,6 +576,27 @@ class QualityRequirementSerializer(serializers.ModelSerializer):
 
         return set(AttributeSpec.objects.filter(label_filter).values_list("id", flat=True))
 
+    @staticmethod
+    def get_attribute_comparison_spec_ids(
+        attribute_comparison: Mapping[str, Any] | None,
+    ) -> set[int]:
+        return {
+            int(rule["spec_id"])
+            for rule in (attribute_comparison or {}).get("rules", [])
+            if rule.get("spec_id") is not None
+        }
+
+    @classmethod
+    def _collect_used_attribute_spec_ids(cls, quality_settings: models.QualitySettings) -> set[int]:
+        return set().union(
+            *(
+                cls.get_attribute_comparison_spec_ids(attribute_comparison)
+                for attribute_comparison in quality_settings.requirements.values_list(
+                    "attribute_comparison", flat=True
+                )
+            )
+        )
+
     def _validate_attribute_comparison_spec_ids(
         self,
         attribute_comparison: Mapping[str, Any] | None,
@@ -584,11 +605,7 @@ class QualityRequirementSerializer(serializers.ModelSerializer):
         if not attribute_comparison:
             return
 
-        requested_spec_ids = {
-            int(rule["spec_id"])
-            for rule in attribute_comparison.get("rules", [])
-            if rule.get("spec_id") is not None
-        }
+        requested_spec_ids = self.get_attribute_comparison_spec_ids(attribute_comparison)
         if not requested_spec_ids:
             return
 
@@ -597,6 +614,14 @@ class QualityRequirementSerializer(serializers.ModelSerializer):
             return
 
         unknown_spec_ids = requested_spec_ids - allowed_spec_ids
+        if unknown_spec_ids:
+            # Preserve rules for attributes deleted after rule creation, including copies.
+            # Disabled rules are ignored; enabled ones make the requirement not computed.
+            known_used_attribute_ids = self.context.get("known_used_attribute_ids")
+            if known_used_attribute_ids is None:
+                known_used_attribute_ids = self._collect_used_attribute_spec_ids(quality_settings)
+            unknown_spec_ids.difference_update(known_used_attribute_ids)
+
         if unknown_spec_ids:
             raise serializers.ValidationError(
                 {
@@ -656,7 +681,12 @@ class QualityRequirementSerializer(serializers.ModelSerializer):
         extra_kwargs = {k: {"required": False} for k in fields}
 
         for field_name, help_text in {
-            "iou_threshold": "Used for distinction between matched / unmatched shapes",
+            "iou_threshold": """
+                The overlap threshold used for distinction between matched / unmatched objects.
+                The specific meaning can vary depending on the shape type:
+                for rectangles, polygons, ellipses, lines and masks it's the IoU threshold;
+                for points and skeletons, it's the OKS threshold.
+            """,
             "point_size_base": """
                 When comparing point annotations (including both separate points and point groups),
                 the point size parameter defines matching area for each GT point based to the
@@ -1192,6 +1222,7 @@ class QualitySettingsSerializer(WriteOnceMixin, serializers.ModelSerializer):
         settings: models.QualitySettings,
         data: dict,
         retained_requirement_ids: set[int],
+        known_used_attribute_ids: set[int] | None = None,
         instance: models.QualityRequirement | None = None,
     ) -> QualityRequirementSerializer:
         serializer_context = {
@@ -1199,6 +1230,7 @@ class QualitySettingsSerializer(WriteOnceMixin, serializers.ModelSerializer):
             "touch_settings": False,
             "retained_requirement_ids": retained_requirement_ids,
             "skip_requirement_limit_validation": True,
+            "known_used_attribute_ids": known_used_attribute_ids,
         }
         serializer_data = {
             **data,
@@ -1333,6 +1365,16 @@ class QualitySettingsSerializer(WriteOnceMixin, serializers.ModelSerializer):
                 {"requirements": "Base quality requirements cannot be deleted."}
             )
 
+        # Snapshot before updating/deleting requirements, so a stale rule can be moved
+        # or copied within this replacement request without accepting arbitrary ids.
+        known_used_attribute_ids = {
+            attribute_id
+            for requirement in existing_requirements.values()
+            for attribute_id in QualityRequirementSerializer.get_attribute_comparison_spec_ids(
+                requirement.attribute_comparison
+            )
+        }
+
         child_serializers: list[QualityRequirementSerializer] = []
         for index, requirement_data in enumerate(requirements_data):
             requirement_id = requirement_data.get("id")
@@ -1344,6 +1386,7 @@ class QualitySettingsSerializer(WriteOnceMixin, serializers.ModelSerializer):
                 settings=instance,
                 data=requirement_data,
                 retained_requirement_ids=retained_requirement_ids,
+                known_used_attribute_ids=known_used_attribute_ids,
                 instance=requirement_instance,
             )
             child_serializers.append(child_serializer)

@@ -29,6 +29,10 @@ export interface CanvasHint {
     icon?: 'info' | 'loading';
 }
 
+export enum CanvasHistorySource {
+    MASK = 'mask',
+}
+
 export interface RenderData {
     visibleSkeletonElements: Record<number, number[]>;
 }
@@ -854,13 +858,16 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
             throw Error('State must be specified when call edit() editing process');
         }
 
-        if (this.data.editData.enabled && editData.enabled &&
-            editData.state.clientID !== this.data.editData.state.clientID
-        ) {
-            throw Error('State cannot be updated during editing, need to finish current editing first');
-        }
-
         if (editData.enabled) {
+            const isSameObject = this.data.editData.enabled &&
+                editData.state.clientID === this.data.editData.state.clientID;
+            const hasUpdates = 'brushTool' in editData || 'onUpdateConfiguration' in editData || 'pointID' in editData;
+            if (isSameObject && !hasUpdates) {
+                return;
+            }
+            if (this.data.editData.enabled && !isSameObject) {
+                throw Error('State cannot be updated during editing, need to finish current editing first');
+            }
             this.data.editData = { ...editData };
         } else if (disableInternalSVGDrawing(editData, this.data.editData)) {
             this.notify(UpdateReasons.EDIT);

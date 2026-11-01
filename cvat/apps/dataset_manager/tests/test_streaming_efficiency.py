@@ -2,6 +2,7 @@ import os
 import tempfile
 from collections import namedtuple
 from collections.abc import Callable
+from pathlib import Path
 from unittest import TestCase, mock
 from unittest.mock import Mock
 
@@ -18,10 +19,12 @@ from cvat.apps.dataset_manager.annotation import AnnotationIR
 from cvat.apps.dataset_manager.bindings import (
     CommonData,
     CvatDataExtractor,
+    CvatImportError,
     JobData,
     ProjectData,
     TaskData,
     import_dm_annotations,
+    load_dataset_data,
 )
 from cvat.apps.dataset_manager.formats import registry
 from cvat.apps.dataset_manager.formats.registry import dm_env, importer
@@ -259,6 +262,83 @@ class TestExtractors(TestCase):
                     assert not any(annotations), annotations
 
 
+class TestDatasetMediaPaths(TestCase):
+    def setUp(self):
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        self.root = Path(temp_dir.name) / "dataset"
+        self.root.mkdir()
+        self.project_annotation = Mock()
+        self.project_annotation.db_project.label_set.count.return_value = 1
+
+    def _load_media(self, item_media):
+        subset = Mock(name="subset")
+        subset.as_dataset.return_value = [DatasetItem(id="item", media=item_media)]
+        dataset = Mock(data_path=str(self.root))
+        dataset.subsets.return_value = {"train": subset}
+        dataset.categories.return_value = {AnnotationType.label: Mock(items=[])}
+
+        with mock.patch(
+            "cvat.apps.dataset_manager.bindings.ImportRQMeta.for_job",
+            return_value=Mock(task_progress=0),
+        ):
+            load_dataset_data(self.project_annotation, dataset, Mock())
+
+    def test_accepts_nested_images(self):
+        image_path = self.root / "images" / "item.jpg"
+        image_path.parent.mkdir()
+        image_path.touch()
+
+        self._load_media(media.Image.from_file(str(image_path)))
+
+        dataset_files = self.project_annotation.add_task.call_args.args[1]
+        self.assertEqual(dataset_files["media"], [str(image_path)])
+        self.assertEqual(dataset_files["data_root"], str(image_path.parent) + os.sep)
+
+    def test_rejects_outside_images(self):
+        outside_path = self.root.parent / "outside.jpg"
+        outside_path.touch()
+        sibling_root = self.root.with_name("dataset-sibling")
+        sibling_root.mkdir()
+        sibling_image = sibling_root / "item.jpg"
+        sibling_image.touch()
+
+        for image_path in [outside_path, self.root / ".." / outside_path.name, sibling_image]:
+            with self.subTest(image_path=image_path):
+                with self.assertRaisesRegex(CvatImportError, "outside of the dataset root"):
+                    self._load_media(media.Image.from_file(str(image_path)))
+                self.project_annotation.add_task.assert_not_called()
+
+    def test_accepts_point_cloud_and_related_images(self):
+        cloud_path = self.root / "item.pcd"
+        image_path = self.root / "related.jpg"
+
+        self._load_media(
+            media.PointCloud.from_file(
+                str(cloud_path), extra_images=[media.Image.from_file(str(image_path))]
+            )
+        )
+
+        dataset_files = self.project_annotation.add_task.call_args.args[1]
+        self.assertEqual(dataset_files["media"], [str(cloud_path), str(image_path)])
+        self.assertEqual(dataset_files["data_root"], str(self.root) + os.sep)
+
+    def test_rejects_outside_point_cloud(self):
+        with self.assertRaisesRegex(CvatImportError, "outside of the dataset root"):
+            self._load_media(media.PointCloud.from_file(str(self.root.parent / "item.pcd")))
+        self.project_annotation.add_task.assert_not_called()
+
+    def test_rejects_outside_related_images(self):
+        with self.assertRaisesRegex(CvatImportError, "outside of the dataset root"):
+            self._load_media(
+                media.PointCloud.from_file(
+                    str(self.root / "item.pcd"),
+                    extra_images=[media.Image.from_file(str(self.root.parent / "outside.jpg"))],
+                )
+            )
+        self.project_annotation.add_task.assert_not_called()
+
+
 class TestImporters(ApiTestBase):
     @classmethod
     def setUpTestData(cls):
@@ -282,13 +362,11 @@ class TestImporters(ApiTestBase):
         assert len(jobs) == 1
         self.job_id = jobs[0]["id"]
 
-        self.dir_name = tempfile.TemporaryDirectory()
-        self.extractor = self._make_extractor(self.dir_name.name)
         self._make_importer()
+        self.ann_init_count: int
 
     def tearDown(self):
         del registry.IMPORT_FORMATS["dummy_format 1.0"]
-        self.dir_name.cleanup()
         super().tearDown()
 
     def _make_extractor(self, dir_name):
@@ -304,14 +382,16 @@ class TestImporters(ApiTestBase):
                 image.save(image_path)
                 dataset_items[subset].append((item_id, image_path))
 
+        test = self
+
         class DummyStreamingExtractor(DatasetBase):
             def __init__(self):
                 super().__init__(subsets=subsets)
-                self.ann_init_count = 0
+                test.ann_init_count = 0
 
             def _gen_anns(self):
-                assert self.ann_init_count < 6
-                self.ann_init_count += 1
+                assert test.ann_init_count < 6
+                test.ann_init_count += 1
                 return [Bbox(x=5, y=5, w=2, h=2, label=1)]
 
             def __iter__(self):
@@ -416,7 +496,7 @@ class TestImporters(ApiTestBase):
             import_kwargs: dict | None = None,
             **kwargs,
         ):
-            extractor = self.extractor
+            extractor = self._make_extractor(temp_dir)
 
             # import single subset to job and task
             if not isinstance(instance_data, ProjectData):
@@ -433,14 +513,14 @@ class TestImporters(ApiTestBase):
             fake_file_name = os.path.join(temp_dir, "fake.zip")
             open(fake_file_name, "w").close()
             import_job_annotations(fake_file_name, self.job_id, "dummy_format 1.0", True)
-            assert self.extractor.ann_init_count == 2
+            assert self.ann_init_count == 2
 
     def test_import_task_annotations_efficiency(self):
         with TmpDirManager.get_tmp_directory() as temp_dir:
             fake_file_name = os.path.join(temp_dir, "fake.zip")
             open(fake_file_name, "w").close()
             import_task_annotations(fake_file_name, self.task_id, "dummy_format 1.0", True)
-            assert self.extractor.ann_init_count == 2
+            assert self.ann_init_count == 2
 
     @mock.patch("rq.get_current_job")
     def test_import_project_annotations_efficiency(self, mock_current_job):
@@ -456,4 +536,4 @@ class TestImporters(ApiTestBase):
             fake_file_name = os.path.join(temp_dir, "fake.zip")
             open(fake_file_name, "w").close()
             import_dataset_as_project(fake_file_name, self.project_id, "dummy_format 1.0", True)
-            assert self.extractor.ann_init_count == 6
+            assert self.ann_init_count == 6

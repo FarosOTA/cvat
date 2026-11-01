@@ -133,6 +133,12 @@ context('Lock/hide features.', () => {
                     cy.get('.cvat-object-item-button-lock-enabled').should('exist');
                 });
             });
+            cy.contains('.cvat-annotation-header-button', 'Undo').click();
+            cy.get('.cvat-object-item-button-lock-enabled').should('not.exist');
+            cy.contains('.cvat-annotation-header-button', 'Redo').click();
+            cy.get('.cvat-objects-sidebar-state-item').each((item) => {
+                cy.get(item).find('.cvat-object-item-button-lock-enabled').should('exist');
+            });
         });
         it('Hide all the objects. Objects are still visible because they cannot be hidden while locked.', () => {
             cy.get('.cvat-objects-sidebar-states-header').within(() => {
@@ -164,6 +170,14 @@ context('Lock/hide features.', () => {
                         }
                     });
             });
+            cy.get('.cvat_canvas_shape').each((item) => {
+                cy.get(item).should('have.class', 'cvat_canvas_hidden');
+            });
+            cy.contains('.cvat-annotation-header-button', 'Undo').click();
+            cy.get('.cvat_canvas_shape').each((item) => {
+                cy.get(item).should('not.have.class', 'cvat_canvas_hidden');
+            });
+            cy.contains('.cvat-annotation-header-button', 'Redo').click();
             cy.get('.cvat_canvas_shape').each((item) => {
                 cy.get(item).should('have.class', 'cvat_canvas_hidden');
             });

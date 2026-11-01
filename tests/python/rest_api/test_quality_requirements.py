@@ -1664,6 +1664,131 @@ class TestQualityRequirementsApi(_QualityRequirementsTestBase):
 
 
 @pytest.mark.usefixtures("restore_db_per_function")
+class TestQualityRequirementsWithDeletedAttributes(_QualityRequirementsTestBase):
+    @pytest.fixture(autouse=True)
+    def setup_deleted_attribute(self, admin_user):
+        task_id, self.settings, attribute_ids = self._create_attribute_comparison_example_task(
+            admin_user, name="deleted-attribute-quality-requirements"
+        )
+        self.stale_rule = {"spec_id": attribute_ids["Car.size"], "enabled": True}
+        self.unknown_rule = {"spec_id": max(attribute_ids.values()) + 1000000, "enabled": True}
+        self.requirement, response = self._create_requirement(
+            admin_user,
+            self._build_requirement_payload(
+                "Stored attribute rule",
+                settings_id=self.settings["id"],
+                attribute_comparison={"rules": [self.stale_rule]},
+            ),
+        )
+        assert response.status_code == HTTPStatus.CREATED
+
+        labels = self._get_task_labels_by_name(admin_user, task_id=task_id)
+        deleted_attribute = next(
+            a.to_dict() for a in labels["car"].attributes if a.id == self.stale_rule["spec_id"]
+        )
+        response = patch_method(
+            admin_user,
+            f"labels/{labels['car'].id}",
+            {"attributes": [{**deleted_attribute, "deleted": True}]},
+        )
+        assert response.status_code == HTTPStatus.OK
+        self.settings = self._get_task_settings(admin_user, task_id=task_id)
+
+    @pytest.mark.parametrize("disable_rule", (False, True))
+    def test_can_disable_requirement_or_rule_after_attribute_deletion(
+        self, admin_user, disable_rule
+    ):
+        rule = {**self.stale_rule, "enabled": not disable_rule}
+        requirement, response = self._patch_requirement(
+            admin_user,
+            self.requirement["id"],
+            {"enabled": disable_rule, "attribute_comparison": {"rules": [rule]}},
+        )
+        assert response.status_code == HTTPStatus.OK
+        assert requirement["enabled"] == disable_rule
+        assert requirement["attribute_comparison"] == {"rules": [rule]}
+
+    def test_can_copy_requirement_after_attribute_deletion(self, admin_user):
+        requirement, response = self._create_requirement(
+            admin_user,
+            self._build_requirement_payload(
+                "Copied stale attribute rule",
+                settings_id=self.settings["id"],
+                attribute_comparison={"rules": [self.stale_rule]},
+            ),
+        )
+        assert response.status_code == HTTPStatus.CREATED
+        assert requirement["attribute_comparison"] == {"rules": [self.stale_rule]}
+
+    @pytest.mark.parametrize("source_action", ("keep", "clear", "delete"))
+    def test_bulk_settings_can_copy_previously_stored_stale_rule(self, admin_user, source_action):
+        requirements = self._retained_base_requirement_payloads(self.settings)
+        if source_action != "delete":
+            requirements.append(
+                {
+                    "id": self.requirement["id"],
+                    "enabled": False,
+                    "attribute_comparison": (
+                        None if source_action == "clear" else {"rules": [self.stale_rule]}
+                    ),
+                }
+            )
+        requirements.append(
+            self._build_requirement_payload(
+                "Bulk copied stale attribute rule",
+                attribute_comparison={"rules": [self.stale_rule]},
+            )
+        )
+        settings, response = self._patch_settings(
+            admin_user, self.settings["id"], {"requirements": requirements}
+        )
+        assert response.status_code == HTTPStatus.OK
+        copied = next(
+            r for r in settings["requirements"] if r["name"] == "Bulk copied stale attribute rule"
+        )
+        assert copied["attribute_comparison"] == {"rules": [self.stale_rule]}
+        if source_action == "delete":
+            assert all(r["id"] != self.requirement["id"] for r in settings["requirements"])
+
+    @pytest.mark.parametrize("operation", ("create", "update", "bulk"))
+    def test_unknown_attribute_is_not_allowed_alongside_stored_stale_rule(
+        self, admin_user, operation
+    ):
+        comparison = {"rules": [self.stale_rule, self.unknown_rule]}
+        if operation == "create":
+            data, response = self._create_requirement(
+                admin_user,
+                self._build_requirement_payload(
+                    "Unknown attribute rule",
+                    settings_id=self.settings["id"],
+                    attribute_comparison=comparison,
+                ),
+            )
+        elif operation == "update":
+            data, response = self._patch_requirement(
+                admin_user, self.requirement["id"], {"attribute_comparison": comparison}
+            )
+        else:
+            data, response = self._patch_settings(
+                admin_user,
+                self.settings["id"],
+                {
+                    "requirements": [
+                        *self._retained_base_requirement_payloads(self.settings),
+                        self._build_requirement_payload(
+                            "Unknown attribute rule", attribute_comparison=comparison
+                        ),
+                    ]
+                },
+            )
+        assert response.status_code == HTTPStatus.BAD_REQUEST
+        assert "Unknown attribute spec id(s)" in str(data)
+        # Failed bulk replacement must roll back any deletion of the original requirement.
+        _, response = self._retrieve_requirement(admin_user, self.requirement["id"])
+        assert response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.usefixtures("restore_db_per_function")
 class TestBaseQualityRequirementsApi(_QualityRequirementsTestBase):
     def test_new_task_gets_disabled_base_requirements_for_all_supported_types(self, admin_user):
         task_id, _ = create_task(

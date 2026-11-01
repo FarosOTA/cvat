@@ -437,6 +437,12 @@ export default function QualityRequirementForm(props: Readonly<QualityRequiremen
                         <>
                             <Col span={12}>
                                 {renderPercentInput(
+                                    // Points use the same field for the OKS matching threshold.
+                                    'iouThreshold', 'OKS threshold (%)', requirementDescriptions.iouThreshold,
+                                )}
+                            </Col>
+                            <Col span={12}>
+                                {renderPercentInput(
                                     'pointSize', 'Point size (%)', requirementDescriptions.pointSize,
                                 )}
                             </Col>

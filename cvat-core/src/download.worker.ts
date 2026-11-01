@@ -100,6 +100,19 @@ function parseContentRange(value: string | null): { start: number; total: number
     };
 }
 
+function getChunkSize(headers: Record<string, string>): number | null {
+    const value = headers['x-chunk-size'];
+    if (value === undefined) {
+        return null;
+    }
+
+    if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value))) {
+        throw new Error('Unexpected X-Chunk-Size header');
+    }
+
+    return Number(value);
+}
+
 function headersToObject(headers: Headers): Record<string, string> {
     return Object.fromEntries([...headers.entries()]);
 }
@@ -171,23 +184,25 @@ async function fetchData(url: string, requestConfig): Promise<{
     telemetry?: DownloadTelemetry;
 }> {
     const requestUrl = appendParams(url, requestConfig.params);
-    const chunks: Uint8Array[] = [];
+    let chunks: Uint8Array[] = [];
     let receivedBytes = 0;
+    let expectedSize: number | null = null;
     let chunkIdentity: ChunkIdentity | null = null;
     let requestCount = 0;
     let bodyDownloadTimeMs = 0;
 
     let retry = 0;
     while (retry <= MAX_NO_PROGRESS_RETRIES) {
+        const rangeRequested = receivedBytes > 0;
         let response: Response | null = null;
-        const receivedBytesBeforeRequest = receivedBytes;
+        let receivedBytesBeforeRequest = receivedBytes;
 
         requestCount++;
         try {
             const headers = new Headers(requestConfig.headers ?? {});
-            // Request the entire chunk as an open-ended range on the first attempt as well. This makes the server
-            // provide the full decoded chunk size in Content-Range independently of HTTP content encoding.
-            headers.set('Range', `bytes=${receivedBytes}-`);
+            if (rangeRequested) {
+                headers.set('Range', `bytes=${receivedBytes}-`);
+            }
 
             response = await fetch(requestUrl, { method: 'GET', credentials: 'include', headers });
             if (!response.ok) {
@@ -200,37 +215,47 @@ async function fetchData(url: string, requestConfig): Promise<{
                 throw new DownloadError(await response.text(), response.status);
             }
 
-            if (response.status !== 206) {
-                throw new Error(`Unexpected response status: ${response.status}`);
-            }
-
             const responseHeaders = headersToObject(response.headers);
-            const contentRange = parseContentRange(responseHeaders['content-range'] ?? null);
-            if (!contentRange || contentRange.start !== receivedBytes || contentRange.total === null) {
-                throw new Error('Unexpected Content-Range header');
-            }
-            const expectedSize = contentRange.total;
+            const responseIdentity = getChunkIdentity(responseHeaders);
+            let responseSize = getChunkSize(responseHeaders);
 
-            if (chunkIdentity) {
-                if (!isSameChunk(chunkIdentity, getChunkIdentity(responseHeaders))) {
+            if (response.status === 206 && rangeRequested) {
+                const contentRange = parseContentRange(responseHeaders['content-range'] ?? null);
+                if (!contentRange || contentRange.start !== receivedBytes) {
+                    throw new Error('Unexpected Content-Range header');
+                }
+
+                responseSize ??= contentRange.total;
+                if (chunkIdentity && !isSameChunk(chunkIdentity, responseIdentity)) {
                     // Start a new download immediately because partial data, retries,
                     // and timing belong to an old chunk.
                     await response.body?.cancel();
                     return fetchData(url, requestConfig);
                 }
+            } else if (response.status === 200) {
+                if (rangeRequested) {
+                    // Range was ignored: this representation starts at byte zero, not at our offset.
+                    chunks = [];
+                    receivedBytes = 0;
+                    receivedBytesBeforeRequest = 0;
+                    expectedSize = null;
+                }
             } else {
-                chunkIdentity = getChunkIdentity(responseHeaders);
+                throw new Error(`Unexpected response status: ${response.status}`);
             }
+
+            chunkIdentity = responseIdentity;
+            expectedSize = responseSize ?? expectedSize;
 
             const readResult = await readResponse(response, chunks, receivedBytes);
             receivedBytes = readResult.receivedBytes;
             bodyDownloadTimeMs += readResult.downloadTimeMs;
 
-            if (receivedBytes > expectedSize) {
+            if (expectedSize !== null && receivedBytes > expectedSize) {
                 throw new Error(`Received more bytes than expected: ${receivedBytes}/${expectedSize}`);
             }
 
-            if (receivedBytes < expectedSize) {
+            if (expectedSize !== null && receivedBytes < expectedSize) {
                 if (receivedBytes > receivedBytesBeforeRequest) {
                     retry = 0;
                     await sleep(getRetryDelay(response, retry));
@@ -246,10 +271,10 @@ async function fetchData(url: string, requestConfig): Promise<{
                 throw new Error(`Received fewer bytes than expected: ${receivedBytes}/${expectedSize}`);
             }
 
-            if (receivedBytes === expectedSize) {
+            if (expectedSize === null || receivedBytes === expectedSize) {
                 const telemetry = receivedBytes >= MIN_CHUNK_SIZE_FOR_TELEMETRY_BYTES ? {
                     chunkSizeBytes: receivedBytes,
-                    // Includes body reading across resumed requests because every received part belongs to the chunk.
+                    // Includes body reading across resumed and restarted requests.
                     downloadTimeMs: bodyDownloadTimeMs,
                     retries: requestCount - 1,
                 } : undefined;
@@ -258,7 +283,7 @@ async function fetchData(url: string, requestConfig): Promise<{
                     data: mergeChunks(chunks, receivedBytes),
                     headers: {
                         ...responseHeaders,
-                        'content-length': `${expectedSize}`,
+                        'content-length': `${receivedBytes}`,
                     },
                     telemetry,
                 };
