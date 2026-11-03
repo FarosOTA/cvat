@@ -262,6 +262,48 @@ test('compressed playback does not block a ready image behind a pending chunk', 
     }
 });
 
+test('a slow lookaround transfer does not hold the other prefetch slot idle', async () => {
+    for (const direction of [1, -1]) {
+        const session = createSession();
+        let release;
+        let active = 0;
+        let peak = 0;
+        const buffer = new session.ImageFrameBuffer({
+            frames: Array.from({ length: 160 }, (_, i) => i), chunkSize: 8,
+            chunkLimit: 7, encodedBytes: 700, decodedBytes: 128 * 1024 * 1024,
+            getChunk: async (index, signal) => {
+                active++;
+                peak = Math.max(peak, active);
+                try {
+                    if (index === 10 - direction) {
+                        await new Promise((resolve, reject) => {
+                            release = resolve;
+                            signal.addEventListener('abort', () => reject(new DOMException('Cancelled', 'AbortError')));
+                        });
+                    }
+                    return new ArrayBuffer(100);
+                } finally { active--; }
+            },
+        });
+        try {
+            await buffer.frame(81);
+            if (direction === -1) await buffer.frame(80);
+            await settle();
+            assert.ok(buffer.cachedChunks().includes(10 + direction));
+            assert.ok(buffer.cachedChunks().includes(10 + 2 * direction),
+                'continue filling beyond the completed neighbor while the opposite transfer is pending');
+            assert.ok(peak <= 2, 'rolling prefetch must still limit concurrent transfers to two');
+            release();
+            await settle();
+            assert.deepEqual(Array.from(buffer.cachedChunks()), [7, 8, 9, 10, 11, 12, 13]);
+        } finally {
+            buffer.close();
+            release?.();
+            session.clear(1);
+        }
+    }
+});
+
 test('playback prefetches after a cold load, including one-frame chunks', async () => {
     const session = createSession({ size: 120 });
     try {

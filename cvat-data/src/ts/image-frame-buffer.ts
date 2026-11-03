@@ -139,10 +139,11 @@ export default class ImageFrameBuffer {
             while (this.active && !this.closed) {
                 const order = this.window();
                 // Two transfers overlap generation with delivery without starting
-                // an unbounded queue of speculative work on the server.
+                // an unbounded queue of speculative work on the server. Reuse
+                // either slot as soon as it finishes, even if the other is slow.
                 const next = order.filter((chunk) => (
-                    !this.encoded.has(chunk) && !this.oversized.has(chunk)
-                )).slice(0, 2);
+                    !this.encoded.has(chunk) && !this.oversized.has(chunk) && !this.downloads.has(chunk)
+                )).slice(0, Math.max(0, 2 - this.downloads.size));
                 const bytes = [...this.encoded.values()].reduce((total, size) => total + size, 0);
                 // Do not repeatedly download an outer chunk that cannot fit. A
                 // newly selected/nearer chunk may still replace a distant one.
@@ -150,10 +151,12 @@ export default class ImageFrameBuffer {
                 const farthest = Math.max(...[...this.encoded.keys()].map((chunk) => order.indexOf(chunk)));
                 while (next.length && bytes + average * next.length > this.options.encodedBytes &&
                     order.indexOf(next[next.length - 1]) > farthest) next.pop();
-                if (!next.length) break;
-                await Promise.all(next.map((chunk) => this.download(chunk)));
+                const pending = [...this.downloads].map(([chunk, { promise }]) => promise.then(() => chunk));
+                pending.push(...next.map((chunk) => this.download(chunk).then(() => chunk)));
+                if (!pending.length) break;
+                const completed = await Promise.race(pending);
                 this.warmNext();
-                if (next.some((chunk) => !this.encoded.has(chunk))) break;
+                if (!this.encoded.has(completed)) break;
             }
         } catch {
             // Speculation is optional. The next foreground read can retry it.
