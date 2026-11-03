@@ -43,6 +43,7 @@ from cvat.apps.engine.media_extractors import (
     VideoReader,
     VideoReaderWithManifest,
     ZipCompressedChunkWriter,
+    has_exif_rotation,
     load_image,
 )
 from cvat.apps.engine.rq import RQMetaWithFailureInfo, save_job_failure_metadata
@@ -65,6 +66,36 @@ _CacheItem: TypeAlias = tuple[io.BytesIO, str, int, datetime | None]
 _RQ_JOB_ORIGIN_ATTRIBUTE = "origin"
 
 ASSETS_DIR = Path(__file__).parent / "assets"
+
+
+class _PlaybackChunkWriter(ZipCompressedChunkWriter):
+    @staticmethod
+    def _compress_image(
+        source_image: av.VideoFrame | io.IOBase | PIL.Image.Image, quality: int
+    ) -> io.BytesIO:
+        # The normal writer optimizes JPEG Huffman tables. Playback favors cold
+        # generation speed over the additional byte saving from that pass.
+        with ExitStack() as stack:
+            if isinstance(source_image, av.VideoFrame):
+                image = stack.enter_context(source_image.to_image())
+            elif isinstance(source_image, io.IOBase):
+                image, _ = load_image((source_image, None))
+                stack.callback(image.close)
+            else:
+                image = source_image
+
+            if image.mode in ("I", "I;16"):
+                # Preserve the upstream high-bit-depth normalization semantics.
+                return ZipCompressedChunkWriter._compress_image(image, quality)
+            if has_exif_rotation(image):
+                image = stack.enter_context(PIL.ImageOps.exif_transpose(image))
+            if image.mode not in ("RGB", "L"):
+                image = stack.enter_context(image.convert("RGB"))
+
+            output = io.BytesIO()
+            image.save(output, format="JPEG", quality=quality, optimize=False)
+            output.seek(0)
+            return output
 
 
 class CacheTooLargeDataError(Exception):
@@ -253,7 +284,7 @@ class MediaCache:
         key: str,
         create_callback: Callback,
         cache_item_ttl: int | None = None,
-    ) -> DataWithMime:
+    ) -> _CacheItem:
         timestamp = django_tz.now()
         item_data = create_callback()
         item_data_bytes = item_data[0].getvalue()
@@ -284,14 +315,14 @@ class MediaCache:
                         f"Chunk data size {item_size} exceeds the maximum allowed size "
                         f"{settings.CVAT_CACHE_ITEM_MAX_SIZE}."
                     )
-                cache.set(key, item, timeout=cache_item_ttl or cache.default_timeout)
-
-                cache_item_created_signal.send(
-                    sender=cls,
-                    item_key=key,
-                    item_data_size=item_size,
-                    rq_queue=_get_current_rq_queue_name(),
-                )
+                retained = cache.set(key, item, timeout=cache_item_ttl or cache.default_timeout)
+                if retained is not False:
+                    cache_item_created_signal.send(
+                        sender=cls,
+                        item_key=key,
+                        item_data_size=item_size,
+                        rq_queue=_get_current_rq_queue_name(),
+                    )
 
         return item
 
@@ -327,6 +358,14 @@ class MediaCache:
             )
             wait_for_rq_job(rq_job)
             item = self._get_cache_item(key)
+            if item is None:
+                # A bounded cache can evict the result before we read it, or
+                # decline retention altogether. Do not enqueue/retry forever or
+                # put large media results in RQ's persistent in-memory Redis.
+                # Generate once here and return the bytes irrespective of SET.
+                item = self._create_and_set_cache_item(
+                    key, create_callback, cache_item_ttl=cache_item_ttl
+                )
 
         slogger.glob.info(f"Ending to prepare chunk: key {key}")
 
@@ -533,6 +572,100 @@ class MediaCache:
                     },
                 ),
             )
+        )
+
+    def get_or_set_job_playback_chunk(
+        self,
+        db_job: models.Job,
+        chunk_number: int,
+        *,
+        is_task_chunk: bool = False,
+        image_quality: int = 50,
+    ) -> DataWithMime:
+        from cvat.apps.engine.media_io.frame_provider import JobFrameProvider, TaskFrameProvider
+
+        db_segment = db_job.segment
+        db_task = db_segment.task
+        if (
+            db_task.dimension != models.DimensionType.DIM_2D
+            or db_task.media_type != models.MediaType.IMAGE
+            or db_task.mode != models.TaskMode.ANNOTATION
+            or db_task.data.compressed_chunk_type != models.DataChoice.IMAGESET
+        ):
+            raise ValidationError("Playback chunks are only available for 2D image ZIP data")
+        if type(image_quality) is not int or not 10 <= image_quality <= 90:
+            raise ValidationError("Image quality must be an integer in the [10, 90] range")
+
+        provider = JobFrameProvider(db_job)
+        if is_task_chunk:
+            task_provider = TaskFrameProvider(db_task)
+            first = task_provider.get_chunk_number(db_segment.start_frame)
+            last = task_provider.get_chunk_number(db_segment.stop_frame)
+            if not first <= chunk_number <= last:
+                raise ValidationError(
+                    f"Invalid chunk number '{chunk_number}'. "
+                    f"The chunk number should be in the [{first}, {last}] range"
+                )
+        else:
+            provider.validate_chunk_number(chunk_number)
+
+        generation = db_segment.chunks_updated_date.isoformat()
+        key = (
+            f"{self._make_cache_key_prefix(db_job)}_playback_chunk_"
+            f"jpeg-full-fast-v1_q{image_quality}_{generation}_{int(is_task_chunk)}_{chunk_number}"
+        )
+        item = self._get_or_set_cache_item(
+            key,
+            Callback(
+                callable=self.prepare_job_playback_chunk,
+                args=[db_job, chunk_number],
+                kwargs={"is_task_chunk": is_task_chunk, "image_quality": image_quality},
+            ),
+        )
+        db_segment.refresh_from_db(fields=["chunks_updated_date"])
+        return self._to_data_with_mime(
+            self._validate_cache_item_timestamp(item, db_segment.chunks_updated_date)
+        )
+
+    def prepare_job_playback_chunk(
+        self,
+        db_job: models.Job | int,
+        chunk_number: int,
+        *,
+        is_task_chunk: bool = False,
+        image_quality: int = 50,
+    ) -> DataWithMime:
+        if isinstance(db_job, int):
+            db_job = models.Job.objects.select_related("segment__task__data").get(pk=db_job)
+
+        db_segment = db_job.segment
+        db_task = db_segment.task
+        db_data = db_task.require_data()
+        if is_task_chunk:
+            # Match JobFrameProvider's legacy task-number mapping, including
+            # placeholders for selective jobs. Never construct source paths here.
+            step = db_data.get_frame_step()
+            start = db_data.start_frame + chunk_number * db_data.chunk_size * step
+            stop = min(start + db_data.chunk_size * step, db_data.stop_frame + step)
+            frame_ids = sorted(set(range(start, stop, step)).intersection(db_segment.frame_set))
+        else:
+            start = chunk_number * db_data.chunk_size
+            frame_ids = sorted(db_segment.frame_set)[start : start + db_data.chunk_size]
+
+        if db_segment.type == models.SegmentType.SPECIFIC_FRAMES:
+            return self.prepare_custom_masked_range_segment_chunk(
+                db_task,
+                frame_ids,
+                chunk_number,
+                quality=models.FrameQuality.COMPRESSED,
+                insert_placeholders=is_task_chunk,
+                image_quality=image_quality,
+            )
+        return self.prepare_custom_range_segment_chunk(
+            db_task,
+            frame_ids,
+            quality=models.FrameQuality.COMPRESSED,
+            image_quality=image_quality,
         )
 
     def get_or_set_job_preview_chunk(
@@ -950,8 +1083,17 @@ class MediaCache:
         *,
         quality: models.FrameQuality,
         cache: MediaCache | None = None,
+        image_quality: int | None = None,
     ) -> DataWithMime:
         # TODO: refactor all chunk building into another class
+
+        if image_quality is not None:
+            writer = _PlaybackChunkWriter(quality=image_quality, dimension=db_task.dimension)
+            output = io.BytesIO()
+            with closing(cls._read_raw_frames(db_task, frame_ids=frame_ids)) as frame_iter:
+                writer.save_as_chunk(frame_iter, output)
+            output.seek(0)
+            return output, writer.CHUNK_MIME_TYPE
 
         match db_task.media_type:
             case models.MediaType.AUDIO:
@@ -999,6 +1141,7 @@ class MediaCache:
         *,
         quality: models.FrameQuality,
         insert_placeholders: bool = False,
+        image_quality: int | None = None,
     ) -> DataWithMime:
         if isinstance(db_task, int):
             db_task = models.Task.objects.get(pk=db_task)
@@ -1007,8 +1150,15 @@ class MediaCache:
 
         frame_step = db_data.get_frame_step()
 
-        image_quality = 100 if quality == models.FrameQuality.ORIGINAL else db_data.image_quality
-        writer = ZipCompressedChunkWriter(quality=image_quality, dimension=db_task.dimension)
+        writer_quality = image_quality
+        if writer_quality is None:
+            writer_quality = (
+                100 if quality == models.FrameQuality.ORIGINAL else db_data.image_quality
+            )
+        writer_class = (
+            _PlaybackChunkWriter if image_quality is not None else ZipCompressedChunkWriter
+        )
+        writer = writer_class(quality=writer_quality, dimension=db_task.dimension)
 
         dummy_frame = io.BytesIO()
         PIL.Image.new("RGB", (1, 1)).save(dummy_frame, writer.IMAGE_EXT)
@@ -1022,7 +1172,7 @@ class MediaCache:
         task_frame_provider = make_frame_provider(db_task)
 
         use_cached_data = False
-        if db_task.mode != models.TaskMode.INTERPOLATION:
+        if image_quality is None and db_task.mode != models.TaskMode.INTERPOLATION:
             required_frame_set = set(frame_ids)
             available_chunks = []
             for db_segment in db_task.segment_set.filter(type=models.SegmentType.RANGE).all():

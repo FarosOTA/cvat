@@ -28,20 +28,45 @@ function response(bytes, { status = 200, size = 7, checksum = 'original', header
     });
 }
 
-async function download(fetch, type = 'chunk') {
+async function download(fetch, type = 'chunk', config = {}, onStart = () => {}) {
     let finish;
     const result = new Promise((resolve) => { finish = resolve; });
     const worker = {
-        URL, Headers, performance, fetch, self: { location: { origin: 'http://localhost' } },
+        onmessage: null,
+        URL, Headers, performance, fetch, AbortController, DOMException,
+        self: { location: { origin: 'http://localhost' } },
         setTimeout: (callback) => queueMicrotask(callback),
+        clearTimeout,
         postMessage: finish,
     };
     vm.runInNewContext(code, worker, { filename });
-    worker.onmessage({ data: { id: 42, url: '/api/jobs/1/data', config: { params: { type } } } });
+    worker.onmessage({ data: { id: 42, url: '/api/jobs/1/data', config: { params: { type }, ...config } } });
+    onStart(worker);
     return result;
 }
 
 const bytes = [9, 2, 7, 4, 1, 8, 3];
+
+test('aborting a foreground download cancels fetch without retrying', async () => {
+    let attempts = 0;
+    const result = await download(async (_, { signal }) => {
+        attempts++;
+        return new Promise((resolve, reject) => {
+            signal.addEventListener('abort', () => reject(new DOMException('Cancelled', 'AbortError')));
+        });
+    }, 'playback_chunk', {}, (worker) => worker.onmessage({ data: { action: 'abort', id: 42 } }));
+    assert.equal(attempts, 1);
+    assert.equal(result.isSuccess, false);
+    assert.match(result.message, /cancelled/i);
+});
+
+test('oversize chunks are rejected before retaining their body, including missing size headers', async () => {
+    for (const size of [bytes.length, null]) {
+        const result = await download(async () => response(bytes, { size }), 'playback_chunk', { maxContentLength: 4 });
+        assert.equal(result.isSuccess, false);
+        assert.equal(result.code, 413);
+    }
+});
 
 test('initial full responses work with and without decoded-size metadata', async () => {
     for (const size of [bytes.length, null]) {

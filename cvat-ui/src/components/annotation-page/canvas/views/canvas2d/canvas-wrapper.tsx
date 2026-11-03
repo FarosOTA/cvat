@@ -108,7 +108,7 @@ interface StateToProps {
     contrastLevel: number;
     saturationLevel: number;
     resetZoom: boolean;
-    reducedResolution: boolean;
+    bandwidthSavingPlayback: boolean;
     smoothImage: boolean;
     focusedObjectPadding: number;
     showObjectsTextAlways: boolean;
@@ -208,7 +208,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 contrastLevel,
                 saturationLevel,
                 resetZoom,
-                reducedResolution,
+                bandwidthSavingPlayback,
                 smoothImage,
             },
             workspace: {
@@ -268,7 +268,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         contrastLevel: contrastLevel / 100,
         saturationLevel: saturationLevel / 100,
         resetZoom,
-        reducedResolution,
+        bandwidthSavingPlayback,
         smoothImage,
         focusedObjectPadding,
         showObjectsTextAlways,
@@ -441,6 +441,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     private debouncedUpdate = debounce(this.updateCanvas.bind(this), 250, { leading: true });
     private canvasTipsRef = React.createRef<CanvasTipsComponent>();
     private unmounted = false;
+    private refinedFrame: Props['frameData'] = null;
 
     public componentDidMount(): void {
         const {
@@ -552,10 +553,11 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
 
         if (prevProps.frameData !== frameData || prevProps.imageFilters !== imageFilters ||
-            prevProps.reducedResolution !== this.props.reducedResolution ||
+            prevProps.bandwidthSavingPlayback !== this.props.bandwidthSavingPlayback ||
             (!prevProps.playing && this.props.playing)
         ) {
             prevProps.frameData?.cancelRefinement();
+            this.refinedFrame = null;
         }
 
         if (
@@ -668,7 +670,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         }
 
         const playbackStopped = prevProps.playing && !this.props.playing;
-        const qualityChanged = prevProps.reducedResolution !== this.props.reducedResolution;
+        const qualityChanged = prevProps.bandwidthSavingPlayback !== this.props.bandwidthSavingPlayback;
         if (playbackStopped || qualityChanged) {
             // Replace the playback preview with the existing annotation-quality image.
             canvasInstance.configure({ forceFrameUpdate: true });
@@ -890,6 +892,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
 
     private onCanvasMouseDown = (e: MouseEvent): void => {
         const { workspace, activatedStateID, onActivateObject } = this.props;
+        this.refineFrame();
 
         if ((e.target as HTMLElement).tagName === 'svg' && e.button !== 2) {
             // Native double-click selection can escape from the SVG canvas to nearby UI text.
@@ -938,6 +941,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     private onCanvasZoomChanged = (): void => {
         const { jobInstance } = this.props;
         jobInstance.logger.log(EventScope.zoomImage);
+        this.refineFrame();
     };
 
     private onCanvasShapeClicked = (e: any): void => {
@@ -983,6 +987,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
 
     private onCanvasEditStart = (event: any): void => {
         const { updateActiveControl, onUpdateEditedObject } = this.props;
+        this.refineFrame();
         updateActiveControl(ActiveControl.EDIT);
         onUpdateEditedObject(event.detail.state);
     };
@@ -1118,10 +1123,31 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         }
     }
 
+    private refineFrame(): void {
+        const {
+            frameData, playing, bandwidthSavingPlayback, imageFilters, jobInstance,
+        } = this.props;
+        if (!frameData || playing || !bandwidthSavingPlayback || imageFilters.length ||
+            jobInstance.dataChunkType !== 'imageset' || this.refinedFrame === frameData) return;
+        const stillRelevant = (): boolean => !this.unmounted && this.props.frameData === frameData &&
+            !this.props.playing && this.props.bandwidthSavingPlayback && this.props.imageFilters === imageFilters;
+        frameData.data(undefined, 'frame').then(() => {
+            if (stillRelevant() && this.refinedFrame !== frameData) {
+                this.refinedFrame = frameData;
+                const { canvasInstance } = this.props as { canvasInstance: Canvas };
+                // Render with current annotations, not a snapshot from before the download.
+                canvasInstance.configure({ forceFrameUpdate: true });
+                this.updateCanvas(true);
+            }
+        }).catch((error) => {
+            if (stillRelevant()) this.props.onGetDataFailed(error);
+        });
+    }
+
     private updateCanvas(fullQuality = false): void {
         const {
             hiddenZLayers, annotations, frameData,
-            workspace, frame, imageFilters, renderData, playing, jobInstance, reducedResolution,
+            workspace, frame, imageFilters, renderData, playing, jobInstance, bandwidthSavingPlayback,
         } = this.props;
 
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
@@ -1136,30 +1162,16 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                     if (prop === 'data') {
                         return async (...args: any[]) => {
                             // Pixel-processing tools need the annotation-quality bitmap.
-                            const progressive = reducedResolution && !imageFilters.length &&
+                            const progressive = bandwidthSavingPlayback && !imageFilters.length &&
                                 jobInstance.dataChunkType === 'imageset';
                             let representation: boolean | 'frame' | 'buffered' = playing ? false : 'buffered';
                             if (progressive) representation = fullQuality ? 'frame' : true;
                             const originalImage = await _frameData.data(args[0], representation);
                             if (progressive && !playing && !fullQuality) {
-                                const stillRelevant = (): boolean => !this.unmounted &&
-                                    this.props.frameData === _frameData && !this.props.playing &&
-                                    this.props.reducedResolution === reducedResolution &&
-                                    this.props.imageFilters === imageFilters;
                                 // Brief navigation stops must not start detail downloads
                                 // that compete with playback immediately afterwards.
                                 setTimeout(() => {
-                                    if (!stillRelevant()) return;
-                                    _frameData.data(undefined, 'frame')
-                                        .then((refinedImage) => {
-                                            if (stillRelevant() && refinedImage.imageData !== originalImage.imageData) {
-                                                // Preserve annotation edits made while loading.
-                                                canvasInstance.configure({ forceFrameUpdate: true });
-                                                this.updateCanvas(true);
-                                            }
-                                        }).catch((error) => {
-                                            if (stillRelevant()) this.props.onGetDataFailed(error);
-                                        });
+                                    if (this.props.frameData === _frameData) this.refineFrame();
                                 }, 250);
                             }
                             const imageIsNotProcessed = imageFilters.some((imageFilter: ImageFilter) => (
@@ -1356,7 +1368,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 <CanvasTipsComponent ref={this.canvasTipsRef} />
                 {
                     !canvasIsReady && (
-                        <div className='cvat-spinner-container'>
+                        <div className='cvat-spinner-container cvat-canvas-loading'>
                             <Spin className='cvat-spinner' />
                         </div>
                     )

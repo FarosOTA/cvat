@@ -631,15 +631,26 @@ CVAT_CHUNK_CACHE_TTL = 3600 * 24  # 1 day
 # Sets the timeout for the expiration of preview image in redis_ondisk
 CVAT_PREVIEW_CACHE_TTL = 3600 * 24 * 7  # 7 days
 
+# Logical serialized-value budget, not a RocksDB filesystem limit. See
+# site/content/en/docs/administration/bounded-media-cache.md before deployment.
+CVAT_MEDIA_CACHE_BUDGET_BYTES = int(os.getenv("CVAT_MEDIA_CACHE_BUDGET_BYTES", 16 * 1024**3))
+CVAT_MEDIA_CACHE_SLOT_BYTES = int(os.getenv("CVAT_MEDIA_CACHE_SLOT_BYTES", 64 * 1024**2))
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": f"redis://:{urllib.parse.quote(redis_inmem_password)}@{redis_inmem_host}:{redis_inmem_port}/{REDIS_INMEM_DATABASES.CACHE}",
     },
     "media": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "BACKEND": "cvat.apps.engine.media_cache.BoundedMediaCache",
         "LOCATION": f"redis://:{urllib.parse.quote(redis_ondisk_password)}@{redis_ondisk_host}:{redis_ondisk_port}",
         "TIMEOUT": CVAT_CHUNK_CACHE_TTL,
+        "OPTIONS": {
+            "budget_bytes": CVAT_MEDIA_CACHE_BUDGET_BYTES,
+            "slot_bytes": CVAT_MEDIA_CACHE_SLOT_BYTES,
+            "socket_connect_timeout": 2,
+            "socket_timeout": 5,
+        },
     },
 }
 

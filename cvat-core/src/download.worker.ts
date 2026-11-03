@@ -41,9 +41,20 @@ interface DownloadTelemetry {
     retries: number;
 }
 
-function sleep(timeout: number): Promise<void> {
-    return new Promise((resolve) => {
-        setTimeout(resolve, timeout);
+function sleep(timeout: number, signal: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        let timer: ReturnType<typeof setTimeout>;
+        const abort = (): void => {
+            clearTimeout(timer);
+            signal.removeEventListener('abort', abort);
+            reject(new DOMException('Download cancelled', 'AbortError'));
+        };
+        timer = setTimeout(() => {
+            signal.removeEventListener('abort', abort);
+            resolve();
+        }, timeout);
+        signal.addEventListener('abort', abort, { once: true });
+        if (signal.aborted) abort();
     });
 }
 
@@ -147,6 +158,7 @@ async function readResponse(
     response: Response,
     chunks: Uint8Array[],
     receivedBytes: number,
+    maxContentLength: number,
 ): Promise<{ receivedBytes: number; downloadTimeMs: number }> {
     // fetch() has already resolved, so this timer excludes server-side chunk preparation.
     const downloadStartedAt = performance.now();
@@ -173,12 +185,16 @@ async function readResponse(
             };
         }
 
-        chunks.push(value);
         nextReceivedBytes += value.byteLength;
+        if (nextReceivedBytes > maxContentLength) {
+            await reader.cancel();
+            throw new DownloadError('Image chunk exceeds the compressed buffer budget', 413);
+        }
+        chunks.push(value);
     }
 }
 
-async function fetchData(url: string, requestConfig): Promise<{
+async function fetchData(url: string, requestConfig, signal: AbortSignal): Promise<{
     data: ArrayBuffer;
     headers: Record<string, string>;
     telemetry?: DownloadTelemetry;
@@ -204,10 +220,12 @@ async function fetchData(url: string, requestConfig): Promise<{
                 headers.set('Range', `bytes=${receivedBytes}-`);
             }
 
-            response = await fetch(requestUrl, { method: 'GET', credentials: 'include', headers });
+            response = await fetch(requestUrl, {
+                method: 'GET', credentials: 'include', headers, signal,
+            });
             if (!response.ok) {
                 if (retry < MAX_NO_PROGRESS_RETRIES && shouldRetry(response)) {
-                    await sleep(getRetryDelay(response, retry));
+                    await sleep(getRetryDelay(response, retry), signal);
                     retry++;
                     continue;
                 }
@@ -230,7 +248,7 @@ async function fetchData(url: string, requestConfig): Promise<{
                     // Start a new download immediately because partial data, retries,
                     // and timing belong to an old chunk.
                     await response.body?.cancel();
-                    return fetchData(url, requestConfig);
+                    return fetchData(url, requestConfig, signal);
                 }
             } else if (response.status === 200) {
                 if (rangeRequested) {
@@ -247,7 +265,12 @@ async function fetchData(url: string, requestConfig): Promise<{
             chunkIdentity = responseIdentity;
             expectedSize = responseSize ?? expectedSize;
 
-            const readResult = await readResponse(response, chunks, receivedBytes);
+            const maxContentLength = requestConfig.maxContentLength ?? Infinity;
+            if (expectedSize !== null && expectedSize > maxContentLength) {
+                await response.body?.cancel();
+                throw new DownloadError('Image chunk exceeds the compressed buffer budget', 413);
+            }
+            const readResult = await readResponse(response, chunks, receivedBytes, maxContentLength);
             receivedBytes = readResult.receivedBytes;
             bodyDownloadTimeMs += readResult.downloadTimeMs;
 
@@ -258,12 +281,12 @@ async function fetchData(url: string, requestConfig): Promise<{
             if (expectedSize !== null && receivedBytes < expectedSize) {
                 if (receivedBytes > receivedBytesBeforeRequest) {
                     retry = 0;
-                    await sleep(getRetryDelay(response, retry));
+                    await sleep(getRetryDelay(response, retry), signal);
                     continue;
                 }
 
                 if (retry < MAX_NO_PROGRESS_RETRIES) {
-                    await sleep(getRetryDelay(response, retry));
+                    await sleep(getRetryDelay(response, retry), signal);
                     retry++;
                     continue;
                 }
@@ -289,6 +312,7 @@ async function fetchData(url: string, requestConfig): Promise<{
                 };
             }
         } catch (error) {
+            if (signal.aborted) throw new DOMException('Download cancelled', 'AbortError');
             if (error instanceof DownloadReadError) {
                 receivedBytes = error.receivedBytes;
                 // The partial bytes remain available for resuming, so include the time spent downloading them.
@@ -297,7 +321,7 @@ async function fetchData(url: string, requestConfig): Promise<{
 
             if (retry < MAX_NO_PROGRESS_RETRIES && (error instanceof DownloadReadError || shouldRetry(response))) {
                 const madeProgress = receivedBytes > receivedBytesBeforeRequest;
-                await sleep(getRetryDelay(response, madeProgress ? 0 : retry));
+                await sleep(getRetryDelay(response, madeProgress ? 0 : retry), signal);
                 if (madeProgress) {
                     retry = 0;
                 } else {
@@ -313,8 +337,16 @@ async function fetchData(url: string, requestConfig): Promise<{
     throw new Error('Maximum download retries without progress exceeded');
 }
 
+const controllers = new Map<number, AbortController>();
+
 onmessage = (e) => {
-    fetchData(e.data.url, e.data.config)
+    if (e.data.action === 'abort') {
+        controllers.get(e.data.id)?.abort();
+        return;
+    }
+    const controller = new AbortController();
+    controllers.set(e.data.id, controller);
+    fetchData(e.data.url, e.data.config, controller.signal)
         .then((response) => {
             postMessage({
                 responseData: response.data,
@@ -322,7 +354,7 @@ onmessage = (e) => {
                 telemetry: response.telemetry,
                 id: e.data.id,
                 isSuccess: true,
-            });
+            }, { transfer: [response.data] });
         })
         .catch((error) => {
             const message = {
@@ -333,5 +365,5 @@ onmessage = (e) => {
             };
 
             postMessage(message);
-        });
+        }).finally(() => controllers.delete(e.data.id));
 };

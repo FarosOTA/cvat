@@ -947,14 +947,22 @@ class _JobDataGetter(_DataGetter):
         data_index: str | int | None = None,
         allow_empty_preview: bool = False,
         data_range: tuple[int | None, int | None] | None = None,
+        image_quality: str | int = 50,
     ) -> None:
-        possible_data_type_values = ("chunk", "preview_chunk", "frame", "preview", "context_image")
+        possible_data_type_values = (
+            "chunk",
+            "preview_chunk",
+            "playback_chunk",
+            "frame",
+            "preview",
+            "context_image",
+        )
         possible_quality_values = ("compressed", "original")
 
         if not data_type or data_type not in possible_data_type_values:
             raise ValidationError("Data type not specified or has wrong value")
-        elif data_type in ("chunk", "preview_chunk", "frame", "preview"):
-            if data_type in ("chunk", "preview_chunk"):
+        elif data_type in ("chunk", "preview_chunk", "playback_chunk", "frame", "preview"):
+            if data_type in ("chunk", "preview_chunk", "playback_chunk"):
                 if data_num is None and data_index is None:
                     raise ValidationError("Number or Index is not specified")
                 if data_num is not None and data_index is not None:
@@ -966,6 +974,16 @@ class _JobDataGetter(_DataGetter):
 
         if data_type == "preview_chunk" and data_quality != "compressed":
             raise ValidationError("Preview chunks require compressed quality")
+
+        if data_type == "playback_chunk":
+            if data_quality != "compressed":
+                raise ValidationError("Playback chunks require compressed quality")
+            try:
+                self.image_quality = int(image_quality)
+            except (ValueError, TypeError):
+                raise ValidationError("Image quality must be an integer in the [10, 90] range")
+            if not 10 <= self.image_quality <= 90:
+                raise ValidationError("Image quality must be an integer in the [10, 90] range")
 
         self.type = data_type
 
@@ -993,7 +1011,15 @@ class _JobDataGetter(_DataGetter):
                 assert False, f"Unknown media type {media_type}"
 
     def _get_data_response(self):
-        if self.type == "preview_chunk":
+        if self.type == "playback_chunk":
+            data, mime = MediaCache().get_or_set_job_playback_chunk(
+                self._db_job,
+                self.index if self.index is not None else self.number,
+                is_task_chunk=self.index is None,
+                image_quality=self.image_quality,
+            )
+            return self._make_ranged_chunk_response(DataWithMeta(data, mime=mime))
+        elif self.type == "preview_chunk":
             data, mime = MediaCache().get_or_set_job_preview_chunk(
                 self._db_job,
                 self.index if self.index is not None else self.number,
@@ -2591,12 +2617,21 @@ class JobViewSet(
                 "type",
                 description="Specifies the type of the requested data. preview_chunk returns "
                 "a JPEG ZIP with thumbnails (maximum 512px long edge, quality 50) for "
-                "2D image ZIP data only; requires compressed quality. Uses the same "
+                "2D image ZIP data only. playback_chunk returns a full-resolution JPEG ZIP "
+                "at image_quality (10..90, default 50). Both require compressed quality and "
+                "2D image ZIP data. Uses the same "
                 "index/number and Range semantics as chunk. Unsupported data returns 400.",
                 location=OpenApiParameter.QUERY,
                 required=True,
                 type=OpenApiTypes.STR,
-                enum=["chunk", "preview_chunk", "frame", "context_image"],
+                enum=["chunk", "preview_chunk", "playback_chunk", "frame", "context_image"],
+            ),
+            OpenApiParameter(
+                "image_quality",
+                location=OpenApiParameter.QUERY,
+                required=False,
+                type={"type": "integer", "minimum": 10, "maximum": 90, "default": 50},
+                description="JPEG quality for playback_chunk only; ignored for other data types",
             ),
             OpenApiParameter(
                 "quality",
@@ -2628,7 +2663,7 @@ class JobViewSet(
                 type=OpenApiTypes.STR,
                 required=False,
                 response=[200, 206],
-                description="Data checksum, applicable for chunks and preview chunks",
+                description="Data checksum, applicable for chunks, preview chunks and playback chunks",
             ),
             OpenApiParameter(
                 _DATA_CHUNK_SIZE_HEADER_NAME,
@@ -2636,7 +2671,8 @@ class JobViewSet(
                 type=OpenApiTypes.INT,
                 required=False,
                 response=[200, 206, 416],
-                description="Decoded chunk size in bytes, applicable for chunks and preview chunks",
+                description="Decoded chunk size in bytes, applicable for chunks, preview chunks "
+                "and playback chunks",
             ),
             OpenApiParameter(
                 _DATA_UPDATED_DATE_HEADER_NAME,
@@ -2644,7 +2680,7 @@ class JobViewSet(
                 type=OpenApiTypes.DATETIME,
                 required=False,
                 response=[200, 206],
-                description="Data update date, applicable for chunks and preview chunks",
+                description="Data update date, applicable for chunks, preview chunks and playback chunks",
             ),
         ],
         responses={
@@ -2676,6 +2712,7 @@ class JobViewSet(
             data_index=data_index,
             data_num=data_num,
             data_range=data_range,
+            image_quality=request.query_params.get("image_quality", 50),
         )
         return data_getter()
 

@@ -4,6 +4,15 @@
 
 @import 'base';
 
+.cvat-canvas-loading {
+    animation: cvat-canvas-loading-delay 250ms step-end;
+}
+
+@keyframes cvat-canvas-loading-delay {
+    from { visibility: hidden; }
+    to { visibility: visible; }
+}
+
 .cvat-image-setups-filters {
     margin-bottom: $grid-unit-size * 3;
 }

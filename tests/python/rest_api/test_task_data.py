@@ -2006,20 +2006,33 @@ class TestTaskData(TestTasksBase):
                 index=0,
             )
 
-    def test_can_get_preview_chunks_without_changing_full_data(self):
+    @pytest.mark.parametrize("data_type", ["preview_chunk", "playback_chunk"])
+    @pytest.mark.parametrize("use_cache", [False, True])
+    def test_can_get_preview_chunks_without_changing_full_data(self, data_type, use_cache):
         sizes = [(1024, 512), (512, 1024), (80, 40)]
         colors = [(220, 20, 20), (20, 220, 20), (20, 20, 220)]
+        images = [
+            generate_image_file(f"{i}.jpeg", size=size, color=color)
+            for i, (size, color) in enumerate(zip(sizes, colors))
+        ]
+        oriented = io.BytesIO()
+        oriented.name = "3.jpeg"
+        with Image.new("RGB", (96, 160), (220, 220, 20)) as image:
+            exif = image.getexif()
+            exif[274] = 6
+            image.save(oriented, format="JPEG", exif=exif)
+        oriented.seek(0)
+        images.append(oriented)
+        sizes.append((160, 96))  # Logical size after the EXIF quarter-turn.
+        colors.append((220, 220, 20))
         task_id, _ = create_task(
             self._USERNAME,
             {"name": "preview chunk contract"},
             {
                 "image_quality": 85,
-                "chunk_size": 3,
-                "use_cache": False,
-                "client_files": [
-                    generate_image_file(f"{i}.jpeg", size=size, color=color)
-                    for i, (size, color) in enumerate(zip(sizes, colors))
-                ],
+                "chunk_size": len(images),
+                "use_cache": use_cache,
+                "client_files": images,
             },
         )
         with make_api_client(self._USERNAME) as api_client:
@@ -2031,7 +2044,7 @@ class TestTaskData(TestTasksBase):
             original_before = get_method(
                 self._USERNAME, endpoint, type="chunk", quality="original", index=0
             )
-            preview = get_method(self._USERNAME, endpoint, type="preview_chunk", index=0)
+            preview = get_method(self._USERNAME, endpoint, type=data_type, index=0)
             assert preview.status_code == HTTPStatus.OK
             assert preview.headers["Content-Type"] == "application/zip"
             assert preview.headers["Accept-Ranges"] == "bytes"
@@ -2046,14 +2059,14 @@ class TestTaskData(TestTasksBase):
                 assert thumbnails.namelist() == full.namelist()
                 for name, size, color in zip(thumbnails.namelist(), sizes, colors):
                     with Image.open(thumbnails.open(name)) as image:
-                        scale = min(1, 512 / max(size))
+                        scale = min(1, 512 / max(size)) if data_type == "preview_chunk" else 1
                         assert image.format == "JPEG"
                         assert image.size == tuple(round(value * scale) for value in size)
                         pixel = image.getpixel((0, 0))
                         assert all(abs(a - b) < 10 for a, b in zip(pixel, color))
 
-            repeated = get_method(self._USERNAME, endpoint, type="preview_chunk", index=0)
-            by_number = get_method(self._USERNAME, endpoint, type="preview_chunk", number=0)
+            repeated = get_method(self._USERNAME, endpoint, type=data_type, index=0)
+            by_number = get_method(self._USERNAME, endpoint, type=data_type, number=0)
             assert repeated.content == preview.content
             assert by_number.status_code == HTTPStatus.OK
             # Legacy task chunks may have different ZIP timestamps from job chunks.
@@ -2065,7 +2078,7 @@ class TestTaskData(TestTasksBase):
                 assert all(indexed.read(name) == numbered.read(name) for name in indexed.namelist())
             assert repeated.headers["X-Checksum"] == preview.headers["X-Checksum"]
             self._check_chunk_ranges(
-                api_client, "jobs", job_id, preview.content, type="preview_chunk", index=0
+                api_client, "jobs", job_id, preview.content, type=data_type, index=0
             )
             for quality, before in [("compressed", full_before), ("original", original_before)]:
                 after = get_method(self._USERNAME, endpoint, type="chunk", quality=quality, index=0)
@@ -2083,9 +2096,40 @@ class TestTaskData(TestTasksBase):
                 {"index": 0, "quality": "original"},
                 {"index": 0, "quality": "bad"},
             ]:
-                response = get_method(self._USERNAME, endpoint, type="preview_chunk", **params)
+                response = get_method(self._USERNAME, endpoint, type=data_type, **params)
                 assert response.status_code == HTTPStatus.BAD_REQUEST
 
+            if data_type == "playback_chunk":
+                for image_quality in ["bad", "50.5", "", 9, 91]:
+                    response = get_method(
+                        self._USERNAME,
+                        endpoint,
+                        type=data_type,
+                        index=0,
+                        image_quality=image_quality,
+                    )
+                    assert response.status_code == HTTPStatus.BAD_REQUEST
+                for image_quality in [10, 50, 90]:
+                    response = get_method(
+                        self._USERNAME,
+                        endpoint,
+                        type=data_type,
+                        index=0,
+                        image_quality=image_quality,
+                    )
+                    assert response.status_code == HTTPStatus.OK
+                    if image_quality == 50:
+                        assert response.content == preview.content
+                    with zipfile.ZipFile(io.BytesIO(response.content)) as chunk:
+                        with Image.open(chunk.open(chunk.namelist()[0])) as image:
+                            expected = io.BytesIO()
+                            Image.new("RGB", sizes[0]).save(
+                                expected, format="JPEG", quality=image_quality
+                            )
+                            with Image.open(expected) as reference:
+                                assert image.quantization == reference.quantization
+
+    @pytest.mark.parametrize("data_type", ["preview_chunk", "playback_chunk"])
     @pytest.mark.parametrize(
         "dimension, media_type, mode",
         [
@@ -2095,7 +2139,7 @@ class TestTaskData(TestTasksBase):
         ],
     )
     def test_preview_chunks_reject_unsupported_media(
-        self, tasks, jobs, dimension, media_type, mode
+        self, tasks, jobs, dimension, media_type, mode, data_type
     ):
         task = next(
             task
@@ -2106,9 +2150,7 @@ class TestTaskData(TestTasksBase):
             and task["size"]
         )
         job = next(job for job in jobs if job["task_id"] == task["id"])
-        response = get_method(
-            self._USERNAME, f"jobs/{job['id']}/data", type="preview_chunk", index=0
-        )
+        response = get_method(self._USERNAME, f"jobs/{job['id']}/data", type=data_type, index=0)
         assert response.status_code == HTTPStatus.BAD_REQUEST
         assert "only available for 2D image ZIP data" in response.text
 

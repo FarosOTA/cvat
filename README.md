@@ -1,6 +1,6 @@
 # Fork documentation
 
-This is [markosnarinian/cvat](https://github.com/markosnarinian/cvat), a fork of
+This is [FarosOTA/cvat](https://github.com/FarosOTA/cvat), a fork of
 [CVAT Community](https://github.com/cvat-ai/cvat). The changes below extend the upstream annotation
 workflow, primarily for **2D rectangular shapes and tracks**, and improve frame loading and playback.
 The upstream product overview and general documentation follow this section; features described there
@@ -84,34 +84,46 @@ is disabled; the controls are disabled until it is enabled again.
 
 ## Frame loading, buffering, and playback
 
-- **Task-quality playback by default:** Opening or seeking an image job fetches the selected image
-  at normal task quality first, then fills look-ahead chunks even while paused. Existing cached
-  chunks are reused. Normal task quality is the task's compressed representation, not the original
-  upload's full detail.
-- **Configurable client memory budget:** **Settings → Player → Look-ahead buffer multiplier** accepts
-  integers from 1 to 10 (default **10**). Each step permits approximately **2 GiB** of decoded images
-  and **10 chunks**, for a default ceiling of approximately **20 GiB / 100 chunks**. The setting is
-  saved in the browser and takes effect when reopening a job or reloading the page. This is a budget,
-  not preallocated memory or a cap on total browser/GPU memory; lower it on memory-constrained clients.
-- **Optional reduced-resolution playback:** **Settings → Player → Allow reduced-resolution playback**
-  is saved locally and **disabled by default**. For image jobs it uses separately cached JPEG previews
-  with a maximum 512px long edge and quality 50. Preview memory scales by **64 MiB per multiplier
-  step**, up to **640 MiB / 100 chunks**. Pausing refines the image to task quality after 250 ms without
-  blanking it; pixel-processing tools always request task quality. This mode trades resolution and
-  JPEG quality for speed and is neither lossless nor zoom-adaptive.
-- **Less loading contention:** Initial image loading runs alongside independent job resources.
-  Bounded preview transfers and playback priming reduce stalls; video can prime one decoded chunk
-  for up to one second. Canvas resize or annotation updates no longer prematurely signal image readiness.
-- **Server-side preview support and cache fixes:** The job-data API adds `type=preview_chunk` with
-  `quality=compressed` for 2D image ZIP data, using normal chunk index/number and Range semantics.
-  Unsupported data returns HTTP 400; the UI falls back to normal chunks when preview support is absent.
-  Replacing an expired cached chunk result also clears the old queue job's expiry so the queued
-  replacement is not prematurely removed.
+- **Full-resolution, bandwidth-saving playback:** **Settings → Player → Bandwidth-saving playback
+  (full resolution)** is enabled by default for 2D image jobs. Playback uses JPEG quality **50** at
+  the source's full dimensions, not 512px thumbnails. JPEG compression is lossy: small objects can
+  lose detail even without resizing. Disable it to use task-quality playback. This new preference
+  replaces the old reduced-resolution preference; existing browser settings start with it enabled.
+- **Task-quality inspection:** Pausing for 250 ms retrieves just the selected task-quality image;
+  clicking, zooming, or starting an edit requests it immediately. The image is replaced without
+  changing frame identity, annotation coordinates, selection, or viewport. Navigation cancels stale
+  refinement. Pixel-processing tools use task-quality pixels. Task quality means the task's normal
+  compressed representation, not necessarily the original upload's full detail.
+- **Bounded, bidirectional image buffering:** **Settings → Player → Lookaround buffer multiplier**
+  accepts integers from 1 to 10 (default **10**). Each step permits **16 MiB of compressed chunks**
+  and **10 chunks**, shared between frames ahead and behind. The default ceiling is **160 MiB /
+  100 chunks**, not 20 GiB of decoded pixels. The window fills nearest-first even while paused,
+  favors the navigation direction, and shifts at job boundaries. Seeking cancels obsolete downloads.
+  Selected images and one adjacent image are decoded in a worker, with a separate **128 MiB / six-image** retention
+  limit (at least the selected image is kept). A chunk exceeding the compressed budget falls back
+  to an individual task-quality image. These are retained-media limits, not a cap on browser, canvas,
+  GPU, temporary decoding, or in-flight transfer memory. The multiplier is saved locally and applies
+  after reopening the job or reloading. Video/3D decoding and video buffer budgets are unchanged.
+- **Steadier playback UI:** The loading overlay waits 250 ms before appearing instead of flashing
+  on every fast frame transition. Genuine longer waits still show it. The timeline reuses frame
+  navigation/count calculations instead of scanning whole-job lists on every Redux update.
+- **Independent server rendition:** `GET /api/jobs/{id}/data?type=playback_chunk&index=N&quality=compressed`
+  returns full-resolution JPEG ZIPs directly from source frames, without first generating task-quality
+  chunks. Optional `image_quality` is an integer from **10 to 90**, default **50**; the UI uses 50.
+  Job-local `index`, legacy task-chunk `number`, range responses, mapping and generation validation
+  follow existing chunk contracts. Video, 3D, audio and original quality are rejected. The old
+  `preview_chunk` API remains available for compatibility, but the UI no longer starts a thumbnail
+  buffer. Older servers without playback support fall back to normal task-quality chunks.
+- **Server cache safety:** Media-cache retention is bounded by serialized payload size (default
+  **16 GiB**, **64 MiB** per direct-mapped slot). Slot collisions can evict a result before its TTL;
+  this is a retention bound, not guaranteed useful cache capacity or a process-RAM bound. Evicted
+  or oversized generation results can be delivered without being retained. Replacing expired queue
+  results also clears their old expiry so replacements are not prematurely removed.
 
 These changes work with existing tasks without re-upload or task conversion. Source files, annotation
 coordinates, exports, and existing compressed/original API responses are unchanged; video and
-point-cloud representations are unchanged. Cold loads, slow networks, and preview generation can
-still cause buffering.
+point-cloud representations are unchanged. Cold generation, network throughput and client decoding
+can still limit playback; a finite buffer cannot compensate for insufficient sustained throughput.
 
 For building and installing matching fork server/UI images on an existing deployment, memory and
 version precautions, and rollback instructions, see
@@ -282,38 +294,24 @@ _For alternative deployments (AWS, Kubernetes, external PostgreSQL, backups, upg
 
 ### Installing this fork's frame-buffering fix on an existing Docker deployment
 
-The fork preserves normal CVAT task image quality by default, including during playback and at high
-zoom. It fills look-ahead even while paused, using an approximately 20 GiB decoded-image
-budget (at most 100 chunks), ten times the previous limits. This is client memory, not server memory;
-large jobs require substantial available RAM and can cause memory pressure or browser termination
-on smaller machines. The budget estimates decoded pixels, not total browser/GPU memory usage.
-**Settings → Player → Look-ahead buffer multiplier** lets each browser choose an integer from 1 to 10
-(default 10). Each step allows 2 GiB and 10 chunks; the optional preview budget scales by 64 MiB per
-step. The setting is saved locally and applies when reopening the job or reloading the page, not to
-an already open job's cache. Lower it on memory-constrained clients; image quality is unaffected.
-Opening or seeking a 2D image job first fetches the selected full-quality
-image, then buffers full-quality chunks without waiting for another navigation event. Existing chunks
-are reused when available. These changes work for **existing tasks**; no re-upload, task conversion,
-database migration, environment variable, or browser setting is required. Normal task quality means
-the existing compressed representation, not recovery of detail discarded during task creation.
-Source files, annotation coordinates, exports, and existing compressed/original API responses are unchanged.
+The fork uses full-resolution JPEG quality-50 playback for 2D image jobs by default, refining the
+selected image to normal task quality on pause or inspection. No 512px playback thumbnails are used.
+Disable **Settings → Player → Bandwidth-saving playback (full resolution)** to retain task quality
+throughout playback. JPEG compression still loses detail; refinement does not recover information
+already discarded by the task's normal compressed representation.
 
-**Settings → Player → Allow reduced-resolution playback** is an optional, persisted client setting,
-disabled by default. Enabling it uses separately cached 512px JPEG previews for image playback, with
-an additional 640 MiB decoded-preview budget (at most 100 chunks). This sacrifices resolution and JPEG quality, and is not
-a perceptually lossless or zoom-adaptive mode. Paused previews refine to normal task quality after
-250 ms without blanking the image; pixel-processing tools always use task quality. Starting playback
-or leaving the frame cancels optional refinement still in flight. The UI falls back to normal chunks
-if the server lacks preview support. Video and point-cloud representations are unchanged.
-Video playback can prime one decoded chunk, waiting at most one second before its first buffered frame.
-Canvas resize/annotation updates no longer mark an image ready while
-it is still loading. Optional preview playback primes a small look-ahead window
-(at most one extra second after the first preview arrives)
-and pipelines bounded transfers to hide network round-trip latency.
-Recreating an expired chunk result also clears the previous queue job's expiry, preventing a queued
-replacement from disappearing and forcing a chunk timeout/retry.
-Cold loads, preview generation, very slow links, and overloaded servers can still cause waits;
-this is not a guarantee of zero buffering on every dataset or network.
+**Settings → Player → Lookaround buffer multiplier** expands a shared ahead/behind compressed-byte
+buffer: 16 MiB and ten chunks per step, from 1 to 10 (default **160 MiB / 100 chunks**). A separate
+128 MiB/six-image decoded retention window keeps at least the selected image. These limits exclude
+canvas/GPU storage and temporary decoding or transfer allocations. The multiplier is browser-local
+and applies after reopening or reloading the job. Video/3D paths and video buffering are unchanged.
+See [Frame loading, buffering, and playback](#frame-loading-buffering-and-playback) for API contracts,
+fallback behavior and cache limits.
+
+These changes work with **existing tasks**, without re-upload, conversion or database migration.
+Source files, annotation coordinates, exports and existing compressed/original responses are unchanged.
+Cold generation, very slow links and overloaded clients or servers can still cause waits; this is
+not a guarantee of zero buffering on every dataset or network.
 
 **Back up the database and data volumes first.** Check the installed CVAT version before upgrading.
 This checkout reports CVAT **2.74.1**. The fork's server and UI must be based on the same CVAT release

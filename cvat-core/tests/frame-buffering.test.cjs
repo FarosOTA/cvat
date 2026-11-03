@@ -21,11 +21,28 @@ function createSession({
 } = {}) {
     class Bitmap {
         closed = false;
+        width = width;
+        height = height;
         close() { this.closed = true; }
     }
     class Worker {
-        postMessage({ start, end, block }) {
+        chunks = new Map();
+        postMessage({ start, end, block, action, chunk, id, offset }) {
             queueMicrotask(() => {
+                if (action) {
+                    if (action === 'delete') { this.chunks.delete(chunk); return; }
+                    if (action === 'store') {
+                        this.chunks.set(chunk, block.byteLength);
+                        this.onmessage({ data: { id } });
+                    } else {
+                        const bitmap = Object.assign(new Bitmap(), {
+                            number: chunk * chunkSize + offset,
+                            preview: !!this.chunks.get(chunk),
+                        });
+                        this.onmessage({ data: { id, bitmap } });
+                    }
+                    return;
+                }
                 for (let index = start; index <= end; index++) {
                     const bitmap = new Bitmap();
                     bitmap.preview = !!block.byteLength;
@@ -58,7 +75,7 @@ function createSession({
             babelrc: false,
         }).code;
         const execute = vm.runInNewContext(`(function(require, module, exports) { ${source}\n})`, {
-            ImageBitmap: Bitmap, Worker, Promise, AbortController, setTimeout, clearTimeout,
+            ImageBitmap: Bitmap, Worker, Promise, AbortController, DOMException, RangeError, setTimeout, clearTimeout,
             URL, window: { addEventListener() {} },
             createImageBitmap: async ({ number }) => Object.assign(new Bitmap(), { number, preview: false }),
             __filename: filename,
@@ -93,7 +110,114 @@ function createSession({
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
-test('video playback primes the next chunk before displaying the first buffered frame', async () => {
+test('lookaround retains compressed chunks on both sides and reuses a backward boundary', async () => {
+    const requested = [];
+    const session = createSession({ chunkSize: 8, size: 400, frameBufferMultiplier: 1,
+        getChunk: async (index) => {
+            requested.push(index);
+            return new ArrayBuffer(4 * 1024 * 1024);
+        } });
+    try {
+        await session.read(47);
+        await settle();
+        const chunks = Array.from(session.getCachedChunks(1));
+        assert.equal(chunks.length, 4, '16 MiB holds four compressed chunks, not ten decoded chunks');
+        assert.ok(chunks.includes(4) && chunks.includes(5) && chunks.includes(6));
+        await session.read(48);
+        await session.read(47);
+        await settle();
+        assert.equal(requested.filter((index) => index === 5).length, 1,
+            '47 → 48 → 47 must not redownload the previous chunk');
+        assert.ok(session.getCachedChunks(1).length <= 4);
+    } finally { session.clear(1); }
+});
+
+test('the small decoded window preserves the selected image and closes evicted bitmaps', async () => {
+    const session = createSession({ width: 3864, height: 2192, size: 1000 });
+    try {
+        const first = (await session.read(0)).imageData;
+        await settle();
+        assert.equal(first.closed, false, 'prefetch must not evict the displayed image');
+        for (let number = 1; number <= 12; number++) await session.read(number);
+        assert.equal(first.closed, true, 'old decoded images must be released within the separate 128 MiB budget');
+        const images = await Promise.all([session.read(12), session.read(12)]);
+        assert.equal(images[0].imageData, images[1].imageData);
+        assert.equal(images[0].imageData.closed, false);
+    } finally { session.clear(1); }
+});
+
+test('one decoded neighbor is warmed without exceeding the selected-image budget', async () => {
+    for (const width of [3864, 9000]) {
+        const session = createSession({ width, height: width === 3864 ? 2192 : 9000 });
+        const buffer = new session.ImageFrameBuffer({
+            frames: Array.from({ length: 20 }, (_, i) => i), chunkSize: 8,
+            chunkLimit: 10, encodedBytes: 16 * 1024 * 1024, decodedBytes: 128 * 1024 * 1024,
+            getChunk: async () => new ArrayBuffer(100),
+        });
+        try {
+            const current = await buffer.frame(0);
+            await settle();
+            assert.equal(current.closed, false);
+            assert.equal(!!buffer.cachedFrame(1), width === 3864,
+                'warm one neighbor only when two images fit; retain an oversized selected image alone');
+            assert.equal(buffer.cachedFrame(2), null, 'never decode the entire compressed lookaround');
+        } finally { buffer.close(); }
+    }
+});
+
+test('concurrent reads of the same cold image share a live decoded bitmap', async () => {
+    let finish;
+    const session = createSession({ getChunk: () => new Promise((resolve) => { finish = resolve; }) });
+    try {
+        const reads = Promise.all([session.read(0), session.read(0)]);
+        await settle();
+        finish(new ArrayBuffer(0));
+        const images = await reads;
+        assert.equal(images[0].imageData, images[1].imageData);
+        assert.equal(images[0].imageData.closed, false);
+    } finally { session.clear(1); }
+});
+
+test('an oversized chunk falls back to one task-quality image without repeated chunk downloads', async () => {
+    let chunks = 0;
+    const session = createSession({ getChunk: async () => {
+        chunks++;
+        throw Object.assign(new Error('Too large for this client budget'), { code: 413 });
+    } });
+    try {
+        for (const number of [5, 5]) {
+            const image = await session.read(number);
+            assert.equal(image.imageData.number, number);
+            assert.equal(image.imageData.preview, false);
+        }
+        assert.equal(chunks, 1);
+        assert.equal(session.getCachedChunks(1).length, 0);
+    } finally { session.clear(1); }
+});
+
+test('seeking cancels obsolete network speculation and immediately downloads the selected chunk', async () => {
+    let aborted = false;
+    const session = createSession({ size: 300,
+        getChunk: async (index, quality, { signal } = {}) => {
+            if (index === 1) return new Promise((resolve, reject) => {
+                signal.addEventListener('abort', () => {
+                    aborted = true;
+                    reject(new DOMException('Cancelled', 'AbortError'));
+                });
+            });
+            return new ArrayBuffer(0);
+        } });
+    try {
+        await session.read(0);
+        await settle();
+        assert.equal((await session.read(200)).imageData.number, 200);
+        assert.equal(aborted, true);
+        await settle();
+        assert.ok(session.getCachedChunks(1).includes(199));
+    } finally { session.clear(1); }
+});
+
+test('image playback displays a ready frame without waiting for speculative chunks', async () => {
     let finishDownload;
     const session = createSession({ mode: 'interpolation', chunkSize: 3, getChunk: async (chunk) => (
         chunk === 1 ? new Promise((resolve) => { finishDownload = resolve; }) : new ArrayBuffer(0)
@@ -103,7 +227,7 @@ test('video playback primes the next chunk before displaying the first buffered 
         let displayed = false;
         const playing = session.read(1).then(() => { displayed = true; });
         await settle();
-        assert.equal(displayed, false, 'initial buffering must precede the first playback image');
+        assert.equal(displayed, true, 'a ready image must not wait for an unrelated speculative download');
         finishDownload(new ArrayBuffer(0));
         await playing;
         assert.equal(displayed, true);
@@ -114,7 +238,7 @@ test('video playback primes the next chunk before displaying the first buffered 
     }
 });
 
-test('preview playback buffers before its first image, not while later chunks are arriving', async () => {
+test('compressed playback does not block a ready image behind a pending chunk', async () => {
     let finishNext;
     let finishLater;
     const session = createSession({ chunkSize: 3, size: 9, getPreviewChunk: async (chunk) => {
@@ -127,7 +251,7 @@ test('preview playback buffers before its first image, not while later chunks ar
         let displayed = false;
         const playing = session.read(1, true, 1, undefined, true).then(() => { displayed = true; });
         await settle();
-        assert.equal(displayed, false, 'buffering belongs before the first playback image');
+        assert.equal(displayed, true, 'speculative downloads do not block the selected cached chunk');
         finishNext(new ArrayBuffer(1));
         await playing;
         assert.equal(displayed, true, 'a further pending chunk must not hold the ready image');
@@ -149,8 +273,8 @@ test('playback prefetches after a cold load, including one-frame chunks', async 
         await session.read(1, true, 1, () => { misses++; });
         assert.equal(misses, 0, 'the next frame must already be buffered');
         await settle();
-        assert.deepEqual(Array.from(session.getCachedChunks(1)), Array.from({ length: 100 }, (_, i) => i + 1),
-            'evict the frame behind playback, not an older prefetched future frame');
+        assert.deepEqual(Array.from(session.getCachedChunks(1)), Array.from({ length: 100 }, (_, i) => i),
+            'retain images behind playback within the lookaround window');
         await session.read(2, true, 1, () => { misses++; });
         assert.equal(misses, 0, 'do not download the prefetched next frame a second time');
     } finally {
@@ -185,7 +309,8 @@ test('a failed speculative download does not interrupt playback and can be retri
     try {
         assert.ok((await session.read(0)).imageData);
         await settle();
-        assert.deepEqual(Array.from(session.getCachedChunks(1)), [0]);
+        assert.ok(session.getCachedChunks(1).includes(0), 'keep the selected chunk after speculative failure');
+        assert.ok(!session.getCachedChunks(1).includes(1), 'never mark the failed transfer as cached');
         fail = false;
         await session.read(0);
         await settle();
@@ -211,14 +336,14 @@ test('a speculative download completing after job close does not affect a reopen
         await session.read(5, false);
         finishDownload(new ArrayBuffer(0));
         await settle();
-        assert.deepEqual(Array.from(session.getCachedChunks(1)), [5, 6, 7, 8, 9, 10, 11]);
+        assert.deepEqual(Array.from(session.getCachedChunks(1)), Array.from({ length: 12 }, (_, i) => i));
         assert.ok((await session.read(5, false)).imageData);
     } finally {
         session.clear(1);
     }
 });
 
-test('full-quality startup displays one image, then buffers twenty 4K chunks within the decoded budget', async () => {
+test('full-quality startup displays one image, then buffers compressed 4K chunks without decoding them all', async () => {
     let finishCurrent;
     const requested = [];
     const session = createSession({
@@ -237,15 +362,15 @@ test('full-quality startup displays one image, then buffers twenty 4K chunks wit
         assert.deepEqual(requested, [0], 'the first image does not wait for the whole chunk');
         finishCurrent(new ArrayBuffer(0));
         await settle();
-        const buffered = Array.from({ length: 20 }, (_, i) => i);
+        const buffered = Array.from({ length: 24 }, (_, i) => i);
         assert.deepEqual(Array.from(session.getCachedChunks(1)), buffered, 'buffer ahead while paused');
-        assert.deepEqual(requested, buffered, 'do not exceed the twenty-chunk decoded budget');
+        assert.deepEqual(requested, buffered, 'compressed chunks no longer cost a whole chunk of RGBA memory');
         let misses = 0;
         const next = await session.read(32, true, 1, () => { misses++; });
         assert.equal(misses, 0);
         assert.equal(next.imageData.preview, false);
         await settle();
-        assert.deepEqual(Array.from(session.getCachedChunks(1)), buffered.map((i) => i + 1));
+        assert.deepEqual(Array.from(session.getCachedChunks(1)), buffered);
         assert.equal(next.imageData.closed, false, 'keep the displayed chunk alive');
     } finally {
         session.clear(1);
@@ -253,7 +378,7 @@ test('full-quality startup displays one image, then buffers twenty 4K chunks wit
     }
 });
 
-test('client buffer multiplier scales both the decoded pixel budget and the chunk cap', async () => {
+test('client buffer multiplier scales compressed chunk capacity independently of decoded image dimensions', async () => {
     for (const multiplier of [1, 3, 10]) {
         for (const largeImages of [false, true]) {
             const session = createSession({
@@ -266,9 +391,7 @@ test('client buffer multiplier scales both the decoded pixel budget and the chun
             try {
                 await session.read(0, false);
                 await settle();
-                // 32 RGBA 4K frames cost 1,061,683,200 bytes per chunk:
-                // 2/6/20 GiB hold 2/6/20 chunks. Tiny images hit the chunk cap instead.
-                const expected = (largeImages ? 2 : 10) * multiplier;
+                const expected = 10 * multiplier;
                 assert.deepEqual(Array.from(session.getCachedChunks(1)),
                     Array.from({ length: expected }, (_, i) => i));
                 const next = await session.read(largeImages ? 32 : 1);
@@ -295,7 +418,7 @@ test('pause during an in-flight look-ahead continues filling, and a seek redirec
         assert.deepEqual(Array.from(session.getCachedChunks(1)), Array.from({ length: 100 }, (_, i) => i));
         await session.read(200, false);
         await settle();
-        assert.deepEqual(Array.from(session.getCachedChunks(1)), Array.from({ length: 100 }, (_, i) => i + 200));
+        assert.deepEqual(Array.from(session.getCachedChunks(1)), Array.from({ length: 100 }, (_, i) => i + 151));
         assert.ok(!requested.includes(100), 'do not continue filling from the old position');
     } finally {
         session.clear(1);

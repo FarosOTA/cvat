@@ -2804,6 +2804,14 @@ paths:
         description: A unique integer value identifying this job.
         required: true
       - in: query
+        name: image_quality
+        schema:
+          type: integer
+          minimum: 10
+          maximum: 90
+          default: 50
+        description: JPEG quality for playback_chunk only; ignored for other data types
+      - in: query
         name: index
         schema:
           type: integer
@@ -2831,10 +2839,13 @@ paths:
           - chunk
           - context_image
           - frame
+          - playback_chunk
           - preview_chunk
         description: Specifies the type of the requested data. preview_chunk returns
           a JPEG ZIP with thumbnails (maximum 512px long edge, quality 50) for 2D
-          image ZIP data only; requires compressed quality. Uses the same index/number
+          image ZIP data only. playback_chunk returns a full-resolution JPEG ZIP
+          at image_quality (10..90, default 50). Both require compressed quality and
+          2D image ZIP data. Uses the same index/number
           and Range semantics as chunk. Unsupported data returns 400.
         required: true
       tags:
@@ -2852,17 +2863,17 @@ paths:
             X-Checksum:
               schema:
                 type: string
-              description: Data checksum, applicable for chunks and preview chunks
+              description: Data checksum, applicable for chunks, preview chunks and playback chunks
             X-Chunk-Size:
               schema:
                 type: integer
-              description: Decoded chunk size in bytes, applicable for chunks and
-                preview chunks
+              description: Decoded chunk size in bytes, applicable for chunks, preview chunks
+                and playback chunks
             X-Updated-Date:
               schema:
                 type: string
                 format: date-time
-              description: Data update date, applicable for chunks and preview chunks
+              description: Data update date, applicable for chunks, preview chunks and playback chunks
           content:
             application/vnd.cvat+json:
               schema:
@@ -2874,17 +2885,17 @@ paths:
             X-Checksum:
               schema:
                 type: string
-              description: Data checksum, applicable for chunks and preview chunks
+              description: Data checksum, applicable for chunks, preview chunks and playback chunks
             X-Chunk-Size:
               schema:
                 type: integer
-              description: Decoded chunk size in bytes, applicable for chunks and
-                preview chunks
+              description: Decoded chunk size in bytes, applicable for chunks, preview chunks
+                and playback chunks
             X-Updated-Date:
               schema:
                 type: string
                 format: date-time
-              description: Data update date, applicable for chunks and preview chunks
+              description: Data update date, applicable for chunks, preview chunks and playback chunks
           content:
             application/vnd.cvat+json:
               schema:
@@ -2896,8 +2907,8 @@ paths:
             X-Chunk-Size:
               schema:
                 type: integer
-              description: Decoded chunk size in bytes, applicable for chunks and
-                preview chunks
+              description: Decoded chunk size in bytes, applicable for chunks, preview chunks
+                and playback chunks
           description: Requested range is not satisfiable
   /api/jobs/{id}/data/meta:
     get:

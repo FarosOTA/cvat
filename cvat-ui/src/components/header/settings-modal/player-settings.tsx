@@ -24,7 +24,7 @@ import { usePlugins } from 'utils/hooks';
 interface Props {
     frameStep: number;
     frameSpeed: FrameSpeed;
-    reducedResolution: boolean;
+    bandwidthSavingPlayback: boolean;
     frameBufferMultiplier: number;
     resetZoom: boolean;
     rotateAll: boolean;
@@ -33,7 +33,7 @@ interface Props {
     canvasBackgroundColor: string;
     onChangeFrameStep(step: number): void;
     onChangeFrameSpeed(speed: FrameSpeed): void;
-    onSwitchReducedResolution(enabled: boolean): void;
+    onSwitchBandwidthSavingPlayback(enabled: boolean): void;
     onChangeFrameBufferMultiplier(value: number): void;
     onSwitchResetZoom(enabled: boolean): void;
     onSwitchRotateAll(rotateAll: boolean): void;
@@ -46,7 +46,7 @@ export default function PlayerSettingsComponent(props: Props): JSX.Element {
     const {
         frameStep,
         frameSpeed,
-        reducedResolution,
+        bandwidthSavingPlayback,
         frameBufferMultiplier,
         resetZoom,
         rotateAll,
@@ -55,7 +55,7 @@ export default function PlayerSettingsComponent(props: Props): JSX.Element {
         canvasBackgroundColor,
         onChangeFrameStep,
         onChangeFrameSpeed,
-        onSwitchReducedResolution,
+        onSwitchBandwidthSavingPlayback,
         onChangeFrameBufferMultiplier,
         onSwitchResetZoom,
         onSwitchRotateAll,
@@ -151,18 +151,18 @@ export default function PlayerSettingsComponent(props: Props): JSX.Element {
             <Col span={24}>
                 <Checkbox
                     className='cvat-text-color'
-                    checked={reducedResolution}
+                    checked={bandwidthSavingPlayback}
                     onChange={(event: CheckboxChangeEvent): void => {
-                        onSwitchReducedResolution(event.target.checked);
+                        onSwitchBandwidthSavingPlayback(event.target.checked);
                     }}
                 >
-                    Allow reduced-resolution playback
+                    Bandwidth-saving playback (full resolution)
                 </Checkbox>
             </Col>
             <Col span={24}>
                 <Text type='secondary'>
-                    Off by default: preserve task image quality at every zoom level.
-                    Enable for 512px playback previews; paused images return to task quality.
+                    On by default for image jobs: stronger JPEG compression without resizing.
+                    Pausing or editing restores task quality. Disable to always use task quality.
                 </Text>
             </Col>
         </Row>
@@ -171,10 +171,10 @@ export default function PlayerSettingsComponent(props: Props): JSX.Element {
     items.push([(
         <Row key='frame-buffer' className='cvat-player-settings-buffer cvat-player-setting'>
             <Col span={24}>
-                <Text className='cvat-text-color'>Look-ahead buffer multiplier </Text>
+                <Text className='cvat-text-color'>Lookaround buffer multiplier </Text>
                 <InputNumber
                     id='cvat-player-buffer-multiplier'
-                    aria-label='Look-ahead buffer multiplier'
+                    aria-label='Lookaround buffer multiplier'
                     min={1}
                     max={10}
                     step={1}
@@ -189,10 +189,11 @@ export default function PlayerSettingsComponent(props: Props): JSX.Element {
             </Col>
             <Col span={24}>
                 <Text type='secondary'>
-                    {`Up to ${2 * frameBufferMultiplier} GiB of decoded images `}
-                    {`and ${10 * frameBufferMultiplier} chunks. `}
-                    Buffers ahead even while paused without reducing image quality.
-                    Uses this computer&apos;s memory; large values can exhaust RAM or close the browser tab.
+                    {`Image jobs: up to ${16 * frameBufferMultiplier} MiB of compressed images `}
+                    {`and ${10 * frameBufferMultiplier} chunks, shared ahead and behind. `}
+                    Decoded images have a separate 128 MiB budget (at least one frame).
+                    Browser, canvas, and in-flight downloads use additional memory.
+                    Video buffering is unchanged.
                     Reopen the job or reload the page to apply. Saved in this browser.
                 </Text>
             </Col>

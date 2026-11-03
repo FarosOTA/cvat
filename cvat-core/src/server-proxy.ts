@@ -353,6 +353,7 @@ class WorkerWrappedAxios {
                         );
                     }
                 } finally {
+                    requests[e.data.id].cleanup();
                     delete requests[e.data.id];
                 }
             }
@@ -368,11 +369,25 @@ class WorkerWrappedAxios {
 
         async function get(url: string, requestConfig) {
             return new Promise((resolve, reject) => {
+                const { signal, ...workerConfig } = requestConfig;
+                if (signal?.aborted) {
+                    reject(new DOMException('Download cancelled', 'AbortError'));
+                    return;
+                }
                 const newRequestId = getRequestId();
-                requests[newRequestId] = { resolve, reject };
+                const abort = (): void => {
+                    worker.postMessage({ action: 'abort', id: newRequestId });
+                    signal.removeEventListener('abort', abort);
+                    delete requests[newRequestId];
+                    reject(new DOMException('Download cancelled', 'AbortError'));
+                };
+                requests[newRequestId] = {
+                    resolve, reject, cleanup: () => signal?.removeEventListener('abort', abort),
+                };
+                signal?.addEventListener('abort', abort, { once: true });
                 worker.postMessage({
                     url,
-                    config: requestConfig,
+                    config: workerConfig,
                     id: newRequestId,
                 });
             });
@@ -1756,20 +1771,27 @@ async function getFrame(jid: number, number: number, signal: AbortSignal): Promi
     }
 }
 
-async function getData(jid: number, chunk: number, quality: ChunkQuality, preview = false): Promise<ArrayBuffer> {
+async function getData(
+    jid: number, chunk: number, quality: ChunkQuality, preview = false,
+    options: { signal?: AbortSignal; playbackQuality?: number; maxContentLength?: number } = {},
+): Promise<ArrayBuffer> {
     const { backendAPI } = config;
     const pageWasVisible = isPageVisible();
     const pageVisibilityVersionAtStart = pageVisibilityCounter;
 
     try {
+        const defaultType = preview ? 'preview_chunk' : 'chunk';
         const response = await (workerAxios as any).get(`${backendAPI}/jobs/${jid}/data`, {
             params: {
                 ...enableOrganization(),
                 quality,
-                type: preview ? 'preview_chunk' : 'chunk',
+                type: options.playbackQuality ? 'playback_chunk' : defaultType,
                 index: chunk,
+                ...(options.playbackQuality ? { image_quality: options.playbackQuality } : {}),
             },
             responseType: 'arraybuffer',
+            signal: options.signal,
+            maxContentLength: options.maxContentLength,
         });
 
         const pageWasVisibleThroughoutDownload = pageWasVisible &&

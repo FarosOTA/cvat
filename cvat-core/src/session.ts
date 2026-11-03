@@ -21,7 +21,7 @@ import {
 } from './server-response-types';
 import { type AudioIntervalState } from './annotations-objects/audio-interval-state';
 import AnnotationGuide from './guide';
-import { FrameData, FramesMetaData } from './frames';
+import { FrameData, FramesMetaData, FrameChunkRequestOptions } from './frames';
 import Statistics from './statistics';
 import { Request } from './request';
 import logger from './logger';
@@ -349,12 +349,13 @@ function buildDuplicatedAPI(prototype): void {
                     );
                     return result;
                 },
-                async chunk(chunkIndex, quality) {
+                async chunk(chunkIndex, quality, options) {
                     const result = await PluginRegistry.apiWrapper.call(
                         this,
                         prototype.frames.chunk,
                         chunkIndex,
                         quality,
+                        options,
                     );
                     return result;
                 },
@@ -530,7 +531,7 @@ export class Session {
             frameFrom: number,
             frameTo: number,
         ) => Promise<number | null>;
-        chunk: (chunk: number, quality: ChunkQuality) => Promise<ArrayBuffer>;
+        chunk: (chunk: number, quality: ChunkQuality, options?: FrameChunkRequestOptions) => Promise<ArrayBuffer>;
     };
 
     public logger: {

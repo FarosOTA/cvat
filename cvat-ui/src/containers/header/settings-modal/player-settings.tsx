@@ -8,7 +8,7 @@ import PlayerSettingsComponent from 'components/header/settings-modal/player-set
 import {
     changeFrameStep,
     changeFrameSpeed,
-    switchReducedResolution,
+    switchBandwidthSavingPlayback,
     changeFrameBufferMultiplier,
     switchResetZoom,
     switchRotateAll,
@@ -21,7 +21,7 @@ import { CombinedState, FrameSpeed } from 'reducers';
 interface StateToProps {
     frameStep: number;
     frameSpeed: FrameSpeed;
-    reducedResolution: boolean;
+    bandwidthSavingPlayback: boolean;
     frameBufferMultiplier: number;
     resetZoom: boolean;
     rotateAll: boolean;
@@ -33,7 +33,7 @@ interface StateToProps {
 interface DispatchToProps {
     onChangeFrameStep(step: number): void;
     onChangeFrameSpeed(speed: FrameSpeed): void;
-    onSwitchReducedResolution(enabled: boolean): void;
+    onSwitchBandwidthSavingPlayback(enabled: boolean): void;
     onChangeFrameBufferMultiplier(value: number): void;
     onSwitchResetZoom(enabled: boolean): void;
     onSwitchRotateAll(rotateAll: boolean): void;
@@ -58,8 +58,8 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         onChangeFrameSpeed(speed: FrameSpeed): void {
             dispatch(changeFrameSpeed(speed));
         },
-        onSwitchReducedResolution(enabled: boolean): void {
-            dispatch(switchReducedResolution(enabled));
+        onSwitchBandwidthSavingPlayback(enabled: boolean): void {
+            dispatch(switchBandwidthSavingPlayback(enabled));
         },
         onChangeFrameBufferMultiplier(value: number): void {
             dispatch(changeFrameBufferMultiplier(value));

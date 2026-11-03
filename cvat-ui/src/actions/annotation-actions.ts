@@ -1135,11 +1135,9 @@ export function getJobAsync({
             const frameData = isAudio ? null : await job.frames.get(frameNumber);
             const jobMeta = await cvat.frames.getMeta('job', job.id);
             const frameNumbers = await job.frames.frameNumbers();
-            // Independent job resources must not wait for image transfer or decoding.
-            const [, , issues] = await Promise.all([
-                frameData?.data(undefined, true).catch(() => {
-                    // The canvas reports image errors when it requests the frame.
-                }),
+            // The canvas owns the selected image representation. Warming an image
+            // here starts a second buffer regardless of the player's quality setting.
+            const [, issues] = await Promise.all([
                 job.annotations.clear({ reload: true }),
                 job.issues(),
             ]);

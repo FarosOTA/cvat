@@ -5,7 +5,7 @@
 
 import _, { range, sortedIndexOf } from 'lodash';
 import {
-    FrameDecoder, BlockType, DimensionType, ChunkQuality, decodeContextImages, RequestOutdatedError,
+    FrameDecoder, ImageFrameBuffer, BlockType, DimensionType, ChunkQuality, decodeContextImages, RequestOutdatedError,
 } from 'cvat-data';
 import PluginRegistry from './plugins';
 import { MediaType } from './enums';
@@ -14,6 +14,11 @@ import { SerializedChapterMetaData, SerializedFramesMetaData } from './server-re
 import { ArgumentError } from './exceptions';
 import { FieldUpdateTrigger } from './common';
 import config from './config';
+
+export interface FrameChunkRequestOptions {
+    signal?: AbortSignal;
+    maxContentLength?: number;
+}
 
 // frame storage by job id
 const frameDataCache: Record<string, {
@@ -38,10 +43,15 @@ const frameDataCache: Record<string, {
         timestamp: number;
         size: number;
     }>;
-    getChunk: (chunkIndex: number, quality: ChunkQuality) => Promise<ArrayBuffer>;
+    getChunk: (chunkIndex: number, quality: ChunkQuality, options?: FrameChunkRequestOptions) => Promise<ArrayBuffer>;
     getMeta: () => Promise<FramesMetaData>;
     previewUnavailable?: boolean;
     playbackPrimed?: boolean;
+    imageFrames?: boolean;
+    imageBuffer?: ImageFrameBuffer;
+    imageBufferPlayback?: boolean;
+    refinedImage?: ImageBitmap;
+    refinementController?: AbortController;
 }> = {};
 
 // frame meta data storage by job id
@@ -346,7 +356,39 @@ const individualFrames = new WeakMap<FrameData, {
     cache: typeof frameDataCache[string];
     controller: AbortController;
     data: ReturnType<FrameData['data']>;
+    image?: ImageBitmap;
 }>();
+
+function getIndividualFrame(
+    frame: FrameData, onServerRequest: () => void, fallbackToChunks = true,
+): ReturnType<FrameData['data']> {
+    const cache = frameDataCache[frame.jobID];
+    const cached = individualFrames.get(frame);
+    if (cached?.cache === cache && (!cached.image || cached.image === cache.refinedImage)) return cached.data;
+    onServerRequest();
+    cache.refinementController?.abort();
+    const controller = new AbortController();
+    cache.refinementController = controller;
+    const data = serverProxy.frames.getFrame(frame.jobID, frame.number, controller.signal)
+        .then((blob) => createImageBitmap(blob))
+        .then((imageData) => {
+            if (frameDataCache[frame.jobID] !== cache || controller.signal.aborted) {
+                imageData.close();
+                throw frame.number;
+            }
+            cache.refinedImage?.close();
+            cache.refinedImage = imageData;
+            individualFrames.get(frame).image = imageData;
+            return { renderWidth: frame.width, renderHeight: frame.height, imageData };
+        }).catch((error) => {
+            if (individualFrames.get(frame)?.controller === controller) individualFrames.delete(frame);
+            if (controller.signal.aborted) throw frame.number;
+            if (frameDataCache[frame.jobID] === cache && fallbackToChunks) return frame.data(onServerRequest);
+            throw error;
+        });
+    individualFrames.set(frame, { cache, controller, data });
+    return data;
+}
 
 export class FrameData {
     public readonly filename: string;
@@ -431,39 +473,51 @@ export class FrameData {
 
 Object.defineProperty(FrameData.prototype.data, 'implementation', {
     async value(this: FrameData, onServerRequest, previewKey: string | null, individualFrame: boolean) {
+        const baseCache = frameDataCache[this.jobID];
+        if (baseCache.imageFrames && !individualFrame) {
+            const playback = !!previewKey && !baseCache.previewUnavailable;
+            if (!baseCache.imageBuffer || baseCache.imageBufferPlayback !== playback) {
+                baseCache.imageBuffer?.close();
+                baseCache.imageBufferPlayback = playback;
+                const encodedBytes = 16 * baseCache.frameBufferMultiplier * 1024 * 1024;
+                baseCache.imageBuffer = new ImageFrameBuffer({
+                    frames: baseCache.segmentFrameNumbers,
+                    chunkSize: baseCache.chunkSize,
+                    chunkLimit: 10 * baseCache.frameBufferMultiplier,
+                    encodedBytes,
+                    decodedBytes: 128 * 1024 * 1024,
+                    getChunk: (index, signal) => (playback ? serverProxy.frames.getData(
+                        this.jobID, index, ChunkQuality.COMPRESSED, false,
+                        { signal, playbackQuality: 50, maxContentLength: encodedBytes },
+                    ) : baseCache.getChunk(index, ChunkQuality.COMPRESSED, { signal, maxContentLength: encodedBytes })),
+                });
+            }
+            try {
+                const imageData = await baseCache.imageBuffer.frame(this.number, onServerRequest);
+                return { renderWidth: this.width, renderHeight: this.height, imageData };
+            } catch (error) {
+                if (error?.name === 'AbortError') throw this.number;
+                if (playback && [400, 404, 405].includes(error?.code)) {
+                    baseCache.previewUnavailable = true;
+                    return this.data(onServerRequest);
+                }
+                if (error instanceof RangeError || error?.code === 413) {
+                    // A single chunk may exceed the byte budget. Do not retain or
+                    // decode it wholesale: retrieve just the selected task-quality image.
+                    return getIndividualFrame(this, onServerRequest, false);
+                }
+                throw error;
+            }
+        }
         const cacheKey = previewKey && !frameDataCache[this.jobID].previewUnavailable ?
             previewKey : String(this.jobID);
         const cache = frameDataCache[cacheKey];
-        if (individualFrame && !cache.previewUnavailable) {
-            const bufferedImage = cache.provider.frame(this.number);
+        if (individualFrame && (cache.imageFrames || !cache.previewUnavailable)) {
+            const bufferedImage = cache.imageFrames ?
+                !cache.imageBufferPlayback && cache.imageBuffer?.cachedFrame(this.number) :
+                cache.provider.frame(this.number);
             if (bufferedImage) return { renderWidth: this.width, renderHeight: this.height, imageData: bufferedImage };
-            const cached = individualFrames.get(this);
-            if (cached?.cache === cache) return cached.data;
-
-            // A paused preview needs one annotation-quality image, not an entire
-            // full-resolution chunk competing with the playback look-ahead.
-            onServerRequest();
-            const controller = new AbortController();
-            const data = serverProxy.frames.getFrame(this.jobID, this.number, controller.signal)
-                .then((blob) => createImageBitmap(blob))
-                .then((imageData) => {
-                    if (frameDataCache[cacheKey] !== cache || controller.signal.aborted) {
-                        imageData.close();
-                        throw this.number;
-                    }
-                    return { renderWidth: this.width, renderHeight: this.height, imageData };
-                }).catch((error) => {
-                    if (individualFrames.get(this)?.controller === controller) individualFrames.delete(this);
-                    if (controller.signal.aborted) throw this.number;
-                    if (frameDataCache[cacheKey] === cache) {
-                        // Keep the established retry/decoder path if a frame endpoint
-                        // or image decoder cannot provide this optional representation.
-                        return this.data(onServerRequest);
-                    }
-                    throw error;
-                });
-            individualFrames.set(this, { cache, controller, data });
-            return data;
+            return getIndividualFrame(this, onServerRequest);
         }
         const {
             provider, chunkSize, jobStartFrame,
@@ -840,6 +894,11 @@ async function refreshJobCacheIfOutdated(jobID: number): Promise<void> {
             // currently we only re-write meta, remove all cached frames from provider and clear cached context images
             // other parameters (e.g. chunkSize) are not supposed to be changed
             cached.provider.cleanup(Number.MAX_SAFE_INTEGER);
+            cached.refinementController?.abort();
+            cached.imageBuffer?.close();
+            cached.imageBuffer = undefined;
+            cached.refinedImage?.close();
+            cached.refinedImage = undefined;
             const previewKey = `${jobID}:preview`;
             frameDataCache[previewKey]?.provider.close();
             delete frameDataCache[previewKey];
@@ -978,7 +1037,7 @@ export async function getFrame(
     isPlaying: boolean,
     step: number,
     dimension: DimensionType,
-    getChunk: (chunkIndex: number, quality: ChunkQuality) => Promise<ArrayBuffer>,
+    getChunk: (chunkIndex: number, quality: ChunkQuality, options?: FrameChunkRequestOptions) => Promise<ArrayBuffer>,
 ): Promise<FrameData> {
     const dataCacheExists = jobID in frameDataCache;
     const previewEligible = chunkType === 'imageset' && dimension === DimensionType.DIMENSION_2D;
@@ -1029,6 +1088,7 @@ export async function getFrame(
             latestFrameDecodeRequest: null,
             latestContextImagesRequest: null,
             contextCache: {},
+            imageFrames: previewEligible,
             getChunk,
             getMeta: () => {
                 const cached = frameMetaCache[jobID];
@@ -1065,68 +1125,6 @@ export async function getFrame(
     frameDataCache[jobID].forwardStep = step;
 
     const meta = await frameDataCache[jobID].getMeta();
-    const previewKey = `${jobID}:preview`;
-    const usePreview = previewEligible &&
-        !frameDataCache[jobID].previewUnavailable;
-
-    if (usePreview) {
-        if (!frameDataCache[previewKey]) {
-            const baseCache = frameDataCache[jobID];
-            // Budget the largest actual thumbnail, not a 512px square. Wide/tall
-            // images can retain more look-ahead within the same decoded-pixel budget.
-            const previewFramePixels = meta.frames.reduce((largest, { width, height }) => {
-                const scale = Math.min(1, 512 / Math.max(width, height));
-                return Math.max(largest, Math.ceil(width * scale) * Math.ceil(height * scale));
-            }, 1);
-            const decodedBlocksCacheSize = Math.min(
-                Math.floor((64 * baseCache.frameBufferMultiplier * 1024 * 1024) /
-                    (previewFramePixels * 4 * chunkSize)) || 1, 10 * baseCache.frameBufferMultiplier,
-            );
-            const downloads = new Map<number, Promise<ArrayBuffer>>();
-            const download = (index: number): Promise<ArrayBuffer> => {
-                if (!downloads.has(index)) {
-                    const request = serverProxy.frames.getData(jobID, index, ChunkQuality.COMPRESSED, true);
-                    downloads.set(index, request);
-                    // Speculation must never produce unhandled rejections.
-                    request.catch(() => downloads.delete(index));
-                }
-                return downloads.get(index);
-            };
-            frameDataCache[previewKey] = {
-                ...baseCache,
-                provider: new FrameDecoder(
-                    BlockType.ARCHIVE, decodedBlocksCacheSize,
-                    (number: number): number => (
-                        meta.getFrameChunkIndex(meta.getDataFrameNumber(number - jobStartFrame))
-                    ),
-                    dimension,
-                ),
-                decodedBlocksCacheSize,
-                currentChunkIndex: 0,
-                prefetch: () => {},
-                activeChunkRequest: null,
-                latestFrameDecodeRequest: null,
-                getChunk: async (index) => {
-                    const result = await download(index);
-                    downloads.delete(index);
-                    if (frameDataCache[jobID] === baseCache && frameDataCache[previewKey]) {
-                        // Pipeline small transfers to hide RTT, including single-frame chunks.
-                        const lookAhead = Math.min(4, decodedBlocksCacheSize - 1);
-                        for (const pending of downloads.keys()) {
-                            if (pending <= index || pending > index + lookAhead) downloads.delete(pending);
-                        }
-                        for (let next = index + 1; next <= index + lookAhead && next < meta.chunkCount; next++) {
-                            download(next);
-                        }
-                    }
-                    return result;
-                },
-            };
-        }
-        frameDataCache[previewKey].decodeForward = isPlaying;
-        frameDataCache[previewKey].forwardStep = step;
-        frameDataCache[previewKey].provider.setRenderSize(frameMeta.width, frameMeta.height);
-    }
 
     return new FrameData({
         width: frameMeta.width,
@@ -1136,7 +1134,7 @@ export async function getFrame(
         frameNumber: frame,
         deleted: frame in meta.deletedFrames,
         jobID,
-        previewKey: usePreview ? previewKey : null,
+        previewKey: previewEligible ? String(jobID) : null,
     });
 }
 
@@ -1212,7 +1210,7 @@ export function getCachedChunks(jobID: number): number[] {
         return [];
     }
 
-    return frameDataCache[jobID].provider.cachedChunks(true);
+    return frameDataCache[jobID].imageBuffer?.cachedChunks() || frameDataCache[jobID].provider.cachedChunks(true);
 }
 
 export async function getJobFrameNumbers(jobID: number): Promise<number[]> {
@@ -1229,6 +1227,9 @@ export function clear(jobID: number): void {
     frameDataCache[previewKey]?.provider.close();
     delete frameDataCache[previewKey];
     if (jobID in frameDataCache) {
+        frameDataCache[jobID].refinementController?.abort();
+        frameDataCache[jobID].imageBuffer?.close();
+        frameDataCache[jobID].refinedImage?.close();
         frameDataCache[jobID].provider.close();
         for (const contextImagesByFrame of Object.values(frameDataCache[jobID].contextCache)) {
             for (const image of Object.values(contextImagesByFrame.data)) {

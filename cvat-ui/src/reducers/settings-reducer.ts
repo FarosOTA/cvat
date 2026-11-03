@@ -57,7 +57,7 @@ const defaultState: SettingsState = {
         canvasBackgroundColor: '#ffffff',
         frameStep: 10,
         frameSpeed: FrameSpeed.Usual,
-        reducedResolution: false,
+        bandwidthSavingPlayback: true,
         frameBufferMultiplier: 10,
         resetZoom: false,
         rotateAll: false,
@@ -216,12 +216,12 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 },
             };
         }
-        case SettingsActionTypes.SWITCH_REDUCED_RESOLUTION: {
+        case SettingsActionTypes.SWITCH_BANDWIDTH_SAVING_PLAYBACK: {
             return {
                 ...state,
                 player: {
                     ...state.player,
-                    reducedResolution: action.payload.reducedResolution,
+                    bandwidthSavingPlayback: action.payload.bandwidthSavingPlayback,
                 },
             };
         }

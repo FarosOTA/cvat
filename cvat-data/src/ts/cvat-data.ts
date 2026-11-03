@@ -6,6 +6,8 @@
 import { Mutex } from 'async-mutex';
 import { MP4Reader, Bytestream } from './3rdparty/mp4';
 
+export { default as ImageFrameBuffer } from './image-frame-buffer';
+
 export class RequestOutdatedError extends Error {}
 
 export enum BlockType {

@@ -32,7 +32,7 @@ export enum SettingsActionTypes {
     CHANGE_SHOW_GROUND_TRUTH = 'CHANGE_SHOW_GROUND_TRUTH',
     CHANGE_FRAME_STEP = 'CHANGE_FRAME_STEP',
     CHANGE_FRAME_SPEED = 'CHANGE_FRAME_SPEED',
-    SWITCH_REDUCED_RESOLUTION = 'SWITCH_REDUCED_RESOLUTION',
+    SWITCH_BANDWIDTH_SAVING_PLAYBACK = 'SWITCH_BANDWIDTH_SAVING_PLAYBACK',
     CHANGE_FRAME_BUFFER_MULTIPLIER = 'CHANGE_FRAME_BUFFER_MULTIPLIER',
     SWITCH_RESET_ZOOM = 'SWITCH_RESET_ZOOM',
     SWITCH_SMOOTH_IMAGE = 'SWITCH_SMOOTH_IMAGE',
@@ -203,10 +203,10 @@ export function changeFrameSpeed(frameSpeed: number): AnyAction {
     };
 }
 
-export function switchReducedResolution(reducedResolution: boolean): AnyAction {
+export function switchBandwidthSavingPlayback(bandwidthSavingPlayback: boolean): AnyAction {
     return {
-        type: SettingsActionTypes.SWITCH_REDUCED_RESOLUTION,
-        payload: { reducedResolution },
+        type: SettingsActionTypes.SWITCH_BANDWIDTH_SAVING_PLAYBACK,
+        payload: { bandwidthSavingPlayback },
     };
 }
 
