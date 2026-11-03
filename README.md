@@ -65,6 +65,10 @@ changes, including timeline expansion, window resizing, and fullscreen transitio
 - **Click to place:** Click an active box body to pick it up, move the pointer without holding the
   mouse button, and click again to place it. The same interaction works with corner and edge handles
   for resizing. Traditional press-and-hold dragging remains available.
+- **Middle-button navigation:** Hold the middle mouse button to pan the image, including while a
+  shape, corner, edge, or point is engaged in an edit. Release the middle button to resume the edit
+  without placing it or changing its image coordinates. Double-click the middle button to fit the
+  image to the canvas; an engaged edit remains active afterward.
 - **Cancel safely:** Press `Esc` during a move or resize to restore the box's geometry from before
   the interaction instead of keeping the unfinished edit.
 - **Editing crosshairs:** Crosshairs help align boxes while moving or resizing them.

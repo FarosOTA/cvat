@@ -99,6 +99,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
     private editingCrosshair = new Crosshair();
     private cursorMagnifier: HTMLCanvasElement;
     private precisionToolsRequest: number | null = null;
+    private middleMousePosition: { clientX: number; clientY: number } | null = null;
     private innerObjectsFlags: {
         drawHidden: Record<number, boolean>;
         editHidden: Record<number, boolean>;
@@ -1559,11 +1560,11 @@ export class CanvasViewImpl implements CanvasView, Listener {
         };
 
         const pickUp = (event: MouseEvent): void => {
+            if (event.button !== 0) return;
             if (pickedUp) {
                 event.stopImmediatePropagation();
                 return;
             }
-            if (event.button !== 0) return;
             trackDrag(event);
             window.removeEventListener('mousemove', trackDrag, true);
             if (!dragged) {
@@ -2131,8 +2132,76 @@ export class CanvasViewImpl implements CanvasView, Listener {
         }
     }
 
+    private onMiddleMouseMove = (event: MouseEvent): void => {
+        if (this.middleMousePosition) {
+            // SVG drag/resize listeners run on window, and some point handlers stop bubbling.
+            // Pan in capture phase without feeding the movement to the engaged edit.
+            this.transformDuringEdit(this.middleMousePosition, event, () => {
+                this.controller.drag(event.clientX, event.clientY);
+            });
+            this.middleMousePosition = { clientX: event.clientX, clientY: event.clientY };
+            event.stopImmediatePropagation();
+        }
+    };
+
+    private onMiddleMouseUp = (event: MouseEvent): void => {
+        if (event.button === 1 && this.middleMousePosition) {
+            this.middleMousePosition = null;
+            this.controller.disableDrag();
+            // SVG resize finishes on ANY mouseup, not just the primary button.
+            event.stopImmediatePropagation();
+        }
+    };
+
+    private transformDuringEdit(
+        from: { clientX: number; clientY: number },
+        to: { clientX: number; clientY: number },
+        transform: () => void,
+    ): void {
+        const restoreAnchors: (() => void)[] = [];
+        for (const shape of [this.draggableShape, this.resizableShape]) {
+            if (!shape) continue;
+            // Cuboids and skeletons attach handlers to children of the active shape.
+            for (const node of [shape.node, ...Array.from(shape.node.querySelectorAll('*'))]) {
+                const { instance } = (node as any);
+                for (const key of ['_draggable', '_resizeHandler']) {
+                    const handler = instance?.remember(key);
+                    const anchor = key === '_draggable' ? handler?.startPoints?.point : handler?.parameters?.p;
+                    if (!anchor) continue;
+                    const point = this.content.createSVGPoint();
+                    point.x = from.clientX;
+                    point.y = from.clientY;
+                    const screen = instance.node.getScreenCTM();
+                    // Rotation deliberately keeps the initial local coordinate system even
+                    // as the shape rotates; only replace its viewport component.
+                    const matrix = handler.rotationPointPressed ? handler.m : screen.inverse();
+                    const before = point.matrixTransform(matrix);
+                    restoreAnchors.push(() => {
+                        const inverse = instance.node.getScreenCTM().inverse();
+                        handler.m = handler.rotationPointPressed ? matrix.multiply(screen).multiply(inverse) : inverse;
+                        point.x = to.clientX;
+                        point.y = to.clientY;
+                        const after = point.matrixTransform(handler.m);
+                        if (handler.rotationPointPressed) {
+                            handler.m.e += before.x - after.x;
+                            handler.m.f += before.y - after.y;
+                        } else {
+                            anchor.x += after.x - before.x;
+                            anchor.y += after.y - before.y;
+                        }
+                    });
+                }
+            }
+        }
+
+        transform();
+        // Rebase the edit's reference point so viewport changes cannot move the object
+        // on the next mousemove or placement, including fit beneath a stationary cursor.
+        restoreAnchors.forEach((restore) => restore());
+    }
+
     private onMouseUp = (event: MouseEvent): void => {
-        if (event.button === 0 || event.button === 1) {
+        if (!this.middleMousePosition && (event.button === 0 || event.button === 1)) {
             this.controller.disableDrag();
         }
     };
@@ -2345,6 +2414,26 @@ export class CanvasViewImpl implements CanvasView, Listener {
         });
 
         this.canvas.addEventListener('mousedown', (event): void => {
+            if (event.button === 1 && !this.attachmentBoard.contains(event.target as Node)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                this.middleMousePosition = { clientX: event.clientX, clientY: event.clientY };
+                this.controller.enableDrag(event.clientX, event.clientY);
+            }
+        }, true);
+
+        this.canvas.addEventListener('auxclick', (event): void => {
+            if (event.button === 1 && !this.attachmentBoard.contains(event.target as Node)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                // Browsers emit auxclick (with a click count), not dblclick, for middle clicks.
+                if (event.detail === 2) {
+                    this.transformDuringEdit(event, event, () => this.controller.fit());
+                }
+            }
+        }, true);
+
+        this.canvas.addEventListener('mousedown', (event): void => {
             if ([0, 1].includes(event.button)) {
                 if (
                     [Mode.IDLE, Mode.DRAG_CANVAS, Mode.MERGE, Mode.SPLIT]
@@ -2355,6 +2444,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
             }
         });
 
+        window.addEventListener('mousemove', this.onMiddleMouseMove, true);
+        window.addEventListener('mouseup', this.onMiddleMouseUp, true);
         window.document.addEventListener('mouseup', this.onMouseUp);
         window.document.addEventListener('keydown', this.onKeyDown);
         window.document.addEventListener('keyup', this.onKeyUp);
@@ -2872,6 +2963,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
             window.document.removeEventListener('keydown', this.onKeyDown);
             window.document.removeEventListener('keyup', this.onKeyUp);
             window.document.removeEventListener('mouseup', this.onMouseUp);
+            window.removeEventListener('mousemove', this.onMiddleMouseMove, true);
+            window.removeEventListener('mouseup', this.onMiddleMouseUp, true);
             window.removeEventListener('mousemove', this.updatePrecisionTools);
             this.hidePrecisionTools();
             this.interactionHandler.destroy();

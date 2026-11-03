@@ -286,5 +286,226 @@ context('Actions on rectangle', () => {
                 });
             });
         }
+
+        for (const [part, pickup] of [['body', '@rectangle'], ['corner', '.svg_select_points_lt']]) {
+            it(`Pan and double-middle fit while a rectangle ${part} is picked up, then cancel or place`, () => {
+                const geometry = (shape) => ['x', 'y', 'width', 'height'].map((attr) => +shape.getAttribute(attr));
+                const assertGeometry = (shape, expected) => {
+                    geometry(shape).forEach((value, index) => expect(value).to.be.closeTo(expected[index], 0.15));
+                };
+                cy.get('body').type('{esc}', { scrollBehavior: false });
+                cy.get('.cvat-fit-control').click({ scrollBehavior: false });
+                cy.get('#cvat_canvas_background').then(([background]) => {
+                    const fitted = background.getBoundingClientRect();
+                    // Make fit restore both scale and position, not just undo the pan.
+                    cy.get('.cvat-canvas-container').trigger('wheel', {
+                        clientX: fitted.left + fitted.width / 2,
+                        clientY: fitted.top + fitted.height / 2,
+                        deltaY: -4,
+                        scrollBehavior: false,
+                    });
+                    cy.get('#cvat_canvas_shape_5').as('rectangle');
+                    cy.get('@rectangle').then(([shape]) => {
+                        const original = geometry(shape);
+                        for (const cancel of [true, false]) {
+                            cy.get('@rectangle').trigger('mousemove', { scrollBehavior: false });
+                            cy.get('@rectangle').trigger('mouseover', { scrollBehavior: false });
+                            cy.get(pickup).click({ scrollBehavior: false });
+                            cy.get(pickup).then(([handle]) => {
+                                const bounds = handle.getBoundingClientRect();
+                                const target = {
+                                    clientX: bounds.left + bounds.width / 2 + 23,
+                                    clientY: bounds.top + bounds.height / 2 + 17,
+                                };
+                                const end = { clientX: target.clientX + 61, clientY: target.clientY + 37 };
+                                cy.get('.cvat-canvas-container').trigger('mousemove', {
+                                    ...target, buttons: 0, scrollBehavior: false,
+                                });
+                                cy.get('@rectangle').then(([rectangle]) => {
+                                    const preview = geometry(rectangle);
+                                    const beforePan = rectangle.getBoundingClientRect();
+                                    // Target the active SVG handler, not just the canvas background.
+                                    cy.get(pickup).trigger('mousedown', {
+                                        ...target, button: 1, buttons: 4, scrollBehavior: false,
+                                    });
+                                    cy.get(pickup).trigger('mousemove', {
+                                        ...end, buttons: 4, scrollBehavior: false,
+                                    });
+                                    cy.get(pickup).trigger('mouseup', {
+                                        ...end, button: 1, buttons: 0, scrollBehavior: false,
+                                    });
+                                    cy.get('@rectangle').should(([panned]) => {
+                                        assertGeometry(panned, preview);
+                                        const boundsAfterPan = panned.getBoundingClientRect();
+                                        expect(boundsAfterPan.left).to.be.closeTo(beforePan.left + 61, 1);
+                                        expect(boundsAfterPan.top).to.be.closeTo(beforePan.top + 37, 1);
+                                    });
+                                    // A middle release must stop panning, but must not end the edit.
+                                    cy.get('.cvat-canvas-container').trigger('mousemove', {
+                                        ...end, buttons: 0, scrollBehavior: false,
+                                    });
+                                    cy.get('@rectangle').should(([panned]) => {
+                                        assertGeometry(panned, preview);
+                                        const boundsAfterRelease = panned.getBoundingClientRect();
+                                        expect(boundsAfterRelease.left).to.be.closeTo(beforePan.left + 61, 1);
+                                    });
+                                    // Native Chromium middle presses/releases must produce auxclick
+                                    // with the double-click count; do not manufacture that event here.
+                                    cy.get('body').realClick({
+                                        x: end.clientX,
+                                        y: end.clientY,
+                                        button: 'middle',
+                                        clickCount: 2,
+                                        scrollBehavior: false,
+                                    });
+                                    cy.get('#cvat_canvas_background').should(([backgroundAfterFit]) => {
+                                        const actual = backgroundAfterFit.getBoundingClientRect();
+                                        for (const key of ['left', 'top', 'width', 'height']) {
+                                            expect(actual[key]).to.be.closeTo(fitted[key], 1);
+                                        }
+                                    });
+                                    cy.get('.cvat-canvas-container').trigger('mousemove', {
+                                        ...end, buttons: 0, scrollBehavior: false,
+                                    });
+                                    cy.get('@rectangle').should(([afterFit]) => assertGeometry(afterFit, preview));
+                                    cy.get('.cvat_canvas_crosshair').should('have.length', 2);
+                                    cy.get('@rectangle').then(([afterFit]) => {
+                                        const beforeResume = afterFit.getBoundingClientRect();
+                                        const place = { clientX: end.clientX + 19, clientY: end.clientY + 11 };
+                                        cy.get('.cvat-canvas-container').trigger('mousemove', {
+                                            ...place, buttons: 0, scrollBehavior: false,
+                                        });
+                                        cy.get('@rectangle').should(([resumed]) => {
+                                            const resumedBounds = resumed.getBoundingClientRect();
+                                            expect(resumedBounds.left).to.be.closeTo(beforeResume.left + 19, 1);
+                                            expect(resumedBounds.top).to.be.closeTo(beforeResume.top + 11, 1);
+                                        });
+                                        if (cancel) {
+                                            cy.get('body').type('{esc}', { scrollBehavior: false });
+                                        } else {
+                                            cy.get('.cvat-canvas-container').trigger('mousedown', {
+                                                ...place, button: 0, scrollBehavior: false,
+                                            });
+                                            cy.get('.cvat-canvas-container').trigger('mouseup', {
+                                                ...place, button: 0, scrollBehavior: false,
+                                            });
+                                            cy.get('@rectangle').then(([placed]) => {
+                                                const committed = geometry(placed);
+                                                cy.get('.cvat-canvas-container').trigger('mousemove', {
+                                                    clientX: place.clientX + 30,
+                                                    clientY: place.clientY + 20,
+                                                    buttons: 0,
+                                                    scrollBehavior: false,
+                                                });
+                                                cy.get('@rectangle').should(([still]) => assertGeometry(still, committed));
+                                            });
+                                            cy.get('body').type('{ctrl}z', { scrollBehavior: false });
+                                        }
+                                        cy.get('@rectangle').should(([restored]) => assertGeometry(restored, original));
+                                    });
+                                });
+                            });
+                        }
+                    });
+                });
+            });
+        }
+
+        it('Pan while holding a polygon point, then resume the point drag and release normally', () => {
+            cy.get('body').type('{esc}', { scrollBehavior: false });
+            cy.get('.cvat-fit-control').click({ scrollBehavior: false });
+            cy.createPolygon({
+                type: 'Shape',
+                labelName,
+                pointsMap: [{ x: 200, y: 200 }, { x: 280, y: 200 }, { x: 280, y: 280 }],
+            });
+            cy.get('polygon.cvat_canvas_shape').last().as('polygon');
+            cy.get('@polygon').then(([polygon]) => {
+                const center = polygon.ownerSVGElement.createSVGPoint();
+                for (const point of polygon.points) {
+                    center.x += point.x / polygon.points.length;
+                    center.y += point.y / polygon.points.length;
+                }
+                const screen = center.matrixTransform(polygon.getScreenCTM());
+                cy.get('.cvat-canvas-container').trigger('mousemove', {
+                    clientX: screen.x, clientY: screen.y, scrollBehavior: false,
+                });
+            });
+            cy.get('@polygon').should('have.class', 'cvat_canvas_shape_activated');
+            cy.get('.svg_select_points').first().then(([point]) => {
+                const bounds = point.getBoundingClientRect();
+                const start = { clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2 };
+                const target = { clientX: start.clientX + 20, clientY: start.clientY + 15 };
+                const end = { clientX: target.clientX + 61, clientY: target.clientY + 37 };
+                cy.wrap(point).trigger('mousedown', {
+                    ...start, button: 0, buttons: 1, which: 1, scrollBehavior: false,
+                });
+                cy.get('.cvat-canvas-container').trigger('mousemove', {
+                    ...target, buttons: 1, scrollBehavior: false,
+                });
+                cy.get('@polygon').then(([polygon]) => {
+                    const preview = polygon.getAttribute('points');
+                    const beforePan = polygon.getBoundingClientRect();
+                    cy.get('.svg_select_points').first().trigger('mousedown', {
+                        ...target, button: 1, buttons: 5, scrollBehavior: false,
+                    });
+                    cy.get('.svg_select_points').first().trigger('mousemove', {
+                        ...end, buttons: 5, scrollBehavior: false,
+                    });
+                    cy.get('.svg_select_points').first().trigger('mouseup', {
+                        ...end, button: 1, buttons: 1, scrollBehavior: false,
+                    });
+                    cy.get('@polygon').should(([panned]) => {
+                        expect(panned.getAttribute('points')).to.equal(preview);
+                        expect(panned.getBoundingClientRect().left).to.be.closeTo(beforePan.left + 61, 1);
+                        expect(panned.getBoundingClientRect().top).to.be.closeTo(beforePan.top + 37, 1);
+                    });
+                    for (const detail of [1, 2]) {
+                        cy.get('.svg_select_points').first().trigger('mousedown', {
+                            ...end, button: 1, buttons: 5, detail, scrollBehavior: false,
+                        });
+                        cy.get('.svg_select_points').first().trigger('mouseup', {
+                            ...end, button: 1, buttons: 1, detail, scrollBehavior: false,
+                        });
+                        cy.get('.svg_select_points').first().trigger('auxclick', {
+                            ...end,
+                            button: 1,
+                            buttons: 1,
+                            detail,
+                            eventConstructor: 'MouseEvent',
+                            scrollBehavior: false,
+                        });
+                    }
+                    cy.get('.cvat-canvas-container').trigger('mousemove', {
+                        ...end, buttons: 1, scrollBehavior: false,
+                    });
+                    cy.get('@polygon').should('have.attr', 'points', preview);
+                    cy.get('.cvat-canvas-container').trigger('mousemove', {
+                        clientX: end.clientX + 13,
+                        clientY: end.clientY + 9,
+                        buttons: 1,
+                        scrollBehavior: false,
+                    });
+                    cy.get('@polygon').should('not.have.attr', 'points', preview);
+                    cy.get('.cvat-canvas-container').trigger('mouseup', {
+                        clientX: end.clientX + 13,
+                        clientY: end.clientY + 9,
+                        button: 0,
+                        buttons: 0,
+                        scrollBehavior: false,
+                    });
+                    cy.get('@polygon').then(([placed]) => {
+                        const committed = placed.getAttribute('points');
+                        cy.get('.cvat-canvas-container').trigger('mousemove', {
+                            clientX: end.clientX + 40,
+                            clientY: end.clientY + 30,
+                            buttons: 0,
+                            scrollBehavior: false,
+                        });
+                        cy.get('@polygon').should('have.attr', 'points', committed);
+                    });
+                });
+            });
+        });
     });
 });
