@@ -2140,6 +2140,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 this.controller.drag(event.clientX, event.clientY);
             });
             this.middleMousePosition = { clientX: event.clientX, clientY: event.clientY };
+            // The intercepted move will not reach the regular precision-tools listener.
+            this.updatePrecisionTools(event);
             event.stopImmediatePropagation();
         }
     };
@@ -2429,6 +2431,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 // Browsers emit auxclick (with a click count), not dblclick, for middle clicks.
                 if (event.detail === 2) {
                     this.transformDuringEdit(event, event, () => this.controller.fit());
+                    this.updatePrecisionTools(event);
                 }
             }
         }, true);

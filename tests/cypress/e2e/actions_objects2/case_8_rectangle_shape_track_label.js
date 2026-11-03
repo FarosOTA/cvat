@@ -293,6 +293,27 @@ context('Actions on rectangle', () => {
                 const assertGeometry = (shape, expected) => {
                     geometry(shape).forEach((value, index) => expect(value).to.be.closeTo(expected[index], 0.15));
                 };
+                const assertMagnifierAligned = () => {
+                    cy.get('.cvat_canvas_cursor_magnifier').should('be.visible').and(([overlay]) => {
+                        const bounds = overlay.getBoundingClientRect();
+                        const box = Cypress.$('#cvat_canvas_shape_5')[0].getBoundingClientRect();
+                        const centerX = box.left + box.width / 2;
+                        const centerY = box.top + box.height / 2;
+                        for (const [x, y, alpha] of [
+                            [centerX, box.top - 12, 255],
+                            [centerX, box.bottom + 12, 255],
+                            [box.left - 12, centerY, 255],
+                            [box.right + 12, centerY, 255],
+                            [centerX, centerY, 0],
+                        ]) {
+                            expect(overlay.getContext('2d').getImageData(
+                                Math.floor(((x - bounds.left) * overlay.width) / bounds.width),
+                                Math.floor(((y - bounds.top) * overlay.height) / bounds.height),
+                                1, 1,
+                            ).data[3]).to.equal(alpha);
+                        }
+                    });
+                };
                 cy.get('body').type('{esc}', { scrollBehavior: false });
                 cy.get('.cvat-fit-control').click({ scrollBehavior: false });
                 cy.get('#cvat_canvas_background').then(([background]) => {
@@ -331,6 +352,8 @@ context('Actions on rectangle', () => {
                                     cy.get(pickup).trigger('mousemove', {
                                         ...end, buttons: 4, scrollBehavior: false,
                                     });
+                                    // Check during the intercepted pan, before a normal move can repair the overlay.
+                                    assertMagnifierAligned();
                                     cy.get(pickup).trigger('mouseup', {
                                         ...end, button: 1, buttons: 0, scrollBehavior: false,
                                     });
@@ -364,6 +387,8 @@ context('Actions on rectangle', () => {
                                             expect(actual[key]).to.be.closeTo(fitted[key], 1);
                                         }
                                     });
+                                    // Fit must redraw even when the pointer remains stationary.
+                                    assertMagnifierAligned();
                                     cy.get('.cvat-canvas-container').trigger('mousemove', {
                                         ...end, buttons: 0, scrollBehavior: false,
                                     });

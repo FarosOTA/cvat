@@ -68,7 +68,8 @@ changes, including timeline expansion, window resizing, and fullscreen transitio
 - **Middle-button navigation:** Hold the middle mouse button to pan the image, including while a
   shape, corner, edge, or point is engaged in an edit. Release the middle button to resume the edit
   without placing it or changing its image coordinates. Double-click the middle button to fit the
-  image to the canvas; an engaged edit remains active afterward.
+  image to the canvas; an engaged edit remains active afterward. Magnified borders and editing
+  crosshairs stay aligned during panning and refresh on fit without requiring another pointer move.
 - **Cancel safely:** Press `Esc` during a move or resize to restore the box's geometry from before
   the interaction instead of keeping the unfinished edit.
 - **Editing crosshairs:** Crosshairs help align boxes while moving or resizing them.
