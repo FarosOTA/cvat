@@ -62,6 +62,7 @@ import { MinimalShape, TrackerResults, InteractorResults } from 'cvat-core/src/l
 import { fetchAndAssembleAudio } from 'cvat-core/src/audio';
 import type {
     RectanglePoints,
+    RectangleMetadata,
     RectangleTrackMetadata,
     RectangleTrackResize,
     RectangleTrackTransformRequest,
@@ -183,6 +184,7 @@ export type {
     SerializedInterval,
     WebhookEvent,
     RectanglePoints,
+    RectangleMetadata,
     RectangleTrackMetadata,
     RectangleTrackResize,
     RectangleTrackTransformRequest,

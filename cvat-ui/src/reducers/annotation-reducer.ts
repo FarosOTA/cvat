@@ -703,8 +703,8 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             } = action.payload;
             const { states: prevStates } = state.annotations;
             const nextStates = [...prevStates];
-            const updatesRectangleTrack = updatedStates.some((_state: ObjectState) => (
-                _state.objectType === ObjectType.TRACK && _state.shapeType === ShapeType.RECTANGLE
+            const updatesRectangle = updatedStates.some((_state: ObjectState) => (
+                _state.shapeType === ShapeType.RECTANGLE
             ));
 
             const clientIDs = prevStates.map((prevState: ObjectState): number => prevState.clientID!);
@@ -729,7 +729,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     renderData: getAnnotationsRenderData(nextStates, state.annotations.filters),
                     history,
                 },
-                rectangleTrack: updatesRectangleTrack ? {
+                rectangleTrack: updatesRectangle ? {
                     ...state.rectangleTrack,
                     metadataRevision: state.rectangleTrack.metadataRevision + 1,
                 } : state.rectangleTrack,
@@ -812,8 +812,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
         }
         case AnnotationActionTypes.REMOVE_OBJECT_SUCCESS: {
             const { objectState, history } = action.payload;
-            const removesRectangleTrack = objectState.objectType === ObjectType.TRACK &&
-                objectState.shapeType === ShapeType.RECTANGLE;
+            const removesRectangle = objectState.shapeType === ShapeType.RECTANGLE;
             const contextMenuClientID = state.canvas.contextMenu.clientID;
             const contextMenuVisible = state.canvas.contextMenu.visible;
             const nextStates = state.annotations.states.filter(
@@ -841,7 +840,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     objectState: null,
                     force: false,
                 },
-                rectangleTrack: removesRectangleTrack ? {
+                rectangleTrack: removesRectangle ? {
                     ...state.rectangleTrack,
                     metadataRevision: state.rectangleTrack.metadataRevision + 1,
                 } : state.rectangleTrack,

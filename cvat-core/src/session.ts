@@ -30,7 +30,7 @@ import ObjectState from './object-state';
 import { JobValidationLayout, TaskValidationLayout } from './validation-layout';
 import { UpdateStatusData } from './core-types';
 import type {
-    RectangleTrackMetadata, RectangleTrackTransformRequest, RectangleTrackTransformResult,
+    RectangleMetadata, RectangleTrackMetadata, RectangleTrackTransformRequest, RectangleTrackTransformResult,
 } from './annotations-objects/types';
 
 function buildDuplicatedAPI(prototype): void {
@@ -119,6 +119,10 @@ function buildDuplicatedAPI(prototype): void {
                         clientID,
                     );
                     return result;
+                },
+
+                async rectangleMetadata() {
+                    return PluginRegistry.apiWrapper.call(this, prototype.annotations.rectangleMetadata);
                 },
 
                 async search(frameFrom, frameTo, searchParameters) {
@@ -431,6 +435,7 @@ export class Session {
             request: RectangleTrackTransformRequest,
         ) => Promise<RectangleTrackTransformResult>;
         rectangleTrackMetadata: (clientID?: number) => Promise<RectangleTrackMetadata[]>;
+        rectangleMetadata: () => Promise<RectangleMetadata[]>;
         put: (objectStates: (ObjectState | AudioIntervalState)[]) => Promise<number[]>;
         merge: (objectStates: ObjectState[]) => Promise<void>;
         split: (objectState: ObjectState, frame: number) => Promise<void>;
@@ -555,6 +560,7 @@ export class Session {
             intervals: Object.getPrototypeOf(this).annotations.intervals.bind(this),
             transformRectangleTrack: Object.getPrototypeOf(this).annotations.transformRectangleTrack.bind(this),
             rectangleTrackMetadata: Object.getPrototypeOf(this).annotations.rectangleTrackMetadata.bind(this),
+            rectangleMetadata: Object.getPrototypeOf(this).annotations.rectangleMetadata.bind(this),
             put: Object.getPrototypeOf(this).annotations.put.bind(this),
             save: Object.getPrototypeOf(this).annotations.save.bind(this),
             merge: Object.getPrototypeOf(this).annotations.merge.bind(this),

@@ -881,7 +881,7 @@ function setRectangleTrackPendingActivation(clientID: number | null): AnyAction 
     };
 }
 
-export function navigateToRectangleTrackAsync(frame: number, clientID: number): ThunkAction {
+export function navigateToRectangleAsync(frame: number, clientID: number): ThunkAction {
     return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<void> => {
         const currentFrame = getState().annotation.player.frame.number;
         if (currentFrame === frame) {

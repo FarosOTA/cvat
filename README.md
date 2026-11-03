@@ -39,10 +39,13 @@ In the **Standard workspace**, select an unlocked, non-ground-truth rectangle tr
 ## Track timeline and navigation
 
 A collapsible **Track timeline** is docked below the canvas in the 2D Standard workspace, rather than
-covering the image. Expand it to see rectangle tracks, their visible segments, keyframe markers,
-outside/deleted-keyframe markers, and the current playhead. Filter by label, click a track to activate
-it, or click a segment to seek within it. Navigation skips deleted frames and can activate a track
-that is not visible on the current frame by seeking to a nearby visible position.
+covering the image. Expand it to see both rectangle **tracks** and standalone rectangle **shapes**,
+their visible segments, keyframe markers, outside/deleted-frame markers, and the current playhead.
+Each standalone shape has its own one-frame entry; shapes on consecutive frames are not implicitly
+joined into a track. The header reports track and shape counts separately. Filter by label, click a
+row to activate its rectangle, or click a segment to seek within it. Navigation skips deleted frames
+and can activate an off-frame rectangle by seeking to its own frame (shape) or a nearby visible
+position (track). Creating, relabeling, deleting, and undoing/redoing rectangle changes refreshes the list.
 
 Default shortcuts (customizable through CVAT's shortcut settings):
 
@@ -51,7 +54,7 @@ Default shortcuts (customizable through CVAT's shortcut settings):
 | `Shift + E` | Jump to the active rectangle track's first visible frame |
 | `Shift + R` | Jump to the active rectangle track's last visible frame |
 | `[` / `]` | Previous / next frame containing an annotation in the timeline's label scope |
-| `Shift + [` / `Shift + ]` | Activate the previous / next rectangle track in that label scope |
+| `Shift + [` / `Shift + ]` | Activate the previous / next rectangle shape or track in that label scope |
 
 The annotation-frame shortcuts search annotations, not just rectangle-track keyframes.
 Canvas sizing now accounts for the timeline, and the image is refitted after actual layout size

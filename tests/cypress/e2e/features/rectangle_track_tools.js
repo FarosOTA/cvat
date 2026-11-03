@@ -11,6 +11,14 @@ context('Rectangle track batch tools and edit propagation', () => {
             name: 'car',
             attributes: [],
             type: 'rectangle',
+        }, {
+            name: 'unused',
+            attributes: [],
+            type: 'rectangle',
+        }, {
+            name: 'box',
+            attributes: [],
+            type: 'rectangle',
         }],
         project_id: null,
         source_storage: { location: 'local' },
@@ -121,6 +129,16 @@ context('Rectangle track batch tools and edit propagation', () => {
         cy.get('.cvat-rectangle-track-timeline-header button[title^="Next annotation frame"]').click();
         cy.checkFrameNum(3);
         cy.contains('.cvat-rectangle-track-timeline-header button', 'Track timeline').click();
+        cy.get('.cvat-rectangle-track-timeline-row').should('have.length', 2);
+        cy.get('.cvat-rectangle-track-timeline-header .ant-select').click();
+        cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option[title="unused"]').click();
+        cy.get('.cvat-rectangle-track-timeline-empty').should('be.visible');
+        cy.get('.cvat-rectangle-track-timeline-row').should('not.exist');
+        cy.get('.cvat-rectangle-track-timeline-header .ant-select').click();
+        cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option[title="car"]').click();
+        cy.get('.cvat-rectangle-track-timeline-row').should('have.length', 2);
+        cy.get('.cvat-rectangle-track-timeline-header .ant-select').click();
+        cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option[title="Any label"]').click();
         cy.get('.cvat-rectangle-track-timeline-row').should('have.length', 2);
         cy.get('.cvat-rectangle-track-timeline-row-active .cvat-rectangle-track-timeline-segment').then(($segment) => {
             cy.wrap($segment).click($segment.width() * (2 / 9), $segment.height() / 2);
@@ -263,5 +281,63 @@ context('Rectangle track batch tools and edit propagation', () => {
             await job.actions.undo();
             expect((await metadata()).keyframes.map(({ frame }) => frame)).to.deep.equal([0, 2, 4, 10]);
         });
+    });
+
+    it('lists standalone rectangles across frames and keeps their selection, label scope, and removal in sync', () => {
+        const shapeRows = '.cvat-rectangle-track-timeline-row[data-object-type="shape"]';
+        let lastFrame;
+        let selectedId;
+        cy.window().then(async (win) => {
+            const [job] = await win.cvat.jobs.get({ jobID: jobId });
+            lastFrame = job.stopFrame;
+        }).then(() => {
+            cy.headlessCreateObjects([0, 5, lastFrame].map((frame) => ({
+                labelName: 'box',
+                objectType: 'shape',
+                type: 'rectangle',
+                frame,
+                points: [10, 15, 35, 45],
+            })), jobId);
+        });
+        cy.reload();
+        cy.contains('.cvat-rectangle-track-timeline-header button', 'Track timeline').click();
+        cy.get(shapeRows).should('have.length', 3);
+        cy.get('.cvat-rectangle-track-timeline-row[data-object-type="track"]').should('exist');
+        cy.get('.cvat-rectangle-track-timeline-header').should('contain.text', '3 shapes');
+        cy.get(`${shapeRows} .cvat-rectangle-track-timeline-segment[title="Frame 0"]`).click();
+        cy.checkFrameNum(0);
+        cy.get('.cvat-rectangle-track-timeline-row-active').should('have.attr', 'data-object-type', 'shape');
+        cy.then(() => {
+            cy.get(`${shapeRows} .cvat-rectangle-track-timeline-segment[title="Frame ${lastFrame}"]`).click();
+            cy.checkFrameNum(lastFrame);
+        });
+        cy.get('.cvat-rectangle-track-timeline-row-active small').invoke('text').then((text) => {
+            selectedId = Number(text.slice(1));
+            cy.get(`#cvat_canvas_shape_${selectedId}`).should('have.class', 'cvat_canvas_shape_activated');
+        });
+        cy.get('.cvat-rectangle-track-timeline-header .ant-select').click();
+        cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option[title="box"]').click();
+        cy.get('.cvat-rectangle-track-timeline-row').should('have.length', 3);
+        cy.get('.cvat-rectangle-track-timeline-header').should('contain.text', '0 tracks');
+        cy.then(() => {
+            cy.interactAnnotationObjectMenu(`#cvat-objects-sidebar-state-item-${selectedId}`, 'Remove');
+        });
+        cy.get(shapeRows).should('have.length', 2);
+        cy.get('.cvat-annotation-header-undo-button').click();
+        cy.get(shapeRows).should('have.length', 3);
+        cy.get('.cvat-annotation-header-redo-button').click();
+        cy.get(shapeRows).should('have.length', 2);
+        cy.get(`${shapeRows} .cvat-rectangle-track-timeline-segment[title="Frame 5"]`).click();
+        cy.checkFrameNum(5);
+        cy.get('.cvat-rectangle-track-timeline-row-active').should('have.attr', 'data-object-type', 'shape');
+        cy.get('.cvat-rectangle-track-timeline-row-active small').invoke('text').then((text) => {
+            const shapeId = Number(text.slice(1));
+            cy.get(`#cvat-objects-sidebar-state-item-${shapeId}`)
+                .find('.cvat-objects-sidebar-state-item-label-selector').click();
+        });
+        cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option[title="unused"]').click();
+        cy.get(shapeRows).should('have.length', 1);
+        cy.get('.cvat-annotation-header-undo-button').click();
+        cy.get(shapeRows).should('have.length', 2);
     });
 });

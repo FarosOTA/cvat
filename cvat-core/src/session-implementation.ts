@@ -392,6 +392,14 @@ export function implementJob(Job: typeof JobClass): typeof JobClass {
         },
     });
 
+    Object.defineProperty(Job.prototype.annotations.rectangleMetadata, 'implementation', {
+        value: async function rectangleMetadataImplementation(
+            this: JobClass,
+        ): ReturnType<typeof JobClass.prototype.annotations.rectangleMetadata> {
+            return getCollection(this).rectangleMetadata();
+        },
+    });
+
     Object.defineProperty(Job.prototype.annotations.search, 'implementation', {
         value: function searchAnnotationsImplementation(
             this: JobClass,
@@ -1219,6 +1227,14 @@ export function implementTask(Task: typeof TaskClass): typeof TaskClass {
             clientID: Parameters<typeof TaskClass.prototype.annotations.rectangleTrackMetadata>[0],
         ): ReturnType<typeof TaskClass.prototype.annotations.rectangleTrackMetadata> {
             return getCollection(this).rectangleTrackMetadata(clientID);
+        },
+    });
+
+    Object.defineProperty(Task.prototype.annotations.rectangleMetadata, 'implementation', {
+        value: async function rectangleMetadataImplementation(
+            this: TaskClass,
+        ): ReturnType<typeof TaskClass.prototype.annotations.rectangleMetadata> {
+            return getCollection(this).rectangleMetadata();
         },
     });
 

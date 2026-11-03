@@ -12,7 +12,7 @@ import {
     InterpolationNotPossibleError, AudioInterval,
 } from './annotations-objects';
 import type {
-    RectangleTrackMetadata, RectangleTrackTransformRequest, RectangleTrackTransformResult,
+    RectangleMetadata, RectangleTrackMetadata, RectangleTrackTransformRequest, RectangleTrackTransformResult,
 } from './annotations-objects/types';
 import {
     SerializedCollection, SerializedShape, SerializedTrack,
@@ -476,6 +476,29 @@ export default class Collection {
             .filter((track): track is RectangleTrack => track instanceof RectangleTrack && !track.removed)
             .filter((track) => typeof clientID === 'undefined' || track.clientID === clientID)
             .map((track) => track.metadata());
+    }
+
+    public rectangleMetadata(): RectangleMetadata[] {
+        return Object.values(this.objects)
+            .filter((object): object is RectangleShape | RectangleTrack => (
+                (object instanceof RectangleShape || object instanceof RectangleTrack) && !object.removed
+            ))
+            .map((object) => {
+                if (object instanceof RectangleTrack) {
+                    return { ...object.metadata(), objectType: ObjectType.TRACK };
+                }
+
+                const deleted = this.injection.framesInfo.isFrameDeleted(object.frame);
+                return {
+                    clientID: object.clientID,
+                    serverID: object.toJSON().id ?? null,
+                    labelID: object.label.id,
+                    labelName: object.label.name,
+                    objectType: ObjectType.SHAPE,
+                    keyframes: [{ frame: object.frame, outside: object.outside, deleted }],
+                    visibleSegments: deleted || object.outside ? [] : [{ start: object.frame, stop: object.frame }],
+                };
+            });
     }
 
     private _mergeInternal(objectsForMerge: (Track | Shape)[], shapeType: ShapeType, label: Label): SerializedTrack {
