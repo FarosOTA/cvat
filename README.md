@@ -73,16 +73,17 @@ changes, including timeline expansion, window resizing, and fullscreen transitio
 - **Cancel safely:** Press `Esc` during a move or resize to restore the box's geometry from before
   the interaction instead of keeping the unfinished edit.
 - **Editing crosshairs:** Crosshairs help align boxes while moving or resizing them.
-- **Magnified borders:** While drawing or editing a box, magnified image strips along **all four
-  edges** help inspect alignment without covering the box's center. This is a border overlay, not
-  just a magnifying lens at the pointer.
+- **Magnified borders:** Hover over a box or its resize handles to inspect magnified image strips
+  along **all four edges**, without clicking or dragging. The strips disappear when the pointer
+  leaves the box and remain available while drawing, moving, or resizing it. This is a border
+  overlay that leaves the box's center clear, not just a magnifying lens at the pointer.
 - **Replace box:** Choose **Replace box** from an unlocked rectangle's object menu, or use
   `Shift + N` on the active object, to draw replacement geometry while retaining the same shape or
   track identity and attributes rather than deleting and recreating the annotation.
 
 Crosshairs and magnified borders are enabled by default and can be toggled independently under
 **Settings → Workspace** using **Crosshairs while editing bounding boxes** and
-**Magnified border while drawing and editing bounding boxes**.
+**Magnified border while hovering, drawing, and editing bounding boxes**.
 
 In the same section, **Border magnifier size** and **Border magnification** can be adjusted
 independently. Each offers **Low**, **Medium (default)**, and **High**: strip thicknesses are

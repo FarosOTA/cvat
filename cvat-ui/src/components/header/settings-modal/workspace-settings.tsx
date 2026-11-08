@@ -116,7 +116,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
                             onSwitchRectanglePrecision('cursorMagnifier', event.target.checked);
                         }}
                     >
-                        Magnified border while drawing and editing bounding boxes
+                        Magnified border while hovering, drawing, and editing bounding boxes
                     </Checkbox>
                 </Col>
             </Row>

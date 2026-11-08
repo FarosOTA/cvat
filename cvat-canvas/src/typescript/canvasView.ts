@@ -2022,9 +2022,14 @@ export class CanvasViewImpl implements CanvasView, Listener {
         const editingRectangle = [this.draggableShape, this.resizableShape].find((shape) => (
             shape && this.drawnStates[+shape.attr('clientID')]?.shapeType === 'rectangle'
         ));
+        const hoveredElement = document.elementFromPoint(event.clientX, event.clientY);
+        const hoveredClientID = hoveredElement?.closest('.cvat_canvas_shape')?.getAttribute('clientID') ??
+            (hoveredElement?.closest('.svg_select_points') ? this.activeElement.clientID : null);
+        const hoveredRectangle = this.mode === Mode.IDLE && hoveredClientID !== null &&
+            this.drawnStates[+hoveredClientID]?.shapeType === 'rectangle' ? this.svgShapes[+hoveredClientID] : null;
         const drawingRectangle = this.mode === Mode.DRAW && this.controller.drawData.shapeType === 'rectangle';
         const bounds = this.canvas.getBoundingClientRect();
-        if ((!editingRectangle && !drawingRectangle) || this.isImageLoading ||
+        if ((!editingRectangle && !hoveredRectangle && !drawingRectangle) || this.isImageLoading ||
             event.clientX < bounds.left || event.clientX > bounds.right ||
             event.clientY < bounds.top || event.clientY > bounds.bottom) {
             this.hidePrecisionTools();
@@ -2038,7 +2043,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
             this.editingCrosshair.hide();
         }
 
-        const rectangle = editingRectangle?.node || this.content.querySelector('.cvat_canvas_shape_drawing');
+        const rectangle = editingRectangle?.node || hoveredRectangle?.node ||
+            this.content.querySelector('.cvat_canvas_shape_drawing');
         const box = rectangle?.getBoundingClientRect();
         this.cursorMagnifier.hidden = !this.configuration.cursorMagnifier || !box?.width || !box?.height;
         if (this.cursorMagnifier.hidden) return;
@@ -2510,6 +2516,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
         });
 
         this.content.oncontextmenu = (): boolean => false;
+        this.canvas.addEventListener('mouseleave', () => this.hidePrecisionTools());
         window.addEventListener('mousemove', this.updatePrecisionTools);
         model.subscribe(this);
     }

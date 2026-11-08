@@ -121,6 +121,44 @@ context('Actions on rectangle', () => {
             cy.get('#cvat_canvas_shape_5').should('have.class', 'cvat_canvas_shape_activated');
         });
 
+        it('Show magnified borders on hover without clicking or changing the box', () => {
+            cy.get('body').type('{esc}', { scrollBehavior: false });
+            cy.get('.cvat-fit-control').click({ scrollBehavior: false });
+            cy.get('#cvat_canvas_shape_5').then(([rectangle]) => {
+                const geometry = ['x', 'y', 'width', 'height'].map((attr) => rectangle.getAttribute(attr));
+                cy.get('#cvat_canvas_shape_5').realHover();
+                cy.get('#cvat_canvas_shape_5').should('have.class', 'cvat_canvas_shape_activated');
+                for (const target of ['#cvat_canvas_shape_5', '.svg_select_points_lt', '.svg_select_points_r']) {
+                    cy.get(target).realHover();
+                    cy.get('.cvat_canvas_cursor_magnifier').should('be.visible').and(([overlay]) => {
+                        const box = rectangle.getBoundingClientRect();
+                        const bounds = overlay.getBoundingClientRect();
+                        const centerX = box.left + box.width / 2;
+                        const centerY = box.top + box.height / 2;
+                        for (const [x, y, alpha] of [
+                            [centerX, box.top - 24, 255],
+                            [centerX, box.bottom + 24, 255],
+                            [box.left - 24, centerY, 255],
+                            [box.right + 24, centerY, 255],
+                            [centerX, centerY, 0],
+                        ]) {
+                            expect(overlay.getContext('2d').getImageData(
+                                Math.floor(((x - bounds.left) * overlay.width) / bounds.width),
+                                Math.floor(((y - bounds.top) * overlay.height) / bounds.height),
+                                1, 1,
+                            ).data[3]).to.equal(alpha);
+                        }
+                    });
+                    cy.get('.cvat_canvas_crosshair').should('not.exist');
+                }
+                cy.get('.cvat-canvas-container').realHover({ position: 'topLeft' });
+                cy.get('.cvat_canvas_cursor_magnifier').should('not.be.visible');
+                cy.get('#cvat_canvas_shape_5').should(([shape]) => {
+                    expect(['x', 'y', 'width', 'height'].map((attr) => shape.getAttribute(attr))).to.deep.equal(geometry);
+                });
+            });
+        });
+
         it('Adjust border size and magnification independently and retain them when disabled', () => {
             cy.openSettings();
             cy.get('.cvat-settings-modal').contains('Workspace').click();
