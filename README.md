@@ -67,9 +67,11 @@ fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
 
 ## Precision bounding-box controls
 
-- **Click to place:** Click an active box body to pick it up, move the pointer without holding the
-  mouse button, and click again to place it. The same interaction works with corner and edge handles
-  for resizing. Traditional press-and-hold dragging remains available.
+- **Click to grab (off by default):** Hold the mouse button to drag or resize boxes by default.
+  Enable **Settings → Workspace → Click to grab bounding boxes** to click an active box body to
+  pick it up, move the pointer without holding the mouse button, and click again to place it.
+  The same interaction works with corner and edge handles for resizing. The setting is saved in
+  the browser; traditional press-and-hold dragging remains available when it is enabled.
 - **Middle-button navigation:** Hold the middle mouse button to pan the image, including while a
   shape, corner, edge, or point is engaged in an edit. Release the middle button to resume the edit
   without placing it or changing its image coordinates. Double-click the middle button to fit the

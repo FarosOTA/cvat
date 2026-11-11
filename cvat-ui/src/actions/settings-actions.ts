@@ -380,7 +380,7 @@ export function changeFrameFitMargin(frameFitMargin: number): AnyAction {
 }
 
 export function switchRectanglePrecision(
-    tool: 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover', enabled: boolean,
+    tool: 'clickToGrab' | 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover', enabled: boolean,
 ): AnyAction {
     return {
         type: SettingsActionTypes.SWITCH_RECTANGLE_PRECISION,

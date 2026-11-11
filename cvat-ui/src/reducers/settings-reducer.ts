@@ -36,6 +36,7 @@ const defaultState: SettingsState = {
         automaticBordering: false,
         snapToPoint: false,
         adaptiveZoom: true,
+        clickToGrab: false,
         editingCrosshair: true,
         cursorMagnifier: true,
         cursorMagnifierHover: true,

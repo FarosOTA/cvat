@@ -24,6 +24,7 @@ interface Props {
     showAllInterpolationTracks: boolean;
     showObjectsTextAlways: boolean;
     adaptiveZoom: boolean;
+    clickToGrab: boolean;
     intelligentPolygonCrop: boolean;
     defaultApproxPolyAccuracy: number;
     textFontSize: number;
@@ -39,6 +40,7 @@ interface Props {
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
     onSwitchShowingObjectsTextAlways(enabled: boolean): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
+    onSwitchRectanglePrecision(tool: 'clickToGrab', enabled: boolean): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeTextFontSize(fontSize: number): void;
     onChangeControlPointsSize(pointsSize: number): void;
@@ -56,6 +58,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         showAllInterpolationTracks,
         showObjectsTextAlways,
         adaptiveZoom,
+        clickToGrab,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,
@@ -70,6 +73,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         onSwitchShowingInterpolatedTracks,
         onSwitchShowingObjectsTextAlways,
         onSwitchAdaptiveZoom,
+        onSwitchRectanglePrecision,
         onSwitchIntelligentPolygonCrop,
         onChangeDefaultApproxPolyAccuracy,
         onChangeTextFontSize,
@@ -88,6 +92,25 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
 
     return (
         <div className='cvat-workspace-settings'>
+            <Row className='cvat-player-setting'>
+                <Col span={24}>
+                    <Checkbox
+                        className='cvat-workspace-settings-click-to-grab'
+                        checked={clickToGrab}
+                        onChange={(event: CheckboxChangeEvent): void => {
+                            onSwitchRectanglePrecision('clickToGrab', event.target.checked);
+                        }}
+                    >
+                        Click to grab bounding boxes
+                    </Checkbox>
+                </Col>
+                <Col span={24}>
+                    <Text type='secondary'>
+                        Click to pick up a box or resize handle, then click again to place it.
+                        When disabled (default), hold the mouse button to drag.
+                    </Text>
+                </Col>
+            </Row>
             <Row className='cvat-workspace-settings-frame-fit-margin cvat-player-setting'>
                 <Col span={24}>
                     <Text className='cvat-text-color'>Frame fit margin </Text>

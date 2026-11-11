@@ -125,6 +125,7 @@ interface StateToProps {
     automaticBordering: boolean;
     snapToPoint: boolean;
     adaptiveZoom: boolean;
+    clickToGrab: boolean;
     editingCrosshair: boolean;
     cursorMagnifier: boolean;
     cursorMagnifierHover: boolean;
@@ -222,6 +223,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 automaticBordering,
                 snapToPoint,
                 adaptiveZoom,
+                clickToGrab,
                 editingCrosshair,
                 cursorMagnifier,
                 cursorMagnifierHover,
@@ -289,6 +291,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         automaticBordering,
         snapToPoint,
         adaptiveZoom,
+        clickToGrab,
         editingCrosshair,
         cursorMagnifier,
         cursorMagnifierHover,
@@ -454,6 +457,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             automaticBordering,
             snapToPoint,
             adaptiveZoom,
+            clickToGrab,
             editingCrosshair,
             cursorMagnifier,
             cursorMagnifierHover,
@@ -490,6 +494,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             autoborders: automaticBordering,
             snapToPoint,
             adaptiveZoom,
+            clickToGrab,
             editingCrosshair,
             cursorMagnifier,
             cursorMagnifierHover,
@@ -546,6 +551,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             automaticBordering,
             snapToPoint,
             adaptiveZoom,
+            clickToGrab,
             editingCrosshair,
             cursorMagnifier,
             cursorMagnifierHover,
@@ -577,6 +583,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             prevProps.automaticBordering !== automaticBordering ||
             prevProps.snapToPoint !== snapToPoint ||
             prevProps.adaptiveZoom !== adaptiveZoom ||
+            prevProps.clickToGrab !== clickToGrab ||
             prevProps.editingCrosshair !== editingCrosshair ||
             prevProps.cursorMagnifier !== cursorMagnifier ||
             prevProps.cursorMagnifierHover !== cursorMagnifierHover ||
@@ -605,6 +612,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 autoborders: automaticBordering,
                 snapToPoint,
                 adaptiveZoom,
+                clickToGrab,
                 editingCrosshair,
                 cursorMagnifier,
                 cursorMagnifierHover,

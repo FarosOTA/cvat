@@ -1543,6 +1543,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
     }
 
     private startClickDrag(press: MouseEvent, release: (event: MouseEvent) => void): () => void {
+        if (!this.configuration.clickToGrab) return () => {};
+
         let dragged = false;
         let pickedUp = false;
 

@@ -1085,6 +1085,7 @@ export interface WorkspaceSettingsState {
     automaticBordering: boolean;
     snapToPoint: boolean;
     adaptiveZoom: boolean;
+    clickToGrab: boolean;
     editingCrosshair: boolean;
     cursorMagnifier: boolean;
     cursorMagnifierHover: boolean;

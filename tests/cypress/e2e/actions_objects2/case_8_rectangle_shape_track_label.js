@@ -84,6 +84,13 @@ context('Actions on rectangle', () => {
         cy.openJob();
     });
 
+    after(() => {
+        cy.openSettings();
+        cy.get('.cvat-settings-modal').contains('Workspace').click();
+        cy.get('.cvat-workspace-settings-click-to-grab input').uncheck();
+        cy.closeSettings();
+    });
+
     describe(`Testing case "${caseId}"`, () => {
         it('Draw a rectangle shape in two ways (by 2 points, by 4 points)', () => {
             cy.createRectangle(createRectangleShape2Points);
@@ -160,6 +167,10 @@ context('Actions on rectangle', () => {
         });
 
         it('Adjust border size and magnification independently and retain them when disabled', () => {
+            cy.openSettings();
+            cy.get('.cvat-settings-modal').contains('Workspace').click();
+            cy.get('.cvat-workspace-settings-click-to-grab input').check();
+            cy.closeSettings();
             cy.get('.cvat-objects-appearance-collapse').then(($appearance) => {
                 if (!$appearance.find('.ant-collapse-item-active').length) {
                     cy.wrap($appearance).find('.ant-collapse-header').click();
@@ -213,10 +224,15 @@ context('Actions on rectangle', () => {
             cy.get('.cvat-settings-modal').contains('Workspace').click();
             cy.get('.cvat-workspace-settings').should('not.contain.text', 'Magnified border')
                 .and('not.contain.text', 'Crosshairs').and('not.contain.text', 'Border magnifier size');
+            cy.get('.cvat-workspace-settings-click-to-grab input').uncheck();
             cy.closeSettings();
         });
 
         it('Control hover magnification, editing magnification, and crosshairs independently', () => {
+            cy.openSettings();
+            cy.get('.cvat-settings-modal').contains('Workspace').click();
+            cy.get('.cvat-workspace-settings-click-to-grab input').check();
+            cy.closeSettings();
             for (const [hover, editing] of [[false, true], [true, false], [false, false], [true, true]]) {
                 cy.get('.cvat-appearance-magnifier-hover-checkbox input')[hover ? 'check' : 'uncheck']();
                 cy.get('.cvat-appearance-magnifier-editing-checkbox input')[editing ? 'check' : 'uncheck']();
@@ -243,6 +259,10 @@ context('Actions on rectangle', () => {
             cy.get('.cvat_canvas_cursor_magnifier').should('be.visible');
             cy.get('body').type('{esc}', { scrollBehavior: false });
             cy.get('.cvat-appearance-editing-crosshair-checkbox input').check();
+            cy.openSettings();
+            cy.get('.cvat-settings-modal').contains('Workspace').click();
+            cy.get('.cvat-workspace-settings-click-to-grab input').uncheck();
+            cy.closeSettings();
         });
 
         for (const {
@@ -269,6 +289,10 @@ context('Actions on rectangle', () => {
             ]) {
             it(`Pick up a rectangle ${part} with a click, cancel, then click to place it`, () => {
                 cy.get('body').type('{esc}', { scrollBehavior: false });
+                cy.openSettings();
+                cy.get('.cvat-settings-modal').contains('Workspace').click();
+                cy.get('.cvat-workspace-settings-click-to-grab input').should('not.be.checked');
+                cy.closeSettings();
                 cy.get('#cvat_canvas_wrapper').scrollTo(0, 0, { ensureScrollable: false });
                 cy.get('.cvat-fit-control').click({ scrollBehavior: false });
                 cy.get('#cvat_canvas_shape_5').as('rectangle');
@@ -282,6 +306,25 @@ context('Actions on rectangle', () => {
                         clientX: original.left + anchor[0] * original.width + 43,
                         clientY: original.top + anchor[1] * original.height + 27,
                     };
+
+                    // With the default setting, releasing a click must not engage a move or resize.
+                    cy.get(pickup).click({ scrollBehavior: false });
+                    cy.get('.cvat-canvas-container').trigger('mousemove', {
+                        ...target, buttons: 0, scrollBehavior: false,
+                    });
+                    cy.get('@rectangle').should(([shape]) => {
+                        const unchanged = shape.getBoundingClientRect();
+                        expect(unchanged.left).to.be.closeTo(original.left, 1);
+                        expect(unchanged.top).to.be.closeTo(original.top, 1);
+                        expect(unchanged.width).to.be.closeTo(original.width, 1);
+                        expect(unchanged.height).to.be.closeTo(original.height, 1);
+                    });
+                    cy.get('.cvat_canvas_crosshair').should('not.exist');
+                    cy.openSettings();
+                    cy.get('.cvat-workspace-settings-click-to-grab input').check();
+                    cy.closeSettings();
+                    cy.get('@rectangle').trigger('mousemove', { scrollBehavior: false });
+                    cy.get('@rectangle').trigger('mouseover', { scrollBehavior: false });
 
                     cy.get(pickup).click({ scrollBehavior: false });
                     cy.get('.cvat-canvas-container').trigger('mousemove', {
@@ -359,11 +402,17 @@ context('Actions on rectangle', () => {
                         expect(shape.getBoundingClientRect().height).to.be.closeTo(original.height, 1);
                     });
                 });
+                cy.openSettings();
+                cy.get('.cvat-workspace-settings-click-to-grab input').uncheck();
+                cy.closeSettings();
             });
         }
 
         for (const [part, pickup] of [['body', '@rectangle'], ['corner', '.svg_select_points_lt']]) {
             it(`Pan and double-middle fit while a rectangle ${part} is picked up, then cancel or place`, () => {
+                cy.openSettings();
+                cy.get('.cvat-workspace-settings-click-to-grab input').check();
+                cy.closeSettings();
                 const geometry = (shape) => ['x', 'y', 'width', 'height'].map((attr) => +shape.getAttribute(attr));
                 const assertGeometry = (shape, expected) => {
                     geometry(shape).forEach((value, index) => expect(value).to.be.closeTo(expected[index], 0.15));
