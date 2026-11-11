@@ -18,12 +18,14 @@ import RemoveConfirmComponent from 'components/annotation-page/standard-workspac
 import PropagateConfirmComponent from 'components/annotation-page/standard-workspace/propagate-confirm';
 import BrushTools from 'components/annotation-page/canvas/views/canvas2d/brush-tools';
 import RectangleTrackTimeline from './rectangle-track-timeline';
+import RectangleLabelBar from './rectangle-label-bar';
 
 export default function StandardWorkspaceComponent(): JSX.Element {
     return (
         <Layout hasSider className='cvat-standard-workspace'>
             <ControlsSideBarContainer />
             <Layout className='cvat-standard-workspace-main'>
+                <RectangleLabelBar />
                 <CanvasLayout />
                 <RectangleTrackTimeline />
             </Layout>

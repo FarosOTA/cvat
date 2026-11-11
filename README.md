@@ -10,6 +10,7 @@ are not necessarily fork-specific. This checkout reports CVAT **2.74.1**.
 
 - [Rectangle-track editing](#rectangle-track-editing)
 - [Track timeline and navigation](#track-timeline-and-navigation)
+- [Quick bounding-box classes](#quick-bounding-box-classes)
 - [Precision bounding-box controls](#precision-bounding-box-controls)
 - [Frame loading, buffering, and playback](#frame-loading-buffering-and-playback)
 - [Security and correctness fixes](#security-and-correctness-fixes)
@@ -57,13 +58,36 @@ Default shortcuts (customizable through CVAT's shortcut settings):
 | `Shift + [` / `Shift + ]` | Activate the previous / next rectangle shape or track in that label scope |
 
 The annotation-frame shortcuts search annotations, not just rectangle-track keyframes.
-Canvas sizing now accounts for the timeline, and the image is refitted after actual layout size
-changes, including timeline expansion, window resizing, and fullscreen transitions.
+Canvas sizing accounts for the class strip and timeline, and the image is refitted after actual layout
+size changes, including class-strip wrapping, timeline expansion, window resizing, and fullscreen transitions.
 In the 2D canvas, **Settings → Workspace → Frame fit margin** sets the minimum space around the
 fitted image in screen pixels (**0–100**, default **8**), so the pointer can reach the surrounding
 canvas, including when the image is rotated. Set it to **0** for edge-to-edge fitting. Changing the
 setting immediately refits the frame, and the value is saved in the browser. It applies to initial
 fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
+
+## Quick bounding-box classes
+
+The **Standard workspace** has a class strip above the canvas for rectangle-compatible labels.
+Click a class to select it and immediately start drawing a new two-corner rectangle; an already
+selected annotation is not relabeled. Choose **Shape** or **Track** in the strip to control what
+is created. `Esc` cancels drawing, and the existing `N` shortcut repeats the chosen class and mode.
+
+- With up to five classes, press the displayed key `1`–`5`.
+- With more classes, press the two displayed keys **in sequence**, within one second: `1 1`,
+  `1 2`, …, `1 5`, `1 Q`, …, using digits `1`–`5` and letters `QWERT`, `ASDFG`, `ZXCVB`.
+  All codes then have two keys, so a single digit cannot accidentally start the wrong class.
+  Codes follow label order and switch to the two-key layout when the class count exceeds five.
+- The first 100 compatible classes get codes; additional classes remain clickable and draggable.
+  Codes can be customized in shortcut settings. Typing in inputs or open modals does not start boxes.
+- Drag a class from the strip onto an existing box to change its class, with an outline highlight
+  on an eligible drop target. Locked, hidden, outside, and ground-truth boxes are not changed.
+  Overlapping objects use the topmost rendered shape; dropping on empty space does nothing.
+  Relabeling uses normal undo/redo and save behavior. For a track, this changes the whole track's class.
+
+The strip wraps and scrolls for large label sets, remains outside the image, and is hidden when
+there are no compatible labels. Creation and relabeling are disabled while the frame loads or is deleted.
+Existing `Ctrl` + digit label shortcuts remain unchanged.
 
 ## Precision bounding-box controls
 

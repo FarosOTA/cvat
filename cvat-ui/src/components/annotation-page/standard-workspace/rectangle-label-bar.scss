@@ -1,0 +1,76 @@
+// Copyright (C) CVAT.ai Corporation
+//
+// SPDX-License-Identifier: MIT
+
+@import 'base';
+
+.cvat-rectangle-label-bar {
+    padding: $grid-unit-size;
+    background: $background-color-1;
+    border-bottom: 1px solid $border-color-1;
+    min-width: 0;
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+.cvat-rectangle-label-bar-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $grid-unit-size;
+    margin-bottom: $grid-unit-size;
+    font-size: 12px;
+    color: $text-color;
+
+    > .ant-select {
+        width: 88px;
+    }
+}
+
+.cvat-rectangle-label-bar-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $grid-unit-size;
+    max-height: 112px;
+    overflow: auto;
+    padding: 2px;
+}
+
+.cvat-rectangle-label-button.ant-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: $grid-unit-size;
+    max-width: 100%;
+    height: 30px;
+    padding: 0 $grid-unit-size;
+    cursor: grab;
+
+    > .cvat-rectangle-label-color {
+        width: 10px;
+        height: 10px;
+        flex-shrink: 0;
+        border-radius: 2px;
+    }
+
+    > .cvat-rectangle-label-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    > kbd {
+        flex-shrink: 0;
+        font: 11px $monospaced-fonts-stack;
+        padding: 1px 4px;
+        border: 1px solid $header-color;
+        border-radius: 3px;
+        background: $background-color-2;
+        color: $text-color;
+    }
+}
+
+.cvat-rectangle-label-drop-target {
+    filter: drop-shadow(0 0 3px $notification-border-color-1);
+    stroke-dasharray: 6 3;
+}

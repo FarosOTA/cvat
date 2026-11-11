@@ -162,12 +162,13 @@ function CanvasLayout({ type }: { type?: DimensionType }): JSX.Element {
         const workspace = contentRef.current?.parentElement;
         let containerHeight = workspace?.getBoundingClientRect().height ??
             (header ? window.innerHeight - header.getBoundingClientRect().bottom : 0);
-        const timeline = workspace?.querySelector<HTMLElement>(':scope > .cvat-rectangle-track-timeline');
-        if (timeline) {
-            const timelineStyle = window.getComputedStyle(timeline);
-            containerHeight -= timeline.getBoundingClientRect().height +
-                parseFloat(timelineStyle.marginTop) + parseFloat(timelineStyle.marginBottom);
-        }
+        workspace?.querySelectorAll<HTMLElement>(
+            ':scope > .cvat-rectangle-track-timeline, :scope > .cvat-rectangle-label-bar',
+        ).forEach((panel) => {
+            const panelStyle = window.getComputedStyle(panel);
+            containerHeight -= panel.getBoundingClientRect().height +
+                parseFloat(panelStyle.marginTop) + parseFloat(panelStyle.marginBottom);
+        });
         // https://github.com/react-grid-layout/react-grid-layout/issues/628#issuecomment-1228453084
         return Math.floor(
             (containerHeight - config.CANVAS_WORKSPACE_MARGIN * (config.CANVAS_WORKSPACE_ROWS)) /
@@ -211,10 +212,9 @@ function CanvasLayout({ type }: { type?: DimensionType }): JSX.Element {
             setRowHeight(computeRowHeight());
         });
         observer.observe(workspace);
-        const timeline = workspace.querySelector<HTMLElement>(':scope > .cvat-rectangle-track-timeline');
-        if (timeline) {
-            observer.observe(timeline);
-        }
+        workspace.querySelectorAll<HTMLElement>(
+            ':scope > .cvat-rectangle-track-timeline, :scope > .cvat-rectangle-label-bar',
+        ).forEach((panel) => observer.observe(panel));
         return () => observer.disconnect();
     }, []);
 
