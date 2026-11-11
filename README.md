@@ -164,6 +164,15 @@ preferences are saved in the browser and no longer appear in **Settings → Work
   this is a retention bound, not guaranteed useful cache capacity or a process-RAM bound. Evicted
   or oversized generation results can be delivered without being retained. Replacing expired queue
   results also clears their old expiry so replacements are not prematurely removed.
+  Compose additionally sets a **32 GiB SST write-rejection guard**
+  (`CVAT_MEDIA_CACHE_MAX_DB_GB`) and a **512 MiB archived-WAL retention target**
+  (`CVAT_MEDIA_CACHE_WAL_MB`, checked periodically, not a hard quota). These are not a filesystem
+  quota: WAL, logs and temporary compaction output require additional disk headroom. The expiry
+  compaction checker runs throughout the day, including while CVAT is idle, with full compaction
+  every six hours and seven-day Kvrocks log retention. Expired keys do not release disk space
+  until compaction; existing oversized caches need reclamation, not just a new limit. Apply these
+  safeguards only with the matching fork backend's bounded cache and cache-miss fallback, and
+  ensure later Compose overrides do not replace them with an unlimited Kvrocks command.
 
 These changes work with existing tasks without re-upload or task conversion. Source files, annotation
 coordinates, exports, and existing compressed/original API responses are unchanged; video and

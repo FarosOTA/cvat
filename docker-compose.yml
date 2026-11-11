@@ -11,6 +11,8 @@ x-backend-env: &backend-env
   CVAT_REDIS_INMEM_PORT: 6379
   CVAT_REDIS_ONDISK_HOST: cvat_redis_ondisk
   CVAT_REDIS_ONDISK_PORT: 6666
+  CVAT_MEDIA_CACHE_BUDGET_BYTES: '${CVAT_MEDIA_CACHE_BUDGET_BYTES:-17179869184}'
+  CVAT_MEDIA_CACHE_SLOT_BYTES: '${CVAT_MEDIA_CACHE_SLOT_BYTES:-67108864}'
   CVAT_LOG_IMPORT_ERRORS: 'true'
   CVAT_ALLOW_STATIC_CACHE: '${CVAT_ALLOW_STATIC_CACHE:-no}'
   CVAT_DEFAULT_BACKING_CS_ID:
@@ -80,7 +82,15 @@ services:
     networks:
       - cvat
     command: [
-      "--compact-cron", "0 3 * * *",
+      # SST write-rejection guard, NOT eviction or a filesystem quota. Media
+      # loading must also use BoundedMediaCache and the cache-miss fallback.
+      "--max-db-size", "${CVAT_MEDIA_CACHE_MAX_DB_GB:-32}",
+      "--rocksdb.wal_ttl_seconds", "0",
+      "--rocksdb.wal_size_limit_mb", "${CVAT_MEDIA_CACHE_WAL_MB:-512}",
+      "--compact-cron", "0 */6 * * *",
+      # Expiry must also be reclaimed while idle, outside the overnight window.
+      "--compaction-checker-cron", "* * * * *",
+      "--log-retention-days", "7",
       ]
 
   cvat_server:
