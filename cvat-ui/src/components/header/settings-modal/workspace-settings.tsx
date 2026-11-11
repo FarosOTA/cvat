@@ -20,6 +20,7 @@ interface Props {
     autoSave: boolean;
     autoSaveInterval: number;
     focusedObjectPadding: number;
+    frameFitMargin: number;
     showAllInterpolationTracks: boolean;
     showObjectsTextAlways: boolean;
     adaptiveZoom: boolean;
@@ -37,6 +38,7 @@ interface Props {
     onSwitchAutoSave(enabled: boolean): void;
     onChangeAutoSaveInterval(interval: number): void;
     onChangeFocusedObjectPadding(padding: number): void;
+    onChangeFrameFitMargin(margin: number): void;
     onChangeDefaultApproxPolyAccuracy(approxPolyAccuracy: number): void;
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
     onSwitchShowingObjectsTextAlways(enabled: boolean): void;
@@ -56,6 +58,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         autoSave,
         autoSaveInterval,
         focusedObjectPadding,
+        frameFitMargin,
         showAllInterpolationTracks,
         showObjectsTextAlways,
         adaptiveZoom,
@@ -73,6 +76,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         onSwitchAutoSave,
         onChangeAutoSaveInterval,
         onChangeFocusedObjectPadding,
+        onChangeFrameFitMargin,
         onSwitchShowingInterpolatedTracks,
         onSwitchShowingObjectsTextAlways,
         onSwitchAdaptiveZoom,
@@ -96,6 +100,31 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
 
     return (
         <div className='cvat-workspace-settings'>
+            <Row className='cvat-workspace-settings-frame-fit-margin cvat-player-setting'>
+                <Col span={24}>
+                    <Text className='cvat-text-color'>Frame fit margin </Text>
+                    <InputNumber
+                        aria-label='Frame fit margin'
+                        min={0}
+                        max={100}
+                        step={1}
+                        precision={0}
+                        value={frameFitMargin}
+                        onChange={(value: number | null): void => {
+                            if (typeof value === 'number') {
+                                onChangeFrameFitMargin(Math.floor(clamp(value, 0, 100)));
+                            }
+                        }}
+                    />
+                    <Text type='secondary'> screen pixels</Text>
+                </Col>
+                <Col span={24}>
+                    <Text type='secondary'>
+                        Space around the fitted 2D frame (default: 8). Changing this refits the frame.
+                        Use 0 for no margin.
+                    </Text>
+                </Col>
+            </Row>
             <Row className='cvat-player-setting'>
                 <Col span={24}>
                     <Checkbox

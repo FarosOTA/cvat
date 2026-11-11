@@ -46,6 +46,7 @@ export enum SettingsActionTypes {
     SWITCH_AUTO_SAVE = 'SWITCH_AUTO_SAVE',
     CHANGE_AUTO_SAVE_INTERVAL = 'CHANGE_AUTO_SAVE_INTERVAL',
     CHANGE_FOCUSED_OBJECT_PADDING = 'CHANGE_FOCUSED_OBJECT_PADDING',
+    CHANGE_FRAME_FIT_MARGIN = 'CHANGE_FRAME_FIT_MARGIN',
     CHANGE_DEFAULT_APPROX_POLY_THRESHOLD = 'CHANGE_DEFAULT_APPROX_POLY_THRESHOLD',
     SWITCH_AUTOMATIC_BORDERING = 'SWITCH_AUTOMATIC_BORDERING',
     SWITCH_SNAP_TO_POINT = 'SWITCH_SNAP_TO_POINT',
@@ -371,6 +372,13 @@ export function switchAdaptiveZoom(adaptiveZoom: boolean): AnyAction {
     };
 }
 
+export function changeFrameFitMargin(frameFitMargin: number): AnyAction {
+    return {
+        type: SettingsActionTypes.CHANGE_FRAME_FIT_MARGIN,
+        payload: { frameFitMargin },
+    };
+}
+
 export function switchRectanglePrecision(tool: 'editingCrosshair' | 'cursorMagnifier', enabled: boolean): AnyAction {
     return {
         type: SettingsActionTypes.SWITCH_RECTANGLE_PRECISION,
@@ -506,6 +514,10 @@ export function restoreSettingsAsync(): ThunkAction {
                 const setValue = loadedSettings[sectionKey]?.[key];
                 if (key === 'frameBufferMultiplier' &&
                     (!Number.isInteger(setValue) || setValue < 1 || setValue > 10)) {
+                    return;
+                }
+                if (key === 'frameFitMargin' &&
+                    (!Number.isInteger(setValue) || setValue < 0 || setValue > 100)) {
                     return;
                 }
                 if (setValue !== undefined) {

@@ -111,6 +111,7 @@ export interface Configuration {
     resetZoom?: boolean;
     hideEditedObject?: boolean;
     focusedObjectPadding?: number;
+    frameFitMargin?: number;
     snapRadius?: number;
 }
 
@@ -446,6 +447,7 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
                 undefinedAttrValue: consts.DEFAULT_UNDEFINED_ATTR_VALUE,
                 hideEditedObject: false,
                 focusedObjectPadding: 50,
+                frameFitMargin: 8,
                 editingCrosshair: true,
                 cursorMagnifier: true,
                 cursorMagnifierSize: 32,
@@ -740,18 +742,22 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
 
     private resetScale(): boolean {
         const { angle } = this.data;
+        // Leave a small pointer-accessible border in screen pixels around the fitted image.
+        const margin = this.data.configuration.frameFitMargin;
+        const width = this.data.canvasSize.width - margin * 2;
+        const height = this.data.canvasSize.height - margin * 2;
 
         let updatedScale = this.data.scale;
         if ((angle / 90) % 2) {
             // 90, 270, ..
             updatedScale = Math.min(
-                this.data.canvasSize.width / this.data.imageSize.height,
-                this.data.canvasSize.height / this.data.imageSize.width,
+                width / this.data.imageSize.height,
+                height / this.data.imageSize.width,
             );
         } else {
             updatedScale = Math.min(
-                this.data.canvasSize.width / this.data.imageSize.width,
-                this.data.canvasSize.height / this.data.imageSize.height,
+                width / this.data.imageSize.width,
+                height / this.data.imageSize.height,
             );
         }
 
@@ -1077,6 +1083,11 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
             this.data.configuration.focusedObjectPadding = Math.max(
                 configuration.focusedObjectPadding, 0,
             );
+        }
+
+        if (Number.isInteger(configuration.frameFitMargin) &&
+            configuration.frameFitMargin >= 0 && configuration.frameFitMargin <= 100) {
+            this.data.configuration.frameFitMargin = configuration.frameFitMargin;
         }
 
         this.notify(UpdateReasons.CONFIG_UPDATED);

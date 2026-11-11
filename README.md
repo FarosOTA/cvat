@@ -59,6 +59,11 @@ Default shortcuts (customizable through CVAT's shortcut settings):
 The annotation-frame shortcuts search annotations, not just rectangle-track keyframes.
 Canvas sizing now accounts for the timeline, and the image is refitted after actual layout size
 changes, including timeline expansion, window resizing, and fullscreen transitions.
+In the 2D canvas, **Settings → Workspace → Frame fit margin** sets the minimum space around the
+fitted image in screen pixels (**0–100**, default **8**), so the pointer can reach the surrounding
+canvas, including when the image is rotated. Set it to **0** for edge-to-edge fitting. Changing the
+setting immediately refits the frame, and the value is saved in the browser. It applies to initial
+fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
 
 ## Precision bounding-box controls
 

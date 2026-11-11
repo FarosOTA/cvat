@@ -32,6 +32,7 @@ const defaultState: SettingsState = {
         autoSave: false,
         autoSaveInterval: 15 * 60 * 1000,
         focusedObjectPadding: 50,
+        frameFitMargin: 8,
         automaticBordering: false,
         snapToPoint: false,
         adaptiveZoom: true,
@@ -340,6 +341,15 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 workspace: {
                     ...state.workspace,
                     focusedObjectPadding: action.payload.focusedObjectPadding,
+                },
+            };
+        }
+        case SettingsActionTypes.CHANGE_FRAME_FIT_MARGIN: {
+            return {
+                ...state,
+                workspace: {
+                    ...state.workspace,
+                    frameFitMargin: action.payload.frameFitMargin,
                 },
             };
         }

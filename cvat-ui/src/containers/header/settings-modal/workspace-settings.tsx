@@ -9,6 +9,7 @@ import {
     switchAutoSave,
     changeAutoSaveInterval,
     changeFocusedObjectPadding,
+    changeFrameFitMargin,
     switchShowingInterpolatedTracks,
     switchShowingObjectsTextAlways,
     switchIntelligentPolygonCrop,
@@ -31,6 +32,7 @@ interface StateToProps {
     autoSave: boolean;
     autoSaveInterval: number;
     focusedObjectPadding: number;
+    frameFitMargin: number;
     showAllInterpolationTracks: boolean;
     showObjectsTextAlways: boolean;
     defaultApproxPolyAccuracy: number;
@@ -51,6 +53,7 @@ interface DispatchToProps {
     onSwitchAutoSave(enabled: boolean): void;
     onChangeAutoSaveInterval(interval: number): void;
     onChangeFocusedObjectPadding(margin: number): void;
+    onChangeFrameFitMargin(margin: number): void;
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
     onSwitchShowingObjectsTextAlways(enabled: boolean): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
@@ -71,6 +74,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         autoSave,
         autoSaveInterval,
         focusedObjectPadding,
+        frameFitMargin,
         showAllInterpolationTracks,
         showObjectsTextAlways,
         adaptiveZoom,
@@ -91,6 +95,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         autoSave,
         autoSaveInterval,
         focusedObjectPadding,
+        frameFitMargin,
         showAllInterpolationTracks,
         showObjectsTextAlways,
         adaptiveZoom,
@@ -112,6 +117,7 @@ const mapDispatchToProps: DispatchToProps = {
     onSwitchAutoSave: switchAutoSave,
     onChangeAutoSaveInterval: changeAutoSaveInterval,
     onChangeFocusedObjectPadding: changeFocusedObjectPadding,
+    onChangeFrameFitMargin: changeFrameFitMargin,
     onSwitchShowingInterpolatedTracks: switchShowingInterpolatedTracks,
     onSwitchShowingObjectsTextAlways: switchShowingObjectsTextAlways,
     onSwitchAdaptiveZoom: switchAdaptiveZoom,

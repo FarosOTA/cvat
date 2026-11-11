@@ -111,6 +111,7 @@ interface StateToProps {
     bandwidthSavingPlayback: boolean;
     smoothImage: boolean;
     focusedObjectPadding: number;
+    frameFitMargin: number;
     showObjectsTextAlways: boolean;
     textFontSize: number;
     controlPointsSize: number;
@@ -213,6 +214,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
             },
             workspace: {
                 focusedObjectPadding,
+                frameFitMargin,
                 showObjectsTextAlways,
                 showAllInterpolationTracks,
                 showTagsOnFrame,
@@ -271,6 +273,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         bandwidthSavingPlayback,
         smoothImage,
         focusedObjectPadding,
+        frameFitMargin,
         showObjectsTextAlways,
         textFontSize,
         controlPointsSize,
@@ -468,6 +471,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             showGroundTruth,
             resetZoom,
             focusedObjectPadding,
+            frameFitMargin,
         } = this.props;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
 
@@ -500,6 +504,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             textContent,
             resetZoom,
             focusedObjectPadding,
+            frameFitMargin,
         });
 
         this.initialSetup();
@@ -548,6 +553,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             highlightedConflict,
             imageFilters,
             focusedObjectPadding,
+            frameFitMargin,
             renderData,
         } = this.props;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
@@ -583,6 +589,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             prevProps.outlined !== outlined ||
             prevProps.showGroundTruth !== showGroundTruth ||
             prevProps.resetZoom !== resetZoom ||
+            prevProps.frameFitMargin !== frameFitMargin ||
             prevProps.focusedObjectPadding !== focusedObjectPadding
         ) {
             canvasInstance.configure({
@@ -609,7 +616,12 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 showConflicts: showGroundTruth,
                 resetZoom,
                 focusedObjectPadding,
+                frameFitMargin,
             });
+        }
+
+        if (prevProps.frameFitMargin !== frameFitMargin) {
+            canvasInstance.fit();
         }
 
         if (prevProps.showAllInterpolationTracks !== showAllInterpolationTracks) {
