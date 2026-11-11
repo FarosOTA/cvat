@@ -379,7 +379,9 @@ export function changeFrameFitMargin(frameFitMargin: number): AnyAction {
     };
 }
 
-export function switchRectanglePrecision(tool: 'editingCrosshair' | 'cursorMagnifier', enabled: boolean): AnyAction {
+export function switchRectanglePrecision(
+    tool: 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover', enabled: boolean,
+): AnyAction {
     return {
         type: SettingsActionTypes.SWITCH_RECTANGLE_PRECISION,
         payload: { tool, enabled },
@@ -503,6 +505,11 @@ export function restoreSettingsAsync(): ThunkAction {
         if (!settingsString) return;
 
         const loadedSettings = JSON.parse(settingsString);
+        // Preserve the previous combined preference until hover is configured independently.
+        if (loadedSettings.workspace?.cursorMagnifierHover === undefined &&
+            typeof loadedSettings.workspace?.cursorMagnifier === 'boolean') {
+            loadedSettings.workspace.cursorMagnifierHover = loadedSettings.workspace.cursorMagnifier;
+        }
         const newSettings = {
             player: settings.player,
             workspace: settings.workspace,

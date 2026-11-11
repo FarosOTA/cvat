@@ -86,15 +86,19 @@ fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
   `Shift + N` on the active object, to draw replacement geometry while retaining the same shape or
   track identity and attributes rather than deleting and recreating the annotation.
 
-Crosshairs and magnified borders are enabled by default and can be toggled independently under
-**Settings → Workspace** using **Crosshairs while editing bounding boxes** and
-**Magnified border while hovering, drawing, and editing bounding boxes**.
+Crosshairs and magnified borders are enabled by default and can be toggled in the right sidebar's
+**Appearance** section, next to **Outlined borders**. **Magnified borders on hover** and
+**Magnified borders while drawing/editing** are independent: the latter applies while drawing,
+moving, or resizing, including click-to-place edits and press-and-hold drags. **Crosshairs while
+editing bounding boxes** is a separate checkbox. These controls are available for 2D jobs.
+Existing saved magnifier preferences initially apply to both hover and drawing/editing.
 
 In the same section, **Border magnifier size** and **Border magnification** can be adjusted
 independently. Each offers **Low**, **Medium (default)**, and **High**: strip thicknesses are
 16/32/48 screen pixels, and magnification is 2×/4×/8× perpendicular to each edge. Medium preserves
 the original appearance. Both choices are saved in the browser and retained when the magnifier
-is disabled; the controls are disabled until it is enabled again.
+is disabled; the controls are disabled only when both magnifier checkboxes are off. All these
+preferences are saved in the browser and no longer appear in **Settings → Workspace**.
 
 ## Frame loading, buffering, and playback
 

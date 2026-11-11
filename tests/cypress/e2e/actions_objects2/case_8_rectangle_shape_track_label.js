@@ -160,15 +160,17 @@ context('Actions on rectangle', () => {
         });
 
         it('Adjust border size and magnification independently and retain them when disabled', () => {
-            cy.openSettings();
-            cy.get('.cvat-settings-modal').contains('Workspace').click();
+            cy.get('.cvat-objects-appearance-collapse').then(($appearance) => {
+                if (!$appearance.find('.ant-collapse-item-active').length) {
+                    cy.wrap($appearance).find('.ant-collapse-header').click();
+                }
+            });
             for (const [size, scale] of [[16, 8], [48, 2], [32, 4]]) {
                 for (const [setting, value] of [['size', size], ['scale', scale]]) {
-                    cy.get(`.cvat-workspace-settings-magnifier-${setting}`).click();
+                    cy.get(`.cvat-appearance-magnifier-${setting}`).click();
                     cy.get('.ant-select-dropdown:visible').contains('.ant-select-item-option',
                         setting === 'size' ? `${value} px` : `${value}×`).click();
                 }
-                cy.closeSettings();
                 cy.get('#cvat_canvas_shape_5').trigger('mousemove');
                 cy.get('#cvat_canvas_shape_5').trigger('mouseover');
                 cy.get('#cvat_canvas_shape_5').click();
@@ -197,15 +199,50 @@ context('Actions on rectangle', () => {
                     expect(workspace.cursorMagnifierSize).to.equal(size);
                     expect(workspace.cursorMagnifierScale).to.equal(scale);
                 });
-                cy.openSettings();
-                cy.get('.cvat-workspace-settings-cursor-magnifier input').uncheck();
-                cy.get('.cvat-workspace-settings-magnifier-size input').should('be.disabled');
-                cy.get('.cvat-workspace-settings-magnifier-scale input').should('be.disabled');
-                cy.get('.cvat-workspace-settings-cursor-magnifier input').check();
-                cy.get('.cvat-workspace-settings-magnifier-size').should('contain.text', `${size} px`);
-                cy.get('.cvat-workspace-settings-magnifier-scale').should('contain.text', `${scale}×`);
+                cy.get('.cvat-appearance-magnifier-editing-checkbox input').uncheck();
+                cy.get('.cvat-appearance-magnifier-size input').should('not.be.disabled');
+                cy.get('.cvat-appearance-magnifier-hover-checkbox input').uncheck();
+                cy.get('.cvat-appearance-magnifier-size input').should('be.disabled');
+                cy.get('.cvat-appearance-magnifier-scale input').should('be.disabled');
+                cy.get('.cvat-appearance-magnifier-editing-checkbox input').check();
+                cy.get('.cvat-appearance-magnifier-hover-checkbox input').check();
+                cy.get('.cvat-appearance-magnifier-size').should('contain.text', `${size} px`);
+                cy.get('.cvat-appearance-magnifier-scale').should('contain.text', `${scale}×`);
             }
+            cy.openSettings();
+            cy.get('.cvat-settings-modal').contains('Workspace').click();
+            cy.get('.cvat-workspace-settings').should('not.contain.text', 'Magnified border')
+                .and('not.contain.text', 'Crosshairs').and('not.contain.text', 'Border magnifier size');
             cy.closeSettings();
+        });
+
+        it('Control hover magnification, editing magnification, and crosshairs independently', () => {
+            for (const [hover, editing] of [[false, true], [true, false], [false, false], [true, true]]) {
+                cy.get('.cvat-appearance-magnifier-hover-checkbox input')[hover ? 'check' : 'uncheck']();
+                cy.get('.cvat-appearance-magnifier-editing-checkbox input')[editing ? 'check' : 'uncheck']();
+                cy.window().should((window) => {
+                    const { workspace } = JSON.parse(window.localStorage.getItem('clientSettings'));
+                    expect(workspace.cursorMagnifierHover).to.equal(hover);
+                    expect(workspace.cursorMagnifier).to.equal(editing);
+                });
+                for (const target of ['#cvat_canvas_shape_5', '.svg_select_points_r']) {
+                    cy.get('#cvat_canvas_shape_5').realHover();
+                    cy.get(target).realHover();
+                    cy.get('.cvat_canvas_cursor_magnifier').should(hover ? 'be.visible' : 'not.be.visible');
+                    cy.get(target).click();
+                    cy.get('.cvat-canvas-container').trigger('mousemove', { clientX: 500, clientY: 400 });
+                    cy.get('.cvat_canvas_cursor_magnifier').should(editing ? 'be.visible' : 'not.be.visible');
+                    cy.get('.cvat_canvas_crosshair').should('have.length', 2);
+                    cy.get('body').type('{esc}', { scrollBehavior: false });
+                }
+            }
+            cy.get('.cvat-appearance-editing-crosshair-checkbox input').uncheck();
+            cy.get('#cvat_canvas_shape_5').realHover().click();
+            cy.get('.cvat-canvas-container').trigger('mousemove', { clientX: 500, clientY: 400 });
+            cy.get('.cvat_canvas_crosshair').should('not.exist');
+            cy.get('.cvat_canvas_cursor_magnifier').should('be.visible');
+            cy.get('body').type('{esc}', { scrollBehavior: false });
+            cy.get('.cvat-appearance-editing-crosshair-checkbox input').check();
         });
 
         for (const {

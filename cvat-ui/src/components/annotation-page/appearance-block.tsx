@@ -12,6 +12,7 @@ import Slider from 'antd/lib/slider';
 import Checkbox, { CheckboxChangeEvent } from 'antd/lib/checkbox';
 import Collapse from 'antd/lib/collapse';
 import Button from 'antd/lib/button';
+import Select from 'antd/lib/select';
 
 import ColorPicker from 'components/annotation-page/standard-workspace/objects-side-bar/color-picker';
 import { ColorizeIcon } from 'icons';
@@ -27,6 +28,8 @@ import {
     changeShowBitmap as changeShowBitmapAction,
     changeShowProjections as changeShowProjectionsAction,
     changeOrientationVisibility as changeOrientationVisibilityAction,
+    switchRectanglePrecision,
+    changeBorderMagnifier,
 } from 'actions/settings-actions';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
@@ -57,6 +60,11 @@ interface StateToProps {
     selectedOpacity: number;
     outlined: boolean;
     outlineColor: string;
+    editingCrosshair: boolean;
+    cursorMagnifier: boolean;
+    cursorMagnifierHover: boolean;
+    cursorMagnifierSize: number;
+    cursorMagnifierScale: number;
     showBitmap: boolean;
     showProjections: boolean;
     orientationVisibility: OrientationVisibility;
@@ -74,6 +82,10 @@ interface DispatchToProps {
     changeShowBitmap(showBitmap: boolean): void;
     changeShowProjections(event: CheckboxChangeEvent): void;
     changeOrientationVisibility(orientationVisibility: Partial<OrientationVisibility>): void;
+    onSwitchRectanglePrecision(
+        tool: 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover', enabled: boolean,
+    ): void;
+    onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
 }
 
 function mapStateToProps(state: CombinedState): StateToProps {
@@ -88,6 +100,9 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 colorBy, opacity, selectedOpacity, outlined, outlineColor, showBitmap, showProjections,
                 orientationVisibility,
             },
+            workspace: {
+                editingCrosshair, cursorMagnifier, cursorMagnifierHover, cursorMagnifierSize, cursorMagnifierScale,
+            },
         },
         shortcuts: { keyMap },
     } = state;
@@ -99,6 +114,11 @@ function mapStateToProps(state: CombinedState): StateToProps {
         selectedOpacity,
         outlined,
         outlineColor,
+        editingCrosshair,
+        cursorMagnifier,
+        cursorMagnifierHover,
+        cursorMagnifierSize,
+        cursorMagnifierScale,
         showBitmap,
         showProjections,
         workspace,
@@ -110,6 +130,8 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
 function mapDispatchToProps(dispatch: Dispatch<AnyAction>): DispatchToProps {
     return {
+        onSwitchRectanglePrecision: (tool, enabled) => dispatch(switchRectanglePrecision(tool, enabled)),
+        onChangeBorderMagnifier: (setting, value) => dispatch(changeBorderMagnifier(setting, value)),
         collapseAppearance(): void {
             dispatch(collapseAppearanceAction());
         },
@@ -147,6 +169,13 @@ function AppearanceBlock(props: Props): JSX.Element {
         selectedOpacity,
         outlined,
         outlineColor,
+        editingCrosshair,
+        cursorMagnifier,
+        cursorMagnifierHover,
+        cursorMagnifierSize,
+        cursorMagnifierScale,
+        onSwitchRectanglePrecision,
+        onChangeBorderMagnifier,
         showBitmap,
         showProjections,
         orientationVisibility,
@@ -243,6 +272,61 @@ function AppearanceBlock(props: Props): JSX.Element {
                                 </Button>
                             </ColorPicker>
                         </Checkbox>
+                        {is2D && (
+                            <>
+                                <Checkbox
+                                    className='cvat-appearance-magnifier-hover-checkbox'
+                                    checked={cursorMagnifierHover}
+                                    onChange={(event: CheckboxChangeEvent) => {
+                                        onSwitchRectanglePrecision('cursorMagnifierHover', event.target.checked);
+                                    }}
+                                >
+                                    Magnified borders on hover
+                                </Checkbox>
+                                <Checkbox
+                                    className='cvat-appearance-magnifier-editing-checkbox'
+                                    checked={cursorMagnifier}
+                                    onChange={(event: CheckboxChangeEvent) => {
+                                        onSwitchRectanglePrecision('cursorMagnifier', event.target.checked);
+                                    }}
+                                >
+                                    Magnified borders while drawing/editing
+                                </Checkbox>
+                                <Checkbox
+                                    className='cvat-appearance-editing-crosshair-checkbox'
+                                    checked={editingCrosshair}
+                                    onChange={(event: CheckboxChangeEvent) => {
+                                        onSwitchRectanglePrecision('editingCrosshair', event.target.checked);
+                                    }}
+                                >
+                                    Crosshairs while editing bounding boxes
+                                </Checkbox>
+                                <Text type='secondary'>Border magnifier size</Text>
+                                <Select
+                                    className='cvat-appearance-magnifier-size'
+                                    aria-label='Border magnifier size'
+                                    disabled={!cursorMagnifier && !cursorMagnifierHover}
+                                    value={cursorMagnifierSize}
+                                    onChange={(value: number) => onChangeBorderMagnifier('cursorMagnifierSize', value)}
+                                >
+                                    <Select.Option value={16}>Low (16 px)</Select.Option>
+                                    <Select.Option value={32}>Medium (default, 32 px)</Select.Option>
+                                    <Select.Option value={48}>High (48 px)</Select.Option>
+                                </Select>
+                                <Text type='secondary'>Border magnification</Text>
+                                <Select
+                                    className='cvat-appearance-magnifier-scale'
+                                    aria-label='Border magnification'
+                                    disabled={!cursorMagnifier && !cursorMagnifierHover}
+                                    value={cursorMagnifierScale}
+                                    onChange={(value: number) => onChangeBorderMagnifier('cursorMagnifierScale', value)}
+                                >
+                                    <Select.Option value={2}>Low (2×)</Select.Option>
+                                    <Select.Option value={4}>Medium (default, 4×)</Select.Option>
+                                    <Select.Option value={8}>High (8×)</Select.Option>
+                                </Select>
+                            </>
+                        )}
                         {is3D && (
                             <div className='cvat-appearance-cuboid-orientation-checkboxes'>
                                 <Checkbox

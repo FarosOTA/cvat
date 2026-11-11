@@ -2046,7 +2046,9 @@ export class CanvasViewImpl implements CanvasView, Listener {
         const rectangle = editingRectangle?.node || hoveredRectangle?.node ||
             this.content.querySelector('.cvat_canvas_shape_drawing');
         const box = rectangle?.getBoundingClientRect();
-        this.cursorMagnifier.hidden = !this.configuration.cursorMagnifier || !box?.width || !box?.height;
+        const magnifierEnabled = editingRectangle || drawingRectangle ?
+            this.configuration.cursorMagnifier : this.configuration.cursorMagnifierHover;
+        this.cursorMagnifier.hidden = !magnifierEnabled || !box?.width || !box?.height;
         if (this.cursorMagnifier.hidden) return;
 
         const width = Math.ceil(bounds.width);

@@ -24,10 +24,6 @@ interface Props {
     showAllInterpolationTracks: boolean;
     showObjectsTextAlways: boolean;
     adaptiveZoom: boolean;
-    editingCrosshair: boolean;
-    cursorMagnifier: boolean;
-    cursorMagnifierSize: number;
-    cursorMagnifierScale: number;
     intelligentPolygonCrop: boolean;
     defaultApproxPolyAccuracy: number;
     textFontSize: number;
@@ -43,8 +39,6 @@ interface Props {
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
     onSwitchShowingObjectsTextAlways(enabled: boolean): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
-    onSwitchRectanglePrecision(tool: 'editingCrosshair' | 'cursorMagnifier', enabled: boolean): void;
-    onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeTextFontSize(fontSize: number): void;
     onChangeControlPointsSize(pointsSize: number): void;
@@ -62,10 +56,6 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         showAllInterpolationTracks,
         showObjectsTextAlways,
         adaptiveZoom,
-        editingCrosshair,
-        cursorMagnifier,
-        cursorMagnifierSize,
-        cursorMagnifierScale,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,
@@ -80,8 +70,6 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         onSwitchShowingInterpolatedTracks,
         onSwitchShowingObjectsTextAlways,
         onSwitchAdaptiveZoom,
-        onSwitchRectanglePrecision,
-        onChangeBorderMagnifier,
         onSwitchIntelligentPolygonCrop,
         onChangeDefaultApproxPolyAccuracy,
         onChangeTextFontSize,
@@ -123,62 +111,6 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
                         Space around the fitted 2D frame (default: 8). Changing this refits the frame.
                         Use 0 for no margin.
                     </Text>
-                </Col>
-            </Row>
-            <Row className='cvat-player-setting'>
-                <Col span={24}>
-                    <Checkbox
-                        className='cvat-workspace-settings-editing-crosshair'
-                        checked={editingCrosshair}
-                        onChange={(event: CheckboxChangeEvent): void => {
-                            onSwitchRectanglePrecision('editingCrosshair', event.target.checked);
-                        }}
-                    >
-                        Crosshairs while editing bounding boxes
-                    </Checkbox>
-                </Col>
-                <Col span={24}>
-                    <Checkbox
-                        className='cvat-workspace-settings-cursor-magnifier'
-                        checked={cursorMagnifier}
-                        onChange={(event: CheckboxChangeEvent): void => {
-                            onSwitchRectanglePrecision('cursorMagnifier', event.target.checked);
-                        }}
-                    >
-                        Magnified border while hovering, drawing, and editing bounding boxes
-                    </Checkbox>
-                </Col>
-            </Row>
-            <Row className='cvat-player-setting'>
-                <Col span={12}>
-                    <Text>Border magnifier size</Text>
-                    <Select
-                        className='cvat-workspace-settings-magnifier-size'
-                        aria-label='Border magnifier size'
-                        style={{ width: '100%' }}
-                        disabled={!cursorMagnifier}
-                        value={cursorMagnifierSize}
-                        onChange={(value: number): void => onChangeBorderMagnifier('cursorMagnifierSize', value)}
-                    >
-                        <Select.Option value={16}>Low (16 px)</Select.Option>
-                        <Select.Option value={32}>Medium (default, 32 px)</Select.Option>
-                        <Select.Option value={48}>High (48 px)</Select.Option>
-                    </Select>
-                </Col>
-                <Col span={12}>
-                    <Text>Border magnification</Text>
-                    <Select
-                        className='cvat-workspace-settings-magnifier-scale'
-                        aria-label='Border magnification'
-                        style={{ width: '100%' }}
-                        disabled={!cursorMagnifier}
-                        value={cursorMagnifierScale}
-                        onChange={(value: number): void => onChangeBorderMagnifier('cursorMagnifierScale', value)}
-                    >
-                        <Select.Option value={2}>Low (2×)</Select.Option>
-                        <Select.Option value={4}>Medium (default, 4×)</Select.Option>
-                        <Select.Option value={8}>High (8×)</Select.Option>
-                    </Select>
                 </Col>
             </Row>
             <Row className='cvat-player-setting'>

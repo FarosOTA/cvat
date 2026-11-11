@@ -127,6 +127,7 @@ interface StateToProps {
     adaptiveZoom: boolean;
     editingCrosshair: boolean;
     cursorMagnifier: boolean;
+    cursorMagnifierHover: boolean;
     cursorMagnifierSize: number;
     cursorMagnifierScale: number;
     intelligentPolygonCrop: boolean;
@@ -223,6 +224,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 adaptiveZoom,
                 editingCrosshair,
                 cursorMagnifier,
+                cursorMagnifierHover,
                 cursorMagnifierSize,
                 cursorMagnifierScale,
                 intelligentPolygonCrop,
@@ -289,6 +291,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         adaptiveZoom,
         editingCrosshair,
         cursorMagnifier,
+        cursorMagnifierHover,
         cursorMagnifierSize,
         cursorMagnifierScale,
         intelligentPolygonCrop,
@@ -453,6 +456,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             adaptiveZoom,
             editingCrosshair,
             cursorMagnifier,
+            cursorMagnifierHover,
             cursorMagnifierSize,
             cursorMagnifierScale,
             intelligentPolygonCrop,
@@ -488,6 +492,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             adaptiveZoom,
             editingCrosshair,
             cursorMagnifier,
+            cursorMagnifierHover,
             cursorMagnifierSize,
             cursorMagnifierScale,
             showProjections,
@@ -543,6 +548,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             adaptiveZoom,
             editingCrosshair,
             cursorMagnifier,
+            cursorMagnifierHover,
             cursorMagnifierSize,
             cursorMagnifierScale,
             intelligentPolygonCrop,
@@ -573,6 +579,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             prevProps.adaptiveZoom !== adaptiveZoom ||
             prevProps.editingCrosshair !== editingCrosshair ||
             prevProps.cursorMagnifier !== cursorMagnifier ||
+            prevProps.cursorMagnifierHover !== cursorMagnifierHover ||
             prevProps.cursorMagnifierSize !== cursorMagnifierSize ||
             prevProps.cursorMagnifierScale !== cursorMagnifierScale ||
             prevProps.showProjections !== showProjections ||
@@ -600,6 +607,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 adaptiveZoom,
                 editingCrosshair,
                 cursorMagnifier,
+                cursorMagnifierHover,
                 cursorMagnifierSize,
                 cursorMagnifierScale,
                 showProjections,

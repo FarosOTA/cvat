@@ -38,6 +38,7 @@ const defaultState: SettingsState = {
         adaptiveZoom: true,
         editingCrosshair: true,
         cursorMagnifier: true,
+        cursorMagnifierHover: true,
         cursorMagnifierSize: 32,
         cursorMagnifierScale: 4,
         showObjectsTextAlways: false,
