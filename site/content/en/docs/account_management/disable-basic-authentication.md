@@ -10,7 +10,10 @@ products:
 ---
 
 {{% alert title="Note" color="primary" %}}
-This is a paid feature available for [Enterprise clients](https://www.cvat.ai/pricing/on-prem).
+Disabling password-based login is a paid feature available for
+[Enterprise clients](https://www.cvat.ai/pricing/on-prem). Disabling user registration is also
+available in CVAT Community; see
+{{< ilink "/docs/account_management/registration#disable-user-registration" "Disable user registration" >}}.
 {{% /alert %}}
 
 # Update authentication config

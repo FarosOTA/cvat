@@ -261,6 +261,7 @@ pytz==2025.2
     # via pandas
 pyyaml==6.0.2
     # via
+    #   -r cvat/requirements/base.in
     #   datumaro
     #   drf-spectacular
 redis==8.1.0

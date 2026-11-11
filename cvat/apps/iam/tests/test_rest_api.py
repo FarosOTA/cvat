@@ -3,6 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 import base64
+import importlib
 
 from allauth.account.forms import default_token_generator
 from allauth.account.models import EmailAddress
@@ -15,6 +16,7 @@ from rest_framework.authtoken.models import Token
 
 from cvat.apps.engine.tests.test_rest_api import create_db_users
 from cvat.apps.engine.tests.utils import ApiTestBase
+from cvat.apps.iam import urls as iam_urls
 from cvat.apps.iam.models import User
 from cvat.apps.iam.views import ConfirmEmailViewEx
 from cvat.urls import urlpatterns as original_urlpatterns
@@ -57,6 +59,15 @@ class UserRegisterAPITestCase(ApiTestBase):
     def _check_response(self, response, data):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data, data)
+
+    @override_settings(IAM_BASIC_REGISTRATION_ENABLED=False, ROOT_URLCONF="cvat.apps.iam.urls")
+    def test_registration_url_can_be_disabled(self):
+        self.addCleanup(importlib.reload, iam_urls)
+        importlib.reload(iam_urls)
+
+        response = self.client.post("/auth/register", self.user_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertNotEqual(self.client.get("/auth/login").status_code, status.HTTP_404_NOT_FOUND)
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="none")
     def test_api_v2_user_register_with_email_verification_none(self):

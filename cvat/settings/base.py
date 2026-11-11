@@ -23,6 +23,7 @@ from datetime import timedelta
 from enum import Enum, IntEnum
 from pathlib import Path
 
+import yaml
 from attr.converters import to_bool
 from corsheaders.defaults import default_headers
 from django.core.exceptions import ImproperlyConfigured
@@ -284,6 +285,31 @@ TEMPLATES = [
 IAM_TYPE = "BASIC"
 IAM_BASE_EXCEPTION = None  # a class which will be used by IAM to report errors
 IAM_DEFAULT_ROLE = "user"
+
+AUTH_CONFIG_PATH = os.getenv("AUTH_CONFIG_PATH")
+AUTH_CONFIG = {}
+if AUTH_CONFIG_PATH:
+    try:
+        AUTH_CONFIG = yaml.safe_load(Path(AUTH_CONFIG_PATH).read_text(encoding="UTF-8"))
+    except (OSError, yaml.YAMLError) as ex:
+        raise ImproperlyConfigured(f"Cannot load AUTH_CONFIG_PATH: {ex}") from ex
+
+    if AUTH_CONFIG is None:
+        AUTH_CONFIG = {}
+    if not isinstance(AUTH_CONFIG, dict):
+        raise ImproperlyConfigured("AUTH_CONFIG_PATH must contain a YAML mapping")
+
+try:
+    IAM_BASIC_REGISTRATION_ENABLED = (
+        AUTH_CONFIG.get("basic", {}).get("registration", {}).get("enabled", True)
+    )
+except AttributeError as ex:
+    raise ImproperlyConfigured(
+        "basic.registration in AUTH_CONFIG_PATH must be a YAML mapping"
+    ) from ex
+
+if not isinstance(IAM_BASIC_REGISTRATION_ENABLED, bool):
+    raise ImproperlyConfigured("basic.registration.enabled in AUTH_CONFIG_PATH must be a boolean")
 
 IAM_ADMIN_ROLE = "admin"
 # Index in the list below corresponds to the priority (0 has highest priority)

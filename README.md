@@ -13,6 +13,7 @@ are not necessarily fork-specific. This checkout reports CVAT **2.74.1**.
 - [Quick bounding-box classes](#quick-bounding-box-classes)
 - [Precision bounding-box controls](#precision-bounding-box-controls)
 - [Frame loading, buffering, and playback](#frame-loading-buffering-and-playback)
+- [Registration configuration](#registration-configuration)
 - [Security and correctness fixes](#security-and-correctness-fixes)
 - [Development setup and regression coverage](#development-setup-and-regression-coverage)
 
@@ -174,6 +175,16 @@ version precautions, and rollback instructions, see
 [Installing this fork's frame-buffering fix](#installing-this-forks-frame-buffering-fix-on-an-existing-docker-deployment).
 The supplied [Compose override](docker-compose.buffering.yml) selects locally built fork images;
 the general upstream quick start below clones upstream and does not install these fork changes.
+
+## Registration configuration
+
+This fork supports disabling Community user registration with the published Enterprise YAML contract.
+Set `AUTH_CONFIG_PATH` to a YAML file containing `basic.registration.enabled: false` as nested keys,
+then restart the server. Registration is enabled when the setting is omitted. Disabling it removes
+the registration API and its schema entry, which also hides the existing UI registration links;
+existing-user login and password management remain available. The file must be mounted inside the
+server container when using Docker. See the [registration guide](site/content/en/docs/account_management/registration.md#disable-user-registration)
+for the configuration and Compose example. Disabling password-based login remains Enterprise-only.
 
 ## Security and correctness fixes
 

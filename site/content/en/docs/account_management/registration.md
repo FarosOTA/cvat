@@ -46,6 +46,32 @@ To register:
 
 ![Username generation](/images/filling_email.gif)
 
+### Disable user registration
+
+On a self-hosted installation, user registration is enabled by default. To disable it, create an
+`auth_config.yml` file with the following content:
+
+```yaml
+basic:
+  registration:
+    enabled: false
+```
+
+Set `AUTH_CONFIG_PATH` to the path of this file and restart CVAT. If CVAT runs in containers, the
+file must be mounted into the `cvat_server` container and `AUTH_CONFIG_PATH` must contain its path
+inside the container. For example, add a Compose override with:
+
+```yaml
+services:
+  cvat_server:
+    environment:
+      AUTH_CONFIG_PATH: /home/django/auth_config.yml
+    volumes:
+      - ./auth_config.yml:/home/django/auth_config.yml:ro
+```
+
+To enable registration again, remove the setting or change `enabled` to `true`, then restart CVAT.
+
 ## User registration with social accounts
 
 To register with Google or GitHub,
