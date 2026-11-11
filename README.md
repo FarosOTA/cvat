@@ -177,8 +177,15 @@ This fork also includes selected upstream fixes without adopting optional annota
 
 - [`.agents/setup`](.agents/setup) prepares an Amp orb with native build dependencies, pinned Node.js
   and Rust toolchains, immutable Yarn workspace/Cypress installs, and separate server and REST-test
-  Python environments. It reuses installed tools and cached builds, constrains the `xmlsec` build to
-  the pinned `lxml` version to avoid duplicate native compilation, and reports dependency-step timings.
+  Python environments. New environments use Python 3.12, installed with the orb's bundled `uv`,
+  matching the Docker image and requirements-generation workflow. Existing Python 3.11/3.12
+  environments are reused; other versions fail early without deleting anything. Move incompatible
+  `.env` / `.env-tests` directories aside and rerun setup to recreate them. System Python 3.13+
+  lacks wheels for several locked scientific dependencies and can cause slow, failing source builds.
+  Setup reuses installed tools and cached builds, constrains the `xmlsec` build to the pinned `lxml`
+  version to avoid duplicate native compilation, and reports dependency-step timings. Cold setup
+  still takes minutes: the XML libraries must compile against the same system libxml2, and the
+  initial JavaScript install builds native canvas and downloads Cypress. Warm runs reuse these builds.
   Xvfb is installed so Cypress can start in the headless orb. Running the full REST/SDK suite still
   requires SDK generation/installation and the backend services, as in the CI workflow.
 - [`.agents/resume`](.agents/resume) recreates the runtime `logs` and `keys` directories without

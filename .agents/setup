@@ -13,6 +13,34 @@ run_step() {
     printf '<== %s (%ss)\n' "$label" "$((SECONDS - started))"
 }
 
+prepare_python_environments() {
+    local environment
+    # Keep working environments from older snapshots, but reject interpreters
+    # without wheels for the locked scientific dependencies before costly installs.
+    for environment in .env .env-tests; do
+        if [[ -x "$environment/bin/python" ]] && ! "$environment/bin/python" -c \
+            'import sys; sys.exit(sys.version_info[:2] not in ((3, 11), (3, 12)))'; then
+            echo "$environment requires Python 3.11 or 3.12; move it aside and rerun setup." >&2
+            return 1
+        fi
+    done
+
+    if [[ ! -x .env/bin/python || ! -x .env-tests/bin/python ]]; then
+        # uv is provided by the orb. Match the Docker image and requirements CI,
+        # rather than inheriting the base image's changing system Python version.
+        uv python install 3.12
+        local python
+        python="$(uv python find --managed-python --no-python-downloads 3.12)"
+        for environment in .env .env-tests; do
+            if [[ ! -x "$environment/bin/python" ]]; then
+                "$python" -m venv "$environment"
+            fi
+        done
+    fi
+    .env/bin/python --version
+    .env-tests/bin/python --version
+}
+
 install_system_packages() {
     local packages=(
         build-essential
@@ -126,13 +154,6 @@ install_yarn_dependencies() {
 }
 
 install_python_dependencies() {
-    if [[ ! -x .env/bin/python ]]; then
-        python3 -m venv .env
-    fi
-    if [[ ! -x .env-tests/bin/python ]]; then
-        python3 -m venv .env-tests
-    fi
-
     run_step "Upgrade server Python packaging tools" \
         .env/bin/python -m pip install --disable-pip-version-check --upgrade pip wheel setuptools
 
@@ -160,6 +181,7 @@ install_python_dependencies() {
         -r tests/python/requirements.txt
 }
 
+run_step "Prepare compatible Python environments" prepare_python_environments
 run_step "Install system packages" install_system_packages
 run_step "Install Node.js and Yarn" install_node
 run_step "Install Rust" install_rust
