@@ -12,6 +12,7 @@ are not necessarily fork-specific. This checkout reports CVAT **2.74.1**.
 - [Track timeline and navigation](#track-timeline-and-navigation)
 - [Quick bounding-box classes](#quick-bounding-box-classes)
 - [Precision bounding-box controls](#precision-bounding-box-controls)
+- [Assisted bounding boxes](#assisted-bounding-boxes)
 - [Frame loading, buffering, and playback](#frame-loading-buffering-and-playback)
 - [Registration configuration](#registration-configuration)
 - [Security and correctness fixes](#security-and-correctness-fixes)
@@ -70,9 +71,21 @@ fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
 ## Quick bounding-box classes
 
 The **Standard workspace** has a class strip above the canvas for rectangle-compatible labels.
-Click a class to select it and immediately start drawing a new two-corner rectangle; an already
-selected annotation is not relabeled. Choose **Shape** or **Track** in the strip to control what
-is created. `Esc` cancels drawing, and the existing `N` shortcut repeats the chosen class and mode.
+Choose its **default action**: **Manual rectangle** (initial default), **Scissors rectangle**, or
+**Assisted box: [interactor name]** for a configured segmentation interactor. Left-click a class
+or type its displayed code to start that action with the chosen label. **Right-click a class** to
+start a scissors rectangle regardless of the default. The dropdown also makes scissors accessible
+without a right mouse button. An already selected annotation is not relabeled.
+
+Manual rectangles support **Shape** or **Track**; assisted modes use **Shape** only and disable
+the object-type selector. Right-clicking also selects Shape. Scissors loads bundled OpenCV on first
+use; a loading message appears and startup can be canceled with `Esc`. Assisted boxes require an
+existing compatible interactor (API v2 or newer); the unavailable option is disabled when none is
+configured. They start with click prompts unless the selected model requires an initial box.
+See [Assisted bounding boxes](#assisted-bounding-boxes) for prompting and finishing controls.
+The default lasts while the strip is mounted. `Esc` cancels drawing, and the existing `N` shortcut
+finishes an assisted interaction or repeats the chosen class and mode when idle. Pointer-centred
+zoom and middle-button panning remain available during all these modes.
 
 - With up to five classes, press the displayed key `1`–`5`.
 - With more classes, press the two displayed keys **in sequence**, within one second: `1 1`,
@@ -102,6 +115,9 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   without placing it or changing its image coordinates. Double-click the middle button to fit the
   image to the canvas; an engaged edit remains active afterward. Magnified borders and editing
   crosshairs stay aligned during panning and refresh on fit without requiring another pointer move.
+- **Pointer-centred zoom (upstream):** Scroll the mouse wheel or pinch on a touchpad to zoom around
+  the pointer. Combine this with middle-button panning to inspect small or distant defects without
+  leaving the current annotation tool.
 - **Cancel safely:** Press `Esc` during a move or resize to restore the box's geometry from before
   the interaction instead of keeping the unfinished edit.
 - **Editing crosshairs:** Crosshairs help align boxes while moving or resizing them.
@@ -126,6 +142,34 @@ independently. Each offers **Low**, **Medium (default)**, and **High**: strip th
 the original appearance. Both choices are saved in the browser and retained when the magnifier
 is disabled; the controls are disabled only when both magnifier checkboxes are off. All these
 preferences are saved in the browser and no longer appear in **Settings → Workspace**.
+
+## Assisted bounding boxes
+
+Two additional output modes create ordinary, editable 2D rectangle **shapes**, using the selected
+label and current frame/Z-order, with semi-automatic source and normal undo/redo/save behavior:
+
+- **OpenCV → Drawing → Scissors rectangle** (outlined-box button): click successive anchors along
+  distinguishable object edges. The existing intelligent-scissors algorithm follows edges between
+  anchors; a live axis-aligned box encloses the resulting contour. Press `N` or **Done** to finish,
+  or `Esc` to cancel. Only confirmed anchors contribute to the finished box, not the sliding cursor.
+  Click the last anchor to remove it. The original scissors button still creates polygons, with its
+  approximation control unchanged. Rectangle mode uses the full computed contour without polygon
+  simplification, and ignores zero-area results. Scissors follows the boundary segments you mark;
+  it does not discover the entire object from a single click.
+- **AI tools → Interactors → Convert masks to bounding boxes**: choose a configured segmentation
+  interactor, enable this option, and click **Interact**. Add positive left-click prompts and negative
+  right-click prompts where supported; remove prompts to refine the result. Finish with `N` or
+  **Done**. Each accepted mask becomes one tight box covering all foreground components, including
+  disconnected ones. Empty masks create no box. Pixel-edge bounds include the full final pixel.
+  Confidence filtering still applies; polygon approximation does not affect boxes. Mask and polygon
+  outputs remain available, and the two conversion switches are mutually exclusive.
+
+Both box modes require an `any` or `rectangle` label. Scissors runs locally using CVAT's bundled
+OpenCV.js and needs no segmentation service. The AI workflow reuses CVAT's existing segmentation
+integration (including its SAM integration when configured); **a working interactor must already be
+deployed/configured**. This fork adds no model, model download, or external API. Segmentation quality
+depends on the configured model, image contrast, and prompts; inspect and adjust the resulting boxes.
+Neither mode creates tracks or rotated rectangles.
 
 ## Frame loading, buffering, and playback
 

@@ -63,3 +63,29 @@ export function rle2Mask(rle: ArrayLike<number>, width: number, height: number):
 
     return decoded;
 }
+
+/** Tight pixel-edge box of a CVAT mask (RLE followed by inclusive left/top/right/bottom). */
+export function rle2Box(mask: ArrayLike<number>): number[] | null {
+    const end = mask.length - 4;
+    const left = mask[end];
+    const top = mask[end + 1];
+    const width = mask[end + 2] - left + 1;
+    let minX = width;
+    let minY = Infinity;
+    let maxX = -1;
+    let maxY = -1;
+    let offset = 0;
+    for (let i = 0; i < end; i++) {
+        const count = mask[i];
+        if (i % 2 && count > 0) {
+            const startY = Math.floor(offset / width);
+            const endY = Math.floor((offset + count - 1) / width);
+            minY = Math.min(minY, startY);
+            maxY = Math.max(maxY, endY);
+            minX = Math.min(minX, startY === endY ? offset % width : 0);
+            maxX = Math.max(maxX, startY === endY ? (offset + count - 1) % width : width - 1);
+        }
+        offset += count;
+    }
+    return maxX < 0 ? null : [left + minX, top + minY, left + maxX + 1, top + maxY + 1];
+}

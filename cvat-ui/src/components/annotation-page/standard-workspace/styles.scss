@@ -275,7 +275,8 @@
     margin-top: $grid-unit-size;
 }
 
-.cvat-opencv-drawing-tool {
+.cvat-opencv-drawing-tool,
+.cvat-opencv-scissors-rectangle-tool-button {
     padding: $grid-unit-size;
     width: $grid-unit-size * 5;
     height: $grid-unit-size * 5;

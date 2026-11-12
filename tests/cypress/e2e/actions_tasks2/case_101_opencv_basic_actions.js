@@ -238,5 +238,73 @@ context('OpenCV. Intelligent scissors. Histogram Equalization. TrackerMIL.', () 
                     }
                 });
         });
+
+        it('Creates an editable scissors rectangle and supports undo/redo without changing polygon scissors', () => {
+            let count;
+            cy.get('.cvat_canvas_shape').then((shapes) => { count = shapes.length; });
+            cy.interactOpenCVControlButton();
+            cy.get('.cvat-opencv-control-popover').contains('[role="tab"]', 'Drawing').click();
+            cy.get('.cvat-opencv-scissors-tool-button').should('be.visible');
+            cy.get('.cvat-opencv-scissors-rectangle-tool-button').click();
+            cy.get('.cvat-approx-poly-threshold-wrapper').should('not.exist');
+            [{ x: 696, y: 586 }, { x: 1131, y: 588 }, { x: 1131, y: 900 }].forEach((point) => {
+                clickCanvasImagePoint(point);
+            });
+            cy.get('.cvat_canvas_interact_intermediate_shape').should((shape) => {
+                // A box preview has four axis-aligned corners, not the scissors contour vertices.
+                const points = shape.attr('points').trim().split(/\s+/).map((point) => point.split(',').map(Number));
+                expect(points).to.have.length(4);
+                expect(points[0][1]).to.equal(points[1][1]);
+                expect(points[1][0]).to.equal(points[2][0]);
+                expect(points[2][1]).to.equal(points[3][1]);
+                expect(points[3][0]).to.equal(points[0][0]);
+            });
+            cy.get('body').type('n');
+            cy.get('.cvat_canvas_shape').should((shapes) => { expect(shapes.length).to.equal(count + 1); });
+            cy.get('.cvat_canvas_shape').last().should('have.prop', 'tagName', 'rect');
+            cy.get('body').type('{ctrl}z');
+            cy.get('.cvat_canvas_shape').should((shapes) => { expect(shapes.length).to.equal(count); });
+            cy.get('body').type('{ctrl}y');
+            cy.get('.cvat_canvas_shape').should((shapes) => { expect(shapes.length).to.equal(count + 1); });
+            cy.clickSaveAnnotationView();
+        });
+
+        it('Converts a click-prompted padded mask with disconnected components into one saved box', () => {
+            const rle = [610];
+            for (let row = 0; row < 20; row++) rle.push(10, 20, 10, 20);
+            rle[rle.length - 1] = 610;
+            cy.intercept('HEAD', '**/api/lambda/functions*', { statusCode: 200 });
+            cy.intercept('GET', '**/api/lambda/functions*', [{
+                id: 'box-test',
+                name: 'Box test interactor',
+                kind: 'interactor',
+                version: 2,
+                min_pos_points: 1,
+                min_neg_points: 0,
+                startswith_box: false,
+            }]);
+            cy.intercept('POST', '**/api/lambda/functions/box-test', {
+                shapes: [{ type: 'mask', points: [...rle, 600, 400, 659, 439], attributes: [] }],
+            }).as('segment');
+            cy.reload();
+            cy.get('.cvat-tools-control').click();
+            cy.get('[aria-label="Convert masks to bounding boxes"]').click();
+            cy.get('.cvat-tools-interact-button').click();
+            clickCanvasImagePoint({ x: 615, y: 415 });
+            cy.wait('@segment').its('request.body.pos_points').should('have.length', 1);
+            cy.get('.cvat_canvas_interact_intermediate_shape').should('be.visible');
+            cy.get('body').type('n');
+            cy.clickSaveAnnotationView();
+            cy.url().then((url) => {
+                const jobId = url.match(/jobs\/(\d+)/)[1];
+                cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => {
+                    const boxes = body.shapes.filter((shape) => (
+                        shape.type === 'rectangle' && JSON.stringify(shape.points) === '[610,410,650,430]'
+                    ));
+                    expect(boxes).to.have.length(1);
+                    expect(boxes[0].source).to.equal('semi-auto');
+                });
+            });
+        });
     });
 });

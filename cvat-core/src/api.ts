@@ -39,7 +39,7 @@ import {
 } from './exceptions';
 
 import { getVisibleSkeletonElements, propagateShapes, validateAttributeValue } from './object-utils';
-import { mask2Rle, rle2Mask } from './rle-utils';
+import { mask2Rle, rle2Mask, rle2Box } from './rle-utils';
 import User from './user';
 import config from './config';
 
@@ -512,6 +512,7 @@ function build(): CVATCore {
         utils: {
             mask2Rle,
             rle2Mask,
+            rle2Box,
             propagateShapes,
             validateAttributeValue,
             getVisibleSkeletonElements,

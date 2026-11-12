@@ -285,10 +285,14 @@ export class InteractionHandlerImpl implements InteractionHandler {
             const {
                 points, shapeType, maskOutlines,
             } = shape;
-            if (shapeType === 'polygon') {
-                const isInvalidShape = points.length < 3 * 2;
+            if (shapeType === 'polygon' || shapeType === 'rectangle') {
+                const polygonPoints = shapeType === 'rectangle' ? [
+                    points[0], points[1], points[2], points[1],
+                    points[2], points[3], points[0], points[3],
+                ] : points;
+                const isInvalidShape = polygonPoints.length < 3 * 2;
                 const polygon = this.container
-                    .polygon(stringifyPoints(translateToCanvas(this.geometry.offset, points)))
+                    .polygon(stringifyPoints(translateToCanvas(this.geometry.offset, polygonPoints)))
                     .attr({
                         'color-rendering': 'optimizeQuality',
                         'shape-rendering': 'geometricprecision',

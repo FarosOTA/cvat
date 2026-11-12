@@ -1727,6 +1727,7 @@ export function interactWithCanvas(
     activeInteractor: MLModel | OpenCVTool,
     activeLabelID: number,
     activeInteractorParameters: CombinedState['annotation']['drawing']['activeInteractorParameters'],
+    activeInteractorShapeType?: ShapeType,
 ): AnyAction {
     return {
         type: AnnotationActionTypes.INTERACT_WITH_CANVAS,
@@ -1734,6 +1735,7 @@ export function interactWithCanvas(
             activeInteractor,
             activeLabelID,
             activeInteractorParameters,
+            activeInteractorShapeType,
         },
     };
 }
@@ -1750,6 +1752,7 @@ export function repeatDrawShapeAsync(): ThunkAction {
             drawing: {
                 activeInteractor,
                 activeInteractorParameters,
+                activeInteractorShapeType,
                 activeObjectType,
                 activeLabelID,
                 activeShapeType,
@@ -1768,7 +1771,9 @@ export function repeatDrawShapeAsync(): ThunkAction {
                 dispatch(switchToolsBlockerState({ buttonVisible: false }));
             } else {
                 canvasInstance.interact({ enabled: true, ...activeInteractorParameters });
-                dispatch(interactWithCanvas(activeInteractor, activeLabelID, activeInteractorParameters));
+                dispatch(interactWithCanvas(
+                    activeInteractor, activeLabelID, activeInteractorParameters, activeInteractorShapeType,
+                ));
             }
 
             return;

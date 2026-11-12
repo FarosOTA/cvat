@@ -953,6 +953,7 @@ export interface AnnotationState {
     };
     drawing: {
         activeInteractor?: MLModel | OpenCVTool;
+        activeInteractorShapeType?: ShapeType;
         activeInteractorParameters: Partial<{
             command: Parameters<Canvas['interact']>[0]['command'];
             settings: Parameters<Canvas['interact']>[0]['settings'];

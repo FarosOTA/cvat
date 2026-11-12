@@ -31,7 +31,7 @@ export interface OpenCVInterface {
         simplifyPolygon: (points: number[], threshold: number, closed: boolean) => number[];
     };
     segmentation: {
-        intelligentScissorsFactory: () => IntelligentScissorsInterface;
+        intelligentScissorsFactory: (shapeType?: 'polygon' | 'rectangle') => IntelligentScissorsInterface;
     };
     imgproc: {
         hist: () => ImageProcessing;
@@ -196,7 +196,7 @@ export function createOpenCVInterface(cv: any): OpenCVInterface {
         },
 
         segmentation: {
-            intelligentScissorsFactory: () => new IntelligentScissorsImplementation(cv),
+            intelligentScissorsFactory: (shapeType = 'polygon') => new IntelligentScissorsImplementation(cv, shapeType),
         },
 
         imgproc: {

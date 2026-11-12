@@ -65,8 +65,26 @@ function editor() {
         z_order: 0, rotation: 0, occluded: false, outside: false, ...extra,
     });
     const states = () => collection.get(0, false, []);
-    return { collection, history, config, shape, states, ObjectState, canvas };
+    return { collection, history, config, shape, states, ObjectState, canvas, rle: core('rle-utils') };
 }
+
+test('mask-to-box covers every foreground pixel without including empty padding', () => {
+    const { rle: { rle2Box, mask2Rle } } = editor();
+    const convert = (pixels, width, height, left = 13, top = 29) => rle2Box([
+        ...mask2Rle(pixels), left, top, left + width - 1, top + height - 1,
+    ]);
+    assert.equal(convert(Array(15).fill(0), 5, 3), null);
+    assert.deepEqual(convert([1], 1, 1), [13, 29, 14, 30]);
+    assert.deepEqual(convert([
+        0, 0, 0, 0, 0,
+        0, 1, 1, 0, 0,
+        0, 0, 0, 1, 0,
+        0, 0, 0, 0, 0,
+    ], 5, 4), [14, 30, 17, 32]);
+    // A foreground run that crosses a row boundary occupies both horizontal extremes.
+    assert.deepEqual(convert([0, 0, 0, 1, 1, 1, 0, 0], 4, 2), [13, 29, 17, 31]);
+    assert.deepEqual(convert(Array(6).fill(1), 3, 2, 0, 0), [0, 0, 3, 2]);
+});
 
 test('bulk lock/hide undo and redo restore all supported states and skeleton children in one step', async () => {
     for (const property of ['lock', 'hidden']) {

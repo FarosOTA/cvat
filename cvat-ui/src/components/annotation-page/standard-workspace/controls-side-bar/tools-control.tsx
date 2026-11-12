@@ -58,6 +58,7 @@ import ToolsTooltips from './interactor-tooltips';
 
 interface StateToProps {
     canvasInstance: Canvas;
+    drawing: CombinedState['annotation']['drawing'];
     labels: Label[];
     states: ObjectState[];
     activeLabelID: number | null;
@@ -100,7 +101,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 zLayer: { cur: currentZOrder },
                 states,
             },
-            drawing: { activeLabelID },
+            drawing,
         },
         models: {
             interactors, detectors, trackers,
@@ -124,7 +125,8 @@ function mapStateToProps(state: CombinedState): StateToProps {
         detectors,
         trackers,
         isActivated: activeControl === ActiveControl.AI_TOOLS,
-        activeLabelID,
+        activeLabelID: drawing.activeLabelID,
+        drawing,
         labels,
         states,
         canvasInstance: canvasInstance as Canvas,
@@ -161,6 +163,7 @@ interface State {
     activeTracker: MLModel | null;
     startInteractingWithBox: boolean;
     convertMasksToPolygons: boolean;
+    convertMasksToBoxes: boolean;
     trackedShapes: TrackedShape[];
     fetching: boolean;
     interactorResponseReceived: boolean;
@@ -268,6 +271,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
 
         this.state = {
             convertMasksToPolygons: false,
+            convertMasksToBoxes: false,
             startInteractingWithBox: (localStorage.getItem(startWithBoxStorageItem) ?? 'true') === 'true',
             activeInteractor: props.interactors.length ? props.interactors[0] : null,
             activeTracker: supportedTrackers.length ? supportedTrackers[0] : null,
@@ -314,7 +318,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
 
     public componentDidUpdate(prevProps: Props, prevState: State): void {
         const {
-            isActivated, defaultApproxPolyAccuracy, states, toolsBlockerState, jobInstance,
+            isActivated, defaultApproxPolyAccuracy, states, toolsBlockerState, jobInstance, drawing,
         } = this.props;
         const {
             approxPolyAccuracy, mode, activeTracker, thresholdValue,
@@ -334,7 +338,8 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
             });
         }
 
-        if (prevProps.isActivated && !isActivated) {
+        const interactionChanged = prevProps.drawing.activeInteractorParameters !== drawing.activeInteractorParameters;
+        if (prevProps.isActivated && (!isActivated || interactionChanged)) {
             window.removeEventListener('contextmenu', this.contextmenuDisabler);
 
             // hide interaction messages if exists
@@ -344,7 +349,8 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                     this.interaction[messageCallback] = null;
                 }
             }
-        } else if (!prevProps.isActivated && isActivated) {
+        }
+        if (isActivated && (!prevProps.isActivated || interactionChanged)) {
             // reset flags when start interaction/tracking
             this.interaction = {
                 id: null,
@@ -356,11 +362,22 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                 noShapesMessage: null,
             };
 
-            this.setState({
+            this.setState((previous) => ({
+                ...previous,
                 approxPolyAccuracy: defaultApproxPolyAccuracy,
                 interactorResponseReceived: false,
                 showConfidenceControl: false,
-            });
+                ...(drawing.activeInteractor instanceof MLModel && drawing.activeInteractor.kind === 'interactor' ? {
+                    activeInteractor: drawing.activeInteractor,
+                    activeLabelID: drawing.activeLabelID,
+                    mode: 'interaction' as const,
+                    interactorRegionOfInterest: drawing.activeInteractorParameters.settings?.regionOfInterest ?? null,
+                    ...(drawing.activeInteractorShapeType ? {
+                        convertMasksToBoxes: drawing.activeInteractorShapeType === ShapeType.RECTANGLE,
+                        convertMasksToPolygons: drawing.activeInteractorShapeType === ShapeType.POLYGON,
+                    } : {}),
+                } : {}),
+            }));
             window.addEventListener('contextmenu', this.contextmenuDisabler);
         }
 
@@ -573,9 +590,8 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                 if (this.interaction.id === interactionId) {
                     this.interaction.closeFetchingMessage?.();
                     this.interaction.closeFetchingMessage = null;
+                    this.setState({ fetching: false });
                 }
-
-                this.setState({ fetching: false });
             }
 
             this.drawIntermediateShapesOnCanvas();
@@ -782,15 +798,21 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
 
     private drawIntermediateShapesOnCanvas(): void {
         const { canvasInstance } = this.props;
-        const { convertMasksToPolygons, thresholdValue } = this.state;
+        const { convertMasksToPolygons, convertMasksToBoxes, thresholdValue } = this.state;
         const shapesToBeDrawn = this.interaction.latestResponse
             .filter(({ confidence }) => typeof confidence !== 'number' || confidence >= thresholdValue)
             .filter(({ approximatedPoints }) => !convertMasksToPolygons || approximatedPoints.length >= 3)
-            .map(({ rle, contours, approximatedPoints }) => ({
-                shapeType: convertMasksToPolygons ? ShapeType.POLYGON : ShapeType.MASK,
-                points: convertMasksToPolygons ? approximatedPoints.flat() : rle,
-                maskOutlines: contours.map((contour) => contour.flat()),
-            }));
+            .flatMap(({ rle, contours, approximatedPoints }) => {
+                if (convertMasksToBoxes) {
+                    const points = core.utils.rle2Box(rle);
+                    return points ? [{ shapeType: ShapeType.RECTANGLE, points, maskOutlines: [] }] : [];
+                }
+                return [{
+                    shapeType: convertMasksToPolygons ? ShapeType.POLYGON : ShapeType.MASK,
+                    points: convertMasksToPolygons ? approximatedPoints.flat() : rle,
+                    maskOutlines: contours.map((contour) => contour.flat()),
+                }];
+            });
 
         canvasInstance.interact({
             enabled: true,
@@ -1082,7 +1104,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
     }
 
     private async constructFromLatestResponse(): Promise<void> {
-        const { convertMasksToPolygons, thresholdValue } = this.state;
+        const { convertMasksToPolygons, convertMasksToBoxes, thresholdValue } = this.state;
         const {
             frame, labels, currentZOrder, activeLabelID, createAnnotations,
         } = this.props;
@@ -1105,7 +1127,16 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
         );
 
         let objects: ObjectState[] = [];
-        if (convertMasksToPolygons) {
+        if (convertMasksToBoxes) {
+            objects = objectsToConstruct.flatMap(({ rle }) => {
+                const points = core.utils.rle2Box(rle);
+                return points ? [new core.classes.ObjectState({
+                    shapeType: ShapeType.RECTANGLE,
+                    points,
+                    ...common,
+                })] : [];
+            });
+        } else if (convertMasksToPolygons) {
             objects = objectsToConstruct
                 .filter(({ approximatedPoints }) => approximatedPoints.length >= 3)
                 .map(({ approximatedPoints }) => (
@@ -1282,7 +1313,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
         } = this.props;
         const {
             activeInteractor, activeLabelID, fetching, allowROI,
-            startInteractingWithBox, convertMasksToPolygons,
+            startInteractingWithBox, convertMasksToPolygons, convertMasksToBoxes,
         } = this.state;
 
         if (!interactors.length) {
@@ -1318,7 +1349,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                     <Col span={22}>
                         <Select
                             style={{ width: '100%' }}
-                            defaultValue={interactors[0].name}
+                            value={activeInteractor?.id}
                             onChange={this.setActiveInteractor}
                         >
                             {interactors.map(
@@ -1355,10 +1386,22 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                         <Switch
                             checked={convertMasksToPolygons}
                             onChange={(checked: boolean) => {
-                                this.setState({ convertMasksToPolygons: checked });
+                                this.setState({ convertMasksToPolygons: checked, convertMasksToBoxes: false });
                             }}
                         />
                         <Text>Convert masks to polygons</Text>
+                    </div>
+                    <div>
+                        <Switch
+                            aria-label='Convert masks to bounding boxes'
+                            checked={convertMasksToBoxes}
+                            disabled={!convertMasksToBoxes && !labels.some((label) => label.id === activeLabelID &&
+                                ['any', 'rectangle'].includes(label.type))}
+                            onChange={(checked: boolean) => {
+                                this.setState({ convertMasksToBoxes: checked, convertMasksToPolygons: false });
+                            }}
+                        />
+                        <Text>Convert masks to bounding boxes</Text>
                     </div>
                     {renderStartWithBox && (
                         <div>
@@ -1384,6 +1427,8 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                             className='cvat-tools-interact-button'
                             disabled={!activeInteractor ||
                                 fetching ||
+                                (convertMasksToBoxes && !labels.some((label) => label.id === activeLabelID &&
+                                    ['any', 'rectangle'].includes(label.type))) ||
                                 activeInteractor.version < MIN_SUPPORTED_INTERACTOR_VERSION}
                             onClick={() => {
                                 if (activeInteractor && activeLabelID && labels.length) {
@@ -1406,7 +1451,10 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                                         },
                                     };
                                     canvasInstance.interact({ enabled: true, ...parameters });
-                                    onInteractionStart(activeInteractor, activeLabelID, parameters);
+                                    let outputShapeType = ShapeType.MASK;
+                                    if (convertMasksToBoxes) outputShapeType = ShapeType.RECTANGLE;
+                                    else if (convertMasksToPolygons) outputShapeType = ShapeType.POLYGON;
+                                    onInteractionStart(activeInteractor, activeLabelID, parameters, outputShapeType);
                                 }
                             }}
                         >

@@ -7,7 +7,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { Row, Col } from 'antd/lib/grid';
 import Popover from 'antd/lib/popover';
-import Icon, { AreaChartOutlined, ScissorOutlined } from '@ant-design/icons';
+import Icon, { AreaChartOutlined, ScissorOutlined, BorderOutlined } from '@ant-design/icons';
 import Text from 'antd/lib/typography/Text';
 import Tabs from 'antd/lib/tabs';
 import Button from 'antd/lib/button';
@@ -41,6 +41,7 @@ import withVisibilityHandling from './handle-popover-visibility';
 
 interface Props {
     labels: any[];
+    drawing: CombinedState['annotation']['drawing'];
     canvasInstance: Canvas;
     canvasReady: boolean;
     jobInstance: Job;
@@ -80,6 +81,7 @@ const CustomPopover = withVisibilityHandling(Popover, 'opencv-control');
 function mapStateToProps(state: CombinedState): Props {
     const {
         annotation: {
+            drawing,
             annotations: {
                 zLayer: { cur: currentZOrder },
             },
@@ -96,6 +98,7 @@ function mapStateToProps(state: CombinedState): Props {
     } = state;
 
     return {
+        drawing,
         isActivated: activeControl === ActiveControl.OPENCV_TOOLS,
         activeControl,
         canvasInstance: canvasInstance as Canvas,
@@ -149,14 +152,21 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
         const { approxPolyAccuracy } = this.state;
         const {
             isActivated, defaultApproxPolyAccuracy,
-            canvasInstance, toolsBlockerState,
+            canvasInstance, toolsBlockerState, drawing,
         } = this.props;
 
-        if (!prevProps.isActivated && isActivated) {
+        if (isActivated && (!prevProps.isActivated ||
+            prevProps.drawing.activeInteractorParameters !== drawing.activeInteractorParameters)) {
+            if (drawing.activeInteractor?.kind.startsWith('opencv') &&
+                drawing.activeInteractor.kind.includes('scissors')) {
+                this.activeTool = drawing.activeInteractor as IntelligentScissors;
+            }
             // reset flags & states before using a tool
             this.latestPoints = [];
             this.setState({
+                libraryInitialized: openCVWrapper.isInitialized,
                 approxPolyAccuracy: defaultApproxPolyAccuracy,
+                activeLabelID: drawing.activeLabelID,
             });
 
             if (this.activeTool) {
@@ -200,7 +210,7 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
         }
 
         if (prevState.approxPolyAccuracy !== approxPolyAccuracy) {
-            if (isActivated) {
+            if (isActivated && this.activeTool?.params.shape.shapeType !== 'rectangle') {
                 const approx = openCVWrapper.contours.approxPoly(
                     this.latestPoints,
                     openCVWrapper.utils.thresholdFromAccuracy(approxPolyAccuracy),
@@ -226,6 +236,7 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
 
     public componentWillUnmount(): void {
         this.imageRequest = null;
+        this.activeTool = null;
         const { canvasInstance } = this.props;
 
         canvasInstance.html().removeEventListener('canvas.interacted', this.interactionListener);
@@ -249,10 +260,42 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
 
         const { finished, shapes } = (e as CustomEvent).detail;
         const pressedPoints = convertShapesForInteractor(shapes, 'points', 'positive').flat();
+        const tool = this.activeTool;
+        const rectangle = tool.params.shape.shapeType === 'rectangle';
         try {
             const request = this.imageRequest;
             await request;
-            if (this.imageRequest !== request || !this.props.isActivated || this.props.frame !== frame) return;
+            // Finishing also resets the active canvas control before the image promise resumes.
+            if (this.imageRequest !== request || this.activeTool !== tool ||
+                (!finished && !this.props.isActivated) || this.props.frame !== frame) return;
+            if (rectangle) {
+                const contour = await this.runCVAlgorithm(pressedPoints);
+                const points = contour.reduce(([left, top, right, bottom], [x, y]) => [
+                    Math.min(left, x), Math.min(top, y), Math.max(right, x), Math.max(bottom, y),
+                ], [Infinity, Infinity, -Infinity, -Infinity]);
+                const valid = contour.length > 1 && points[2] > points[0] && points[3] > points[1];
+                if (finished) {
+                    if (valid) {
+                        createAnnotations([new core.classes.ObjectState({
+                            frame,
+                            objectType: ObjectType.SHAPE,
+                            shapeType: ShapeType.RECTANGLE,
+                            source: core.enums.Source.SEMI_AUTO,
+                            label: labels.find((label: any) => label.id === activeLabelID),
+                            points,
+                            occluded: false,
+                            zOrder: currentZOrder,
+                        })]);
+                    }
+                } else {
+                    canvasInstance.interact({
+                        enabled: true,
+                        command: 'put_shapes',
+                        payload: { shapes: valid ? [{ shapeType: ShapeType.RECTANGLE, points }] : [] },
+                    });
+                }
+                return;
+            }
             if (finished) {
                 // need to recalculate without the latest sliding point
                 const finalPoints = await this.runCVAlgorithm(pressedPoints);
@@ -380,6 +423,33 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
                     </Col>
                 </Row>
                 <Row justify='start' className='cvat-opencv-drawing-tools'>
+                    <Col>
+                        <CVATTooltip title='Scissors rectangle: click along edges, then finish to create a box'>
+                            <Button
+                                aria-label='Scissors rectangle'
+                                className='cvat-opencv-scissors-rectangle-tool-button'
+                                disabled={!labels.some((label) => label.id === activeLabelID &&
+                                    ['any', 'rectangle'].includes(label.type))}
+                                onClick={() => {
+                                    this.activeTool = openCVWrapper.segmentation.intelligentScissorsFactory('rectangle');
+                                    const parameters = {
+                                        command: 'draw_points' as const,
+                                        settings: {
+                                            appendCursorPositionAsPoint: true,
+                                            removalStrategy: 'last' as const,
+                                            points_type: 'positive' as const,
+                                            hint: 'Click along object edges; press N or Done to create their bounding box',
+                                        },
+                                    };
+                                    canvasInstance.cancel();
+                                    onInteractionStart(this.activeTool, activeLabelID, parameters);
+                                    canvasInstance.interact({ enabled: true, ...parameters });
+                                }}
+                            >
+                                <BorderOutlined />
+                            </Button>
+                        </CVATTooltip>
+                    </Col>
                     <Col>
                         <CVATTooltip title='Intelligent scissors' className='cvat-opencv-drawing-tool'>
                             <Button
@@ -621,7 +691,7 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
                         <Icon {...dynamicIconProps} component={OpenCVIcon} />
                     </CVATTooltip>
                 </CustomPopover>
-                {isActivated ? (
+                {isActivated && this.activeTool?.params.shape.shapeType !== 'rectangle' ? (
                     <ApproximationAccuracy
                         approxPolyAccuracy={approxPolyAccuracy}
                         onChange={(value: number) => {

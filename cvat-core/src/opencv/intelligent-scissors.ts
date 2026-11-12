@@ -7,7 +7,7 @@ import { numberArrayToPoints, type Point } from './math-utils';
 
 export interface IntelligentScissorsParams {
     shape: {
-        shapeType: 'polygon' | 'polyline';
+        shapeType: 'polygon' | 'polyline' | 'rectangle';
     };
     canvas: {
         shapeType: 'points';
@@ -32,6 +32,7 @@ export default class IntelligentScissorsImplementation implements IntelligentSci
     private cv: any;
     private dsize: any;
     private originalSize: { width: number; height: number };
+    private shapeType: 'polygon' | 'rectangle';
 
     // @ts-ignore initialized in this.reset called from constructor
     private scissors: {
@@ -45,8 +46,10 @@ export default class IntelligentScissorsImplementation implements IntelligentSci
         };
     };
 
-    public constructor(cv: any) {
+    public constructor(cv: any, shapeType: 'polygon' | 'rectangle' = 'polygon') {
         this.cv = cv;
+        this.shapeType = shapeType;
+        this.kind = shapeType === 'rectangle' ? 'opencv_scissors_rectangle' : 'opencv_intelligent_scissors';
         this.dsize = new cv.Size(1024, 1024);
         this.originalSize = {
             width: this.dsize.width,
@@ -177,13 +180,13 @@ export default class IntelligentScissorsImplementation implements IntelligentSci
     }
 
     public get type(): string {
-        return 'opencv_intelligent_scissors';
+        return this.kind;
     }
 
     public get params(): IntelligentScissorsParams {
         return {
             shape: {
-                shapeType: 'polygon',
+                shapeType: this.shapeType,
             },
             canvas: {
                 shapeType: 'points',
