@@ -171,6 +171,14 @@ deployed/configured**. This fork adds no model, model download, or external API.
 depends on the configured model, image contrast, and prompts; inspect and adjust the resulting boxes.
 Neither mode creates tracks or rotated rectangles.
 
+The AI-tools (magic-wand) button appears only when the model catalog contains an interactor, detector,
+or tracker. Assisted boxes require a segmentation interactor using API v2 or newer. Model discovery
+uses a direct `GET /api/lambda/functions`, without a preliminary `HEAD` request. If model loading
+fails, these tools remain unavailable; a disabled assisted-box option does not necessarily mean no
+model is deployed. Check the model request's response for authentication, permission, or Nuclio
+backend errors. Disabled serverless routes (404) and an unavailable Nuclio backend (503) are treated
+as an empty model catalog; other failures are reported rather than hidden.
+
 ## Frame loading, buffering, and playback
 
 - **Full-resolution, bandwidth-saving playback:** **Settings → Player → Bandwidth-saving playback

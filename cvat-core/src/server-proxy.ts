@@ -2048,17 +2048,13 @@ async function getLambdaFunctions(): Promise<SerializedModel[]> {
 
     const url = `${backendAPI}/lambda/functions`;
     try {
-        const head = await Axios.head(url, { validateStatus: (status) => status === 200 || status === 404 });
-        if (head.status === 404) {
-            return [];
-        }
-
         const response = await Axios.get(url);
         return response.data;
     } catch (errorData) {
-        // 503 => the serverless (Nuclio) backend is not deployed/available,
-        // so there are no lambda functions to list.
-        if (errorData.response?.status === 503) {
+        // 404 => serverless routes are disabled; 503 => Nuclio is unavailable.
+        // Use GET directly: a rejected HEAD must not prevent loading the catalog
+        // or discard the response body needed to diagnose an actual GET failure.
+        if ([404, 503].includes(errorData.response?.status)) {
             return [];
         }
         throw generateError(errorData);
