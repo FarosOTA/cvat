@@ -111,6 +111,15 @@ export default function RectangleTrackTimeline(): JSX.Element {
     const filteredRectangles = useMemo(() => rectangles.filter((rectangle) => (
         labelID === null || rectangle.labelID === labelID
     )), [labelID, rectangles]);
+    const labelRows = useMemo(() => {
+        const groups = new Map<number, RectangleMetadata[]>();
+        filteredRectangles.forEach((rectangle) => {
+            const group = groups.get(rectangle.labelID);
+            if (group) group.push(rectangle);
+            else groups.set(rectangle.labelID, [rectangle]);
+        });
+        return Array.from(groups.values());
+    }, [filteredRectangles]);
     const trackCount = useMemo(() => filteredRectangles.filter((rectangle) => (
         rectangle.objectType === ObjectType.TRACK
     )).length, [filteredRectangles]);
@@ -161,6 +170,17 @@ export default function RectangleTrackTimeline(): JSX.Element {
         if (destination !== null) {
             dispatch(navigateToRectangleAsync(destination, rectangle.clientID));
         }
+    };
+
+    const navigateLabel = (group: RectangleMetadata[], targetFrame?: number): void => {
+        const candidates = group.filter((rectangle) => {
+            const frames = visibleRectangleFrames(rectangle);
+            return typeof targetFrame === 'undefined' ? frames.length : frames.includes(targetFrame);
+        });
+        if (!candidates.length) return;
+        const currentIndex = candidates.findIndex((rectangle) => rectangle.clientID === activeID);
+        const target = candidates[(currentIndex + 1) % candidates.length];
+        navigateRectangle(target, targetFrame);
     };
 
     const navigateAdjacentRectangle = (direction: 'forward' | 'backward'): void => {
@@ -225,25 +245,26 @@ export default function RectangleTrackTimeline(): JSX.Element {
             </div>
             {expanded && (
                 <div className='cvat-rectangle-track-timeline-body'>
-                    {filteredRectangles.length ? filteredRectangles.map((rectangle) => (
+                    {labelRows.length ? labelRows.map((group) => (
                         <div
                             className={`cvat-rectangle-track-timeline-row ${
-                                rectangle.clientID === activeID ? 'cvat-rectangle-track-timeline-row-active' : ''
+                                group.some((rectangle) => rectangle.clientID === activeID) ?
+                                    'cvat-rectangle-track-timeline-row-active' : ''
                             }`}
-                            key={rectangle.clientID}
-                            data-object-type={rectangle.objectType}
+                            key={group[0].labelID}
+                            data-label-id={group[0].labelID}
                         >
                             <button
                                 type='button'
                                 className='cvat-rectangle-track-timeline-label'
-                                title={`Rectangle ${rectangle.objectType}`}
-                                onClick={() => navigateRectangle(rectangle)}
+                                title={`Cycle through rectangles labeled ${group[0].labelName}`}
+                                onClick={() => navigateLabel(group)}
                             >
-                                <span>{rectangle.labelName}</span>
-                                <small>#{rectangle.clientID}</small>
+                                <span>{group[0].labelName}</span>
+                                <small>{group.length}</small>
                             </button>
                             <div className='cvat-rectangle-track-timeline-track'>
-                                {rectangle.visibleSegments.map((segment) => {
+                                {group.flatMap((rectangle) => rectangle.visibleSegments.map((segment) => {
                                     const startIndex = frameIndexes.get(segment.start) ?? 0;
                                     const stopIndex = frameIndexes.get(segment.stop) ?? startIndex;
                                     const left = (startIndex / Math.max(1, frameNumbers.length)) * 100;
@@ -253,7 +274,10 @@ export default function RectangleTrackTimeline(): JSX.Element {
                                         <button
                                             type='button'
                                             className='cvat-rectangle-track-timeline-segment'
-                                            key={`${segment.start}-${segment.stop}`}
+                                            key={`${rectangle.clientID}-${segment.start}-${segment.stop}`}
+                                            data-object-type={rectangle.objectType}
+                                            data-client-id={rectangle.clientID}
+                                            data-active={rectangle.clientID === activeID}
                                             style={{ left: `${left}%`, width: `${Math.max(0.3, width)}%` }}
                                             title={segment.start === segment.stop ?
                                                 `Frame ${segment.start}` : `Frames ${segment.start}–${segment.stop}`}
@@ -269,16 +293,16 @@ export default function RectangleTrackTimeline(): JSX.Element {
                                                 const destination = nearestFrame(
                                                     segmentFrames(segment), frameNumbers[targetIndex],
                                                 );
-                                                if (destination !== null) navigateRectangle(rectangle, destination);
+                                                if (destination !== null) navigateLabel(group, destination);
                                             }}
                                         />
                                     );
-                                })}
+                                }))}
                                 <svg viewBox='0 0 1000 24' preserveAspectRatio='none' aria-hidden='true'>
                                     <path
                                         className='cvat-rectangle-track-timeline-keyframes'
                                         d={pathForKeyframes(
-                                            rectangle.keyframes.filter((keyframe) => (
+                                            group.flatMap((rectangle) => rectangle.keyframes).filter((keyframe) => (
                                                 !keyframe.outside && !keyframe.deleted
                                             )),
                                             frameIndexes,
@@ -288,7 +312,7 @@ export default function RectangleTrackTimeline(): JSX.Element {
                                     <path
                                         className='cvat-rectangle-track-timeline-keyframes-special'
                                         d={pathForKeyframes(
-                                            rectangle.keyframes.filter((keyframe) => (
+                                            group.flatMap((rectangle) => rectangle.keyframes).filter((keyframe) => (
                                                 keyframe.outside || keyframe.deleted
                                             )),
                                             frameIndexes,

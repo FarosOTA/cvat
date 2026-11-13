@@ -44,9 +44,11 @@ In the **Standard workspace**, select an unlocked, non-ground-truth rectangle tr
 A collapsible **Track timeline** is docked below the canvas in the 2D Standard workspace, rather than
 covering the image. Expand it to see both rectangle **tracks** and standalone rectangle **shapes**,
 their visible segments, keyframe markers, outside/deleted-frame markers, and the current playhead.
-Each standalone shape has its own one-frame entry; shapes on consecutive frames are not implicitly
+There is one row per label, combining all of that label's tracks and shapes with an annotation count.
+Standalone shapes retain their one-frame segments; shapes on consecutive frames are not implicitly
 joined into a track. The header reports track and shape counts separately. Filter by label, click a
-row to activate its rectangle, or click a segment to seek within it. Navigation skips deleted frames
+label to cycle through its rectangles, or click a segment to seek within it. Repeated clicks where
+segments overlap cycle through the rectangles visible at that frame. Navigation skips deleted frames
 and can activate an off-frame rectangle by seeking to its own frame (shape) or a nearby visible
 position (track). Creating, relabeling, deleting, and undoing/redoing rectangle changes refreshes the list.
 
