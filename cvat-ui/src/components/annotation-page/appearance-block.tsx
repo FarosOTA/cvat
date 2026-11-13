@@ -30,6 +30,7 @@ import {
     changeOrientationVisibility as changeOrientationVisibilityAction,
     switchRectanglePrecision,
     changeBorderMagnifier,
+    switchNextFrameAfterPlacing,
 } from 'actions/settings-actions';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
@@ -65,6 +66,7 @@ interface StateToProps {
     cursorMagnifierHover: boolean;
     cursorMagnifierSize: number;
     cursorMagnifierScale: number;
+    nextFrameAfterPlacing: boolean;
     showBitmap: boolean;
     showProjections: boolean;
     orientationVisibility: OrientationVisibility;
@@ -86,6 +88,7 @@ interface DispatchToProps {
         tool: 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover', enabled: boolean,
     ): void;
     onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
+    onSwitchNextFrameAfterPlacing(enabled: boolean): void;
 }
 
 function mapStateToProps(state: CombinedState): StateToProps {
@@ -102,6 +105,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
             },
             workspace: {
                 editingCrosshair, cursorMagnifier, cursorMagnifierHover, cursorMagnifierSize, cursorMagnifierScale,
+                nextFrameAfterPlacing,
             },
         },
         shortcuts: { keyMap },
@@ -119,6 +123,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         cursorMagnifierHover,
         cursorMagnifierSize,
         cursorMagnifierScale,
+        nextFrameAfterPlacing,
         showBitmap,
         showProjections,
         workspace,
@@ -132,6 +137,7 @@ function mapDispatchToProps(dispatch: Dispatch<AnyAction>): DispatchToProps {
     return {
         onSwitchRectanglePrecision: (tool, enabled) => dispatch(switchRectanglePrecision(tool, enabled)),
         onChangeBorderMagnifier: (setting, value) => dispatch(changeBorderMagnifier(setting, value)),
+        onSwitchNextFrameAfterPlacing: (enabled) => dispatch(switchNextFrameAfterPlacing(enabled)),
         collapseAppearance(): void {
             dispatch(collapseAppearanceAction());
         },
@@ -176,6 +182,9 @@ function AppearanceBlock(props: Props): JSX.Element {
         cursorMagnifierScale,
         onSwitchRectanglePrecision,
         onChangeBorderMagnifier,
+        nextFrameAfterPlacing,
+        onSwitchNextFrameAfterPlacing,
+        workspace,
         showBitmap,
         showProjections,
         orientationVisibility,
@@ -272,6 +281,17 @@ function AppearanceBlock(props: Props): JSX.Element {
                                 </Button>
                             </ColorPicker>
                         </Checkbox>
+                        {is2D && workspace === Workspace.STANDARD && (
+                            <Checkbox
+                                className='cvat-appearance-next-frame-after-placing-checkbox'
+                                checked={nextFrameAfterPlacing}
+                                onChange={(event: CheckboxChangeEvent) => {
+                                    onSwitchNextFrameAfterPlacing(event.target.checked);
+                                }}
+                            >
+                                Next frame after placing an annotation
+                            </Checkbox>
+                        )}
                         {is2D && (
                             <>
                                 <Checkbox

@@ -40,6 +40,7 @@ import {
     fetchAnnotationsAsync,
     updateAnnotationsAsync,
     createAnnotationsAsync,
+    placeAnnotationsAsync,
 } from 'actions/annotation-actions';
 import DetectorRunner, {
     AnnotateTaskRequestBody,
@@ -78,6 +79,7 @@ interface StateToProps {
 interface DispatchToProps {
     updateAnnotations: (states: ObjectState[]) => Promise<void>;
     createAnnotations: (states: ObjectState[]) => void;
+    placeAnnotations: (states: ObjectState[]) => void;
     fetchAnnotations: () => void;
     onInteractionStart: typeof interactWithCanvas;
     onSwitchToolsBlockerState: typeof switchToolsBlockerState;
@@ -144,6 +146,7 @@ const mapDispatchToProps = {
     onInteractionStart: interactWithCanvas,
     updateAnnotations: updateAnnotationsAsync,
     createAnnotations: createAnnotationsAsync,
+    placeAnnotations: placeAnnotationsAsync,
     fetchAnnotations: fetchAnnotationsAsync,
     onSwitchToolsBlockerState: switchToolsBlockerState,
     switchNavigationBlocked: switchNavigationBlockedAction,
@@ -1106,7 +1109,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
     private async constructFromLatestResponse(): Promise<void> {
         const { convertMasksToPolygons, convertMasksToBoxes, thresholdValue } = this.state;
         const {
-            frame, labels, currentZOrder, activeLabelID, createAnnotations,
+            frame, labels, currentZOrder, activeLabelID, placeAnnotations,
         } = this.props;
 
         if (!this.interaction.latestResponse.length) {
@@ -1157,7 +1160,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                     })
                 ));
         }
-        createAnnotations(objects);
+        placeAnnotations(objects);
     }
 
     private async initializeOpenCV(): Promise<void> {

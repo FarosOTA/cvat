@@ -53,6 +53,7 @@ export enum SettingsActionTypes {
     SWITCH_ADAPTIVE_ZOOM = 'SWITCH_ADAPTIVE_ZOOM',
     SWITCH_RECTANGLE_PRECISION = 'SWITCH_RECTANGLE_PRECISION',
     CHANGE_BORDER_MAGNIFIER = 'CHANGE_BORDER_MAGNIFIER',
+    SWITCH_NEXT_FRAME_AFTER_PLACING = 'SWITCH_NEXT_FRAME_AFTER_PLACING',
     SWITCH_INTELLIGENT_POLYGON_CROP = 'SWITCH_INTELLIGENT_POLYGON_CROP',
     SWITCH_SHOWNIG_INTERPOLATED_TRACKS = 'SWITCH_SHOWNIG_INTERPOLATED_TRACKS',
     SWITCH_SHOWING_OBJECTS_TEXT_ALWAYS = 'SWITCH_SHOWING_OBJECTS_TEXT_ALWAYS',
@@ -392,6 +393,13 @@ export function changeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMa
     return {
         type: SettingsActionTypes.CHANGE_BORDER_MAGNIFIER,
         payload: { setting, value },
+    };
+}
+
+export function switchNextFrameAfterPlacing(nextFrameAfterPlacing: boolean): AnyAction {
+    return {
+        type: SettingsActionTypes.SWITCH_NEXT_FRAME_AFTER_PLACING,
+        payload: { nextFrameAfterPlacing },
     };
 }
 

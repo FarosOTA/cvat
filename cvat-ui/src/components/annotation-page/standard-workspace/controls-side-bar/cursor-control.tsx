@@ -14,8 +14,9 @@ import CVATTooltip from 'components/common/cvat-tooltip';
 import GlobalHotKeys from 'utils/mousetrap-react';
 import { ShortcutScope } from 'utils/enums';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
+import { setContinuedTrack } from 'actions/annotation-actions';
 import { subKeyMap } from 'utils/component-subkeymap';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 export interface Props {
     canvasInstance: Canvas | Canvas3d;
@@ -40,8 +41,11 @@ function CursorControl(props: Props): JSX.Element {
     } = props;
 
     const { keyMap } = useSelector((state: CombinedState) => state.shortcuts);
+    const dispatch = useDispatch();
 
     const handler = (): void => {
+        // Canceling explicitly ends "Next frame after placing" track continuation.
+        dispatch(setContinuedTrack(null));
         if (activeControl !== ActiveControl.CURSOR || (canvasInstance instanceof Canvas &&
             [CanvasMode.DRAG, CanvasMode.RESIZE].includes(canvasInstance.mode()))) {
             canvasInstance.cancel();

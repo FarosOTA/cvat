@@ -457,6 +457,11 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.rectangleTrack,
                     metadataRevision: state.rectangleTrack.metadataRevision + 1,
                 } : state.rectangleTrack,
+                // Any frame change ends track continuation; placing an annotation sets it again afterwards.
+                drawing: {
+                    ...state.drawing,
+                    continuedTrack: null,
+                },
             };
         }
         case AnnotationActionTypes.CHANGE_FRAME_FAILED: {
@@ -1263,6 +1268,15 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 canvas: {
                     ...state.canvas,
                     activeControl: ActiveControl.CURSOR,
+                },
+            };
+        }
+        case AnnotationActionTypes.SET_CONTINUED_TRACK: {
+            return {
+                ...state,
+                drawing: {
+                    ...state.drawing,
+                    continuedTrack: action.payload.continuedTrack,
                 },
             };
         }

@@ -145,6 +145,22 @@ the original appearance. Both choices are saved in the browser and retained when
 is disabled; the controls are disabled only when both magnifier checkboxes are off. All these
 preferences are saved in the browser and no longer appear in **Settings → Workspace**.
 
+**Next frame after placing an annotation** (off by default, 2D Standard workspace) is also in this
+section. When enabled, finishing a new shape moves to the next frame and restarts the same tool
+with the same label, shape type, and Shape/Track choice, as the `N` shortcut would. This covers
+manual drawing, class-strip boxes, scissors, and assisted/interactor results. Deleted frames are
+skipped unless **Show deleted frames** is on. Nothing happens on the job's last frame, when creation
+fails or produces nothing, or when another tool was started during navigation. Pasted shapes,
+replacements, the brush tool's **Continue** button, detectors, and trackers stay on the current
+frame. It is saved in the browser.
+
+With **Shape** selected, each placement creates an individual shape. With **Track** selected, the
+first placement creates a track and each following placement adds a keyframe to that same track
+(one undo step each) instead of creating a new track. Press `Esc` or choose the cursor tool,
+navigate to another frame yourself, or draw with a different label or shape type to start a new
+track with the next placement. As with any CVAT track, the track remains visible after its last
+keyframe until you mark it outside.
+
 ## Assisted bounding boxes
 
 Two additional output modes create ordinary, editable 2D rectangle **shapes**, using the selected

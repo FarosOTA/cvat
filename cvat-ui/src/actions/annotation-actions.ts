@@ -173,6 +173,7 @@ export enum AnnotationActionTypes {
     HOVERED_CHAPTER = 'HOVERED_CHAPTER',
     SET_RECTANGLE_TRACK_PROPAGATION = 'SET_RECTANGLE_TRACK_PROPAGATION',
     SET_RECTANGLE_TRACK_PENDING_ACTIVATION = 'SET_RECTANGLE_TRACK_PENDING_ACTIVATION',
+    SET_CONTINUED_TRACK = 'SET_CONTINUED_TRACK',
 }
 
 export enum AnnotationSource {
@@ -1821,6 +1822,70 @@ export function repeatDrawShapeAsync(): ThunkAction {
                 skeletonSVG: activeShapeType === ShapeType.SKELETON ? activeLabel.structure!.svg : undefined,
                 simplifyPoly: effectiveSimplifyPoly,
             });
+        }
+    };
+}
+
+export function setContinuedTrack(
+    continuedTrack: CombinedState['annotation']['drawing']['continuedTrack'],
+): AnyAction {
+    return {
+        type: AnnotationActionTypes.SET_CONTINUED_TRACK,
+        payload: { continuedTrack },
+    };
+}
+
+// Places annotations drawn with a drawing or interaction tool. With "Next frame after placing" enabled,
+// it then moves to the next frame and restarts the same tool there, as the repeat-draw shortcut does.
+// A track drawn on that frame adds a keyframe to the track placed before it instead of starting a new track.
+export function placeAnnotationsAsync(
+    statesToCreate: ObjectState[],
+    source: AnnotationSource = AnnotationSource.OTHER,
+): ThunkAction {
+    return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<void> => {
+        const {
+            annotation: {
+                job: { instance: job }, player: { frame: { number: frame } }, workspace, drawing: { continuedTrack },
+            },
+            settings: {
+                workspace: { nextFrameAfterPlacing, showAllInterpolationTracks }, player: { showDeletedFrames },
+            },
+        } = getState();
+        const enabled = nextFrameAfterPlacing && workspace === Workspace.STANDARD && !!job;
+        const [drawn] = statesToCreate;
+        const drawnTrack = statesToCreate.length === 1 && drawn.objectType === ObjectType.TRACK;
+
+        let trackID: number | null = null;
+        if (enabled && drawnTrack && continuedTrack?.frame === frame) {
+            const states: ObjectState[] = await job.annotations.get(frame, showAllInterpolationTracks, []);
+            const track = states.find((state) => state.clientID === continuedTrack.clientID);
+            if (track && !track.lock && track.objectType === ObjectType.TRACK &&
+                track.shapeType === drawn.shapeType && track.shapeType !== ShapeType.SKELETON &&
+                track.label.id === drawn.label.id) {
+                track.points = drawn.points;
+                if ((track.rotation || 0) !== (drawn.rotation || 0)) track.rotation = drawn.rotation || 0;
+                if (track.outside) track.outside = false;
+                await dispatch(updateAnnotationsAsync([track]));
+                trackID = track.clientID as number;
+            }
+        }
+
+        if (trackID === null) {
+            const clientIDs = await dispatch(createAnnotationsAsync(statesToCreate, source));
+            if (!clientIDs.length) return;
+            if (drawnTrack) [trackID] = clientIDs;
+        }
+
+        if (!enabled || frame >= job.stopFrame) return;
+        const nextFrame = await job.frames.search({ notDeleted: !showDeletedFrames }, frame + 1, job.stopFrame);
+        if (nextFrame === null || nextFrame === frame) return;
+
+        await dispatch(changeFrameAsync(nextFrame));
+        const { player, canvas } = getState().annotation;
+        // Do not restart the tool if navigation was refused or the user has already started something else.
+        if (player.frame.number === nextFrame && canvas.activeControl === ActiveControl.CURSOR) {
+            await dispatch(repeatDrawShapeAsync());
+            dispatch(setContinuedTrack(trackID === null ? null : { clientID: trackID, frame: nextFrame }));
         }
     };
 }

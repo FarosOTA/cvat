@@ -38,6 +38,7 @@ import {
     updateActiveControl as updateActiveControlAction,
     updateAnnotationsAsync,
     createAnnotationsAsync,
+    placeAnnotationsAsync,
     mergeAnnotationsAsync,
     groupAnnotationsAsync,
     joinAnnotationsAsync,
@@ -150,6 +151,7 @@ interface DispatchToProps {
     updateActiveControl: (activeControl: ActiveControl) => void;
     onUpdateAnnotations(states: ObjectState[]): void;
     onCreateAnnotations(states: ObjectState[], source?: AnnotationSource): void;
+    onPlaceAnnotations(states: ObjectState[], source?: AnnotationSource): void;
     onMergeAnnotations(states: ObjectState[]): void;
     onSplitAnnotations(state: ObjectState): void;
     onGroupAnnotations(states: ObjectState[]): void;
@@ -366,6 +368,9 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
             source: AnnotationSource = AnnotationSource.OTHER,
         ): void {
             dispatch(createAnnotationsAsync(states, source));
+        },
+        onPlaceAnnotations(states: ObjectState[], source?: AnnotationSource): void {
+            dispatch(placeAnnotationsAsync(states, source));
         },
         onMergeAnnotations(states: ObjectState[]): void {
             dispatch(mergeAnnotationsAsync(states));
@@ -809,7 +814,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     private onCanvasShapeDrawn = (event: any): void => {
         const {
             jobInstance, activeLabelID, activeObjectType, frame, updateActiveControl, onCreateAnnotations,
-            onUpdateEditedObject, activeObjectHidden, workspace, currentZLayer,
+            onPlaceAnnotations, onUpdateEditedObject, activeObjectHidden, workspace, currentZLayer,
         } = this.props;
 
         if (!event.detail.continue) {
@@ -850,7 +855,12 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const source = simplifyPoly && [ShapeType.POLYGON, ShapeType.POLYLINE].includes(state.shapeType) ?
             AnnotationSource.DRAW_SIMPLIFIED_POLY : AnnotationSource.OTHER;
 
-        onCreateAnnotations([objectState], source);
+        // Pasted shapes and continued mask drawing stay on the current frame.
+        if (isDrawnFromScratch && !event.detail.continue) {
+            onPlaceAnnotations([objectState], source);
+        } else {
+            onCreateAnnotations([objectState], source);
+        }
         onUpdateEditedObject(null);
     };
 

@@ -29,7 +29,7 @@ import {
 } from 'reducers';
 import {
     interactWithCanvas,
-    createAnnotationsAsync,
+    placeAnnotationsAsync,
 } from 'actions/annotation-actions';
 import LabelSelector from 'components/label-selector/label-selector';
 import CVATTooltip from 'components/common/cvat-tooltip';
@@ -56,7 +56,7 @@ interface Props {
 }
 
 interface DispatchToProps {
-    createAnnotations: (states: ObjectState[]) => void;
+    placeAnnotations: (states: ObjectState[]) => void;
     onInteractionStart: typeof interactWithCanvas;
     enableImageFilter: typeof enableImageFilterAction;
     disableImageFilter: typeof disableImageFilterAction;
@@ -116,7 +116,7 @@ function mapStateToProps(state: CombinedState): Props {
 
 const mapDispatchToProps = {
     onInteractionStart: interactWithCanvas,
-    createAnnotations: createAnnotationsAsync,
+    placeAnnotations: placeAnnotationsAsync,
     enableImageFilter: enableImageFilterAction,
     disableImageFilter: disableImageFilterAction,
 };
@@ -249,7 +249,7 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
     private onInteraction = async (e: Event): Promise<void> => {
         const { approxPolyAccuracy } = this.state;
         const {
-            createAnnotations, isActivated, frame,
+            placeAnnotations, isActivated, frame,
             labels, currentZOrder, canvasInstance, toolsBlockerState,
         } = this.props;
 
@@ -276,7 +276,7 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
                 const valid = contour.length > 1 && points[2] > points[0] && points[3] > points[1];
                 if (finished) {
                     if (valid) {
-                        createAnnotations([new core.classes.ObjectState({
+                        placeAnnotations([new core.classes.ObjectState({
                             frame,
                             objectType: ObjectType.SHAPE,
                             shapeType: ShapeType.RECTANGLE,
@@ -315,7 +315,7 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
                         occluded: false,
                         zOrder: currentZOrder,
                     });
-                    createAnnotations([finalObject]);
+                    placeAnnotations([finalObject]);
                 }
             } else {
                 this.latestPoints = await this.runCVAlgorithm(pressedPoints);

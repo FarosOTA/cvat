@@ -966,6 +966,8 @@ export interface AnnotationState {
         activeObjectType: ObjectType;
         activeInitialState?: any;
         activeSimplifyPoly?: boolean;
+        // The track that the next track drawn on this frame extends ("Next frame after placing").
+        continuedTrack?: { clientID: number; frame: number } | null;
     };
     editing: EditingState;
     annotations: {
@@ -1092,6 +1094,7 @@ export interface WorkspaceSettingsState {
     cursorMagnifierHover: boolean;
     cursorMagnifierSize: number;
     cursorMagnifierScale: number;
+    nextFrameAfterPlacing: boolean;
     showObjectsTextAlways: boolean;
     showAllInterpolationTracks: boolean;
     intelligentPolygonCrop: boolean;

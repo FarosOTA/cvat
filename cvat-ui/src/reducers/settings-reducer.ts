@@ -42,6 +42,7 @@ const defaultState: SettingsState = {
         cursorMagnifierHover: true,
         cursorMagnifierSize: 32,
         cursorMagnifierScale: 4,
+        nextFrameAfterPlacing: false,
         showObjectsTextAlways: false,
         showAllInterpolationTracks: false,
         intelligentPolygonCrop: true,
@@ -406,6 +407,15 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 workspace: {
                     ...state.workspace,
                     [action.payload.tool]: action.payload.enabled,
+                },
+            };
+        }
+        case SettingsActionTypes.SWITCH_NEXT_FRAME_AFTER_PLACING: {
+            return {
+                ...state,
+                workspace: {
+                    ...state.workspace,
+                    nextFrameAfterPlacing: action.payload.nextFrameAfterPlacing,
                 },
             };
         }
