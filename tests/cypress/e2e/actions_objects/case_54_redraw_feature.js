@@ -221,5 +221,60 @@ context('Redraw feature.', () => {
             });
             cy.get('.cvat_canvas_shape_drawing').should('not.exist');
         });
+
+        it('Targets the annotation under a stationary cursor after changing frames.', () => {
+            cy.removeAnnotations();
+            cy.createRectangle(createRectangleShape2Points);
+            let firstFrameId;
+            let secondFrameId;
+            let originalY;
+            cy.get('.cvat_canvas_shape').invoke('attr', 'id').then((id) => { firstFrameId = id; });
+            cy.goToNextFrame(1);
+            cy.createRectangle({
+                ...createRectangleShape2Points,
+                firstX: 175,
+                firstY: 375,
+                secondX: 275,
+                secondY: 475,
+            });
+            cy.get('.cvat_canvas_shape').invoke('attr', 'id').then((id) => { secondFrameId = id; });
+            cy.get('.cvat_canvas_shape').invoke('attr', 'y').then((y) => { originalY = y; });
+            cy.get('.cvat-canvas-container').trigger('mousemove', 200, 400);
+
+            // Only keyboard navigation from here: no mouse move to re-activate either frame's shape.
+            cy.get('body').type('d');
+            cy.checkFrameNum(0);
+            cy.then(() => cy.get(`#${firstFrameId}`).should('have.class', 'cvat_canvas_shape_activated'));
+            cy.get('body').type('f');
+            cy.checkFrameNum(1);
+            cy.then(() => cy.get(`#${secondFrameId}`).should('have.class', 'cvat_canvas_shape_activated'));
+            cy.get('body').trigger('keydown', { keyCode: keyCodeN, code: 'KeyN', shiftKey: true });
+            cy.get('.cvat-canvas-container').click(175, 325);
+            cy.get('.cvat-canvas-container').click(275, 425);
+            cy.then(() => cy.get(`#${secondFrameId}`).should('be.visible').and('not.have.class', 'cvat_canvas_hidden'));
+            cy.then(() => cy.get(`#${secondFrameId}`).should('not.have.attr', 'y', originalY));
+
+            cy.get('.cvat-canvas-container').trigger('mousemove', 200, 400);
+            cy.get('body').type('f');
+            cy.checkFrameNum(2);
+            cy.get('.cvat_canvas_shape').should('not.exist');
+            cy.get('body').type('{del}');
+            cy.get('body').type('d');
+            cy.checkFrameNum(1);
+            cy.then(() => cy.get(`#${secondFrameId}`).should('have.class', 'cvat_canvas_shape_activated'));
+            cy.get('body').type('{del}');
+            cy.get('.cvat_canvas_shape').should('not.exist');
+            cy.get('body').type('d');
+            cy.checkFrameNum(0);
+            cy.then(() => cy.get(`#${firstFrameId}`).should('exist'));
+
+            // Empty canvas must not retain the last shortcut target.
+            cy.get('.cvat-canvas-container').trigger('mousemove', 200, 400);
+            cy.get('.cvat_canvas_shape').should('have.class', 'cvat_canvas_shape_activated');
+            cy.get('.cvat-canvas-container').trigger('mousemove', 100, 200);
+            cy.get('.cvat_canvas_shape').should('not.have.class', 'cvat_canvas_shape_activated');
+            cy.get('body').type('{del}');
+            cy.then(() => cy.get(`#${firstFrameId}`).should('exist'));
+        });
     });
 });

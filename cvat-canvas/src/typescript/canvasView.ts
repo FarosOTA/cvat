@@ -100,6 +100,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
     private cursorMagnifier: HTMLCanvasElement;
     private precisionToolsRequest: number | null = null;
     private middleMousePosition: { clientX: number; clientY: number } | null = null;
+    private hoverPosition: { clientX: number; clientY: number } | null = null;
     private innerObjectsFlags: {
         drawHidden: Record<number, boolean>;
         editHidden: Record<number, boolean>;
@@ -2003,6 +2004,23 @@ export class CanvasViewImpl implements CanvasView, Listener {
         }
     };
 
+    private updateHover(): void {
+        if (!this.hoverPosition || this.mode !== Mode.IDLE || this.isImageLoading) return;
+
+        const { clientX, clientY } = this.hoverPosition;
+        const { offset } = this.controller.geometry;
+        const [x, y] = translateToSVG(this.content, [clientX, clientY]);
+        this.canvas.dispatchEvent(new CustomEvent('canvas.moved', {
+            bubbles: false,
+            cancelable: true,
+            detail: {
+                x: x - offset,
+                y: y - offset,
+                states: this.controller.objects,
+            },
+        }));
+    }
+
     private hidePrecisionTools(): void {
         if (this.precisionToolsRequest !== null) {
             window.cancelAnimationFrame(this.precisionToolsRequest);
@@ -2497,30 +2515,23 @@ export class CanvasViewImpl implements CanvasView, Listener {
         });
 
         this.canvas.addEventListener('mousemove', (e): void => {
+            this.hoverPosition = { clientX: e.clientX, clientY: e.clientY };
+        }, true); // Skeleton elements stop mousemove propagation during element activation.
+
+        this.canvas.addEventListener('mousemove', (e): void => {
             this.controller.drag(e.clientX, e.clientY);
 
             if (this.mode !== Mode.IDLE) return;
             if (e.ctrlKey || e.altKey) return;
 
-            if (!this.isImageLoading) {
-                const { offset } = this.controller.geometry;
-                const [x, y] = translateToSVG(this.content, [e.clientX, e.clientY]);
-                const event: CustomEvent = new CustomEvent('canvas.moved', {
-                    bubbles: false,
-                    cancelable: true,
-                    detail: {
-                        x: x - offset,
-                        y: y - offset,
-                        states: this.controller.objects,
-                    },
-                });
-
-                this.canvas.dispatchEvent(event);
-            }
+            this.updateHover();
         });
 
         this.content.oncontextmenu = (): boolean => false;
-        this.canvas.addEventListener('mouseleave', () => this.hidePrecisionTools());
+        this.canvas.addEventListener('mouseleave', () => {
+            this.hoverPosition = null;
+            this.hidePrecisionTools();
+        });
         window.addEventListener('mousemove', this.updatePrecisionTools);
         model.subscribe(this);
     }
@@ -2725,6 +2736,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
             }
             const event: CustomEvent = new CustomEvent('canvas.setup');
             this.canvas.dispatchEvent(event);
+            // Re-evaluate the new frame beneath a stationary pointer, just like a mouse move.
+            this.updateHover();
         } else if (reason === UpdateReasons.ISSUE_REGIONS_UPDATED) {
             this.setupIssueRegions(this.controller.issueRegions);
         } else if (reason === UpdateReasons.GRID_UPDATED) {

@@ -10,6 +10,7 @@ are not necessarily fork-specific. This checkout reports CVAT **2.74.1**.
 
 - [Rectangle-track editing](#rectangle-track-editing)
 - [Track timeline and navigation](#track-timeline-and-navigation)
+- [Cursor-targeted annotation shortcuts](#cursor-targeted-annotation-shortcuts)
 - [Quick bounding-box classes](#quick-bounding-box-classes)
 - [Precision bounding-box controls](#precision-bounding-box-controls)
 - [Assisted bounding boxes](#assisted-bounding-boxes)
@@ -69,6 +70,15 @@ fitted image in screen pixels (**0–100**, default **8**), so the pointer can r
 canvas, including when the image is rotated. Set it to **0** for edge-to-edge fitting. Changing the
 setting immediately refits the frame, and the value is saved in the browser. It applies to initial
 fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
+
+## Cursor-targeted annotation shortcuts
+
+In the 2D Standard workspace, object shortcuts such as **Delete object** and **Redraw shape**
+use the annotation beneath the pointer without requiring a click. Hover targeting refreshes when
+frame annotations load, so you can switch frames and immediately use a shortcut without nudging
+the mouse. Moving over empty canvas clears the target rather than editing the previously hovered
+object. Existing shortcut customizations (including a remapped Delete key), lock protections,
+and sidebar selection outside the canvas are preserved.
 
 ## Quick bounding-box classes
 

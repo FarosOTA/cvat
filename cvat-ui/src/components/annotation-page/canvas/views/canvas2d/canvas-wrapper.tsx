@@ -19,7 +19,7 @@ import {
 } from 'reducers';
 import { EventScope } from 'cvat-logger';
 import {
-    Canvas, HighlightSeverity, CanvasHint, RenderData, CanvasHistorySource,
+    Canvas, CanvasMode, HighlightSeverity, CanvasHint, RenderData, CanvasHistorySource,
 } from 'cvat-canvas-wrapper';
 import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import {
@@ -456,6 +456,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     private canvasTipsRef = React.createRef<CanvasTipsComponent>();
     private unmounted = false;
     private refinedFrame: Props['frameData'] = null;
+    private hoverRequest = 0;
 
     public componentDidMount(): void {
         const {
@@ -1001,25 +1002,28 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
 
     private onCanvasCursorMoved = async (event: any): Promise<void> => {
         const {
-            jobInstance, activatedStateID, activatedElementID, workspace, onActivateObject,
+            jobInstance, workspace, onActivateObject, frame, annotations, canvasInstance,
         } = this.props;
+        const request = ++this.hoverRequest;
 
         if (![Workspace.STANDARD, Workspace.REVIEW, Workspace.SINGLE_SHAPE].includes(workspace)) {
             return;
         }
 
         const result = await jobInstance.annotations.select(event.detail.states, event.detail.x, event.detail.y);
-        if (result && result.state) {
-            if ([ShapeType.POLYLINE, ShapeType.POINTS].includes(result.state.shapeType)) {
-                if (result.distance > MAX_DISTANCE_TO_OPEN_SHAPE) {
-                    return;
-                }
-            }
+        if (this.unmounted || request !== this.hoverRequest || frame !== this.props.frame ||
+            annotations !== this.props.annotations || canvasInstance.mode() !== CanvasMode.IDLE) {
+            return;
+        }
 
-            const newActivatedElement = event.detail.activatedElementID || null;
-            if (activatedStateID !== result.state.clientID || activatedElementID !== newActivatedElement) {
-                onActivateObject(result.state.clientID, event.detail.activatedElementID || null);
-            }
+        const state = result?.state;
+        const tooFar = state && [ShapeType.POLYLINE, ShapeType.POINTS].includes(state.shapeType) &&
+            result.distance > MAX_DISTANCE_TO_OPEN_SHAPE;
+        const targetID = state && !tooFar ? state.clientID : null;
+        const elementID = targetID !== null ? event.detail.activatedElementID || null : null;
+        const { activatedStateID, activatedElementID } = this.props;
+        if (activatedStateID !== targetID || activatedElementID !== elementID) {
+            onActivateObject(targetID, elementID);
         }
     };
 
