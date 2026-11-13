@@ -249,6 +249,7 @@ function SingleShapeSidebar(): JSX.Element {
 
     const unmountedRef = useRef(false);
     const savingRef = useRef(false);
+    const drawingCanceledRef = useRef(false);
     const canvasInitializerRef = useRef<() => void | null>(() => {});
     canvasInitializerRef.current = (): void => {
         const canvas = store.getState().annotation.canvas.instance as Canvas;
@@ -361,7 +362,8 @@ function SingleShapeSidebar(): JSX.Element {
             // but there are some cases when only canvas.cancel is triggered (e.g. when drawn shape was not correct)
             // in this case need to re-run drawing process
             setTimeout(() => {
-                if (!unmountedRef.current && !drawDoneEffectApplied && !drawnObjects.length) {
+                if (!unmountedRef.current && !drawingCanceledRef.current &&
+                    !drawDoneEffectApplied && !drawnObjects.length) {
                     canvasInitializerRef.current();
                 }
             }, 50);
@@ -378,6 +380,7 @@ function SingleShapeSidebar(): JSX.Element {
 
     useEffect(() => {
         if (isCanvasReady) {
+            drawingCanceledRef.current = false;
             const drawnObjects = annotations.filter((_state) => _state.objectType !== ObjectType.TAG);
             cancelCurrentCanvasOp(store.getState());
             if (!drawnObjects.length) {
@@ -403,12 +406,20 @@ function SingleShapeSidebar(): JSX.Element {
     const handlers: Record<keyof typeof componentShortcuts, (event?: KeyboardEvent) => void> = {
         CANCEL_SINGLE_SHAPE: (event: KeyboardEvent | undefined) => {
             event?.preventDefault();
+            drawingCanceledRef.current = true;
             (store.getState().annotation.canvas.instance as Canvas).cancel();
         },
         SWITCH_DRAW_MODE_SINGLE_SHAPE: (event: KeyboardEvent | undefined) => {
             event?.preventDefault();
             const canvas = store.getState().annotation.canvas.instance as Canvas;
-            canvas.draw({ enabled: false });
+            if (drawingCanceledRef.current) {
+                drawingCanceledRef.current = false;
+                if (!annotations.some((_state) => _state.objectType !== ObjectType.TAG)) {
+                    canvasInitializerRef.current();
+                }
+            } else {
+                canvas.draw({ enabled: false });
+            }
         },
         DELETE_OBJECT_SINGLE_SHAPE: (event: KeyboardEvent | undefined) => {
             event?.preventDefault();
@@ -509,7 +520,11 @@ function SingleShapeSidebar(): JSX.Element {
                                                         normalizedKeyMap.CANCEL_SINGLE_SHAPE
                                                     } `}
                                                 </Text>
-                                                to reset drawing process
+                                                to cancel drawing; press
+                                                <Text strong>
+                                                    {` ${normalizedKeyMap.SWITCH_DRAW_MODE_SINGLE_SHAPE} `}
+                                                </Text>
+                                                to start again
                                             </Text>
                                         </li>
                                     ) }

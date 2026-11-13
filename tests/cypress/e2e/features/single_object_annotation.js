@@ -239,6 +239,24 @@ context('Single object annotation mode', { scrollBehavior: false }, () => {
     describe('Regression tests', () => {
         afterEach(resetAfterTestCase);
 
+        it('Escape cancels without auto-restarting; N explicitly resumes drawing', () => {
+            openJob({ defaultLabel: 'polygon_label', defaultPointsCount: 4 });
+            checkSingleShapeModeOpened();
+            clickPoints(polygonShape.slice(0, 3));
+            cy.get('.cvat-single-shape-annotation-sidebar-points-count-input input').focus();
+            cy.get('.cvat-single-shape-annotation-sidebar-points-count-input input').type('{esc}');
+            // Exercise the delayed cancellation retry, not only the synchronous reset.
+            cy.wait(100);
+            cy.get('.cvat_canvas_shape_drawing').should('not.exist');
+            clickPoints(polygonShape);
+            cy.checkFrameNum(0);
+            cy.get('.cvat-objects-sidebar-state-item').should('not.exist');
+            cy.get('body').type('n');
+            cy.get('.cvat_canvas_shape_drawing').should('exist');
+            clickPoints(polygonShape);
+            cy.checkFrameNum(1);
+        });
+
         it('Changing labels in single shape annotation mode', () => {
             openJob({ defaultLabel: 'polygon_label', defaultPointsCount: 4 });
             checkSingleShapeModeOpened();

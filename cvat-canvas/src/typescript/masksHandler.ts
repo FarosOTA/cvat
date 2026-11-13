@@ -665,6 +665,7 @@ export class MasksHandlerImpl implements MasksHandler {
                     (dataURL: string) => {
                         fabric.Image.fromURL(dataURL, (image: fabric.Image) => {
                             URL.revokeObjectURL(dataURL);
+                            if (!this.isInsertion || this.drawData !== drawData) return;
                             image.selectable = false;
                             image.evented = false;
                             image.globalCompositeOperation = 'xor';
@@ -853,6 +854,8 @@ export class MasksHandlerImpl implements MasksHandler {
     }
 
     public cancel(): void {
+        this.isMouseDown = false;
+        this.isBrushSizeChanging = false;
         if (this.isDrawing || this.isInsertion) {
             this.releaseDraw();
         }

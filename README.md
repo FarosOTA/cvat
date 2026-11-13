@@ -73,6 +73,20 @@ fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
 
 ## Cursor-targeted annotation shortcuts
 
+Press **Alt + T** in the Standard 2D or 3D workspace to switch manual annotation creation between
+**Shape** and **Track**. It changes the next annotation's type, or the current manual drawing's type
+without discarding points already placed; it does not convert existing annotations. The rectangle
+class strip reflects the selected type. Masks, tags, and assisted tools do not support this toggle.
+The shortcut is customizable as **Switch shape / track** in shortcut settings, and does not fire
+while typing in an editor or while the frame is loading or deleted.
+
+**Esc** cancels the current annotation operation, including unfinished drawing, pasting, redrawing,
+mask editing, and assisted-tool startup, even when an input or dropdown has focus. Cancellation does
+not finish an unfinished annotation. Open modal dialogs retain priority over canvas shortcuts.
+In **Single shape**, explicit cancellation now leaves drawing stopped; press **N** to start again,
+or change the label, drawing parameters, or frame to resume its automatic workflow. Automatic retries
+after invalid drawings are unchanged. These keys use their configured shortcut bindings.
+
 In the 2D Standard workspace, object shortcuts such as **Delete object** and **Redraw shape**
 use the annotation beneath the pointer without requiring a click. Hover targeting refreshes when
 frame annotations load, so you can switch frames and immediately use a shortcut without nudging
