@@ -381,7 +381,8 @@ export function changeFrameFitMargin(frameFitMargin: number): AnyAction {
 }
 
 export function switchRectanglePrecision(
-    tool: 'clickToGrab' | 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover', enabled: boolean,
+    tool: 'clickToGrab' | 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover' |
+    'clearFocusOnCanvasLeave', enabled: boolean,
 ): AnyAction {
     return {
         type: SettingsActionTypes.SWITCH_RECTANGLE_PRECISION,

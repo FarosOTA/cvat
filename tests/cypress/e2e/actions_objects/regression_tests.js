@@ -84,6 +84,31 @@ context('Regression tests', () => {
             cy.get('#cvat_canvas_shape_1').should('have.class', 'cvat_canvas_shape_activated');
         });
 
+        it('Clears annotation focus on canvas leave only when enabled, and restores it on re-entry', () => {
+            const shape = '#cvat_canvas_shape_2';
+            const setting = '.cvat-workspace-settings-clear-focus-on-canvas-leave input';
+            for (const enabled of [false, true]) {
+                cy.openSettings();
+                cy.contains('[role="tab"]', 'Workspace').click();
+                cy.get(setting)[enabled ? 'check' : 'uncheck']();
+                cy.closeSettings();
+                cy.get(shape).then(([element]) => {
+                    const rect = element.getBoundingClientRect();
+                    const position = { clientX: rect.x + rect.width / 2, clientY: rect.y + rect.height / 2 };
+                    cy.get('#cvat_canvas_wrapper').trigger('mousemove', position);
+                    cy.get(shape).should('have.class', 'cvat_canvas_shape_activated');
+                    cy.get('#cvat_canvas_wrapper').trigger('mouseleave');
+                    cy.get(shape).should(enabled ? 'not.have.class' : 'have.class', 'cvat_canvas_shape_activated');
+                    cy.get('#cvat_canvas_wrapper').trigger('mouseenter', position);
+                    cy.get(shape).should('have.class', 'cvat_canvas_shape_activated');
+                });
+            }
+            cy.openSettings();
+            cy.contains('[role="tab"]', 'Workspace').click();
+            cy.get(setting).uncheck();
+            cy.closeSettings();
+        });
+
         it('UI does not crash if to navigate during an element resizing (issue 1922)', { scrollBehavior: false }, () => {
             cy.get('#cvat_canvas_shape_2').then(([el]) => {
                 const rect = el.getBoundingClientRect();

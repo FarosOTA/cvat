@@ -25,6 +25,7 @@ interface Props {
     showObjectsTextAlways: boolean;
     adaptiveZoom: boolean;
     clickToGrab: boolean;
+    clearFocusOnCanvasLeave: boolean;
     intelligentPolygonCrop: boolean;
     defaultApproxPolyAccuracy: number;
     textFontSize: number;
@@ -40,7 +41,7 @@ interface Props {
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
     onSwitchShowingObjectsTextAlways(enabled: boolean): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
-    onSwitchRectanglePrecision(tool: 'clickToGrab', enabled: boolean): void;
+    onSwitchRectanglePrecision(tool: 'clickToGrab' | 'clearFocusOnCanvasLeave', enabled: boolean): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeTextFontSize(fontSize: number): void;
     onChangeControlPointsSize(pointsSize: number): void;
@@ -59,6 +60,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         showObjectsTextAlways,
         adaptiveZoom,
         clickToGrab,
+        clearFocusOnCanvasLeave,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,
@@ -92,6 +94,25 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
 
     return (
         <div className='cvat-workspace-settings'>
+            <Row className='cvat-player-setting'>
+                <Col span={24}>
+                    <Checkbox
+                        className='cvat-workspace-settings-clear-focus-on-canvas-leave'
+                        checked={clearFocusOnCanvasLeave}
+                        onChange={(event: CheckboxChangeEvent): void => {
+                            onSwitchRectanglePrecision('clearFocusOnCanvasLeave', event.target.checked);
+                        }}
+                    >
+                        Clear annotation focus when leaving the canvas
+                    </Checkbox>
+                </Col>
+                <Col span={24}>
+                    <Text type='secondary'>
+                        Remove the active annotation highlight when the pointer leaves the 2D canvas.
+                        Off by default. Dragging and resizing are not interrupted.
+                    </Text>
+                </Col>
+            </Row>
             <Row className='cvat-player-setting'>
                 <Col span={24}>
                     <Checkbox

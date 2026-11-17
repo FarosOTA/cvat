@@ -103,6 +103,12 @@ Moving over empty canvas clears the target rather than editing the previously ho
 object. Existing shortcut customizations (including a remapped Delete key), lock protections,
 and sidebar selection outside the canvas are preserved.
 
+Enable **Settings → Workspace → Clear annotation focus when leaving the canvas** to also remove
+the active annotation highlight when the pointer leaves the 2D canvas, including when moving to the
+objects sidebar. This preference is **off by default** and saved in the browser. It applies in the
+Standard, Review, and Single shape workspaces; dragging, resizing, and other active operations are
+not interrupted. Moving over empty canvas continues to clear focus regardless of this setting.
+
 ## Quick bounding-box classes
 
 The **Standard workspace** has a class strip above the canvas for rectangle-compatible labels.

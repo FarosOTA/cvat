@@ -37,6 +37,7 @@ interface StateToProps {
     defaultApproxPolyAccuracy: number;
     adaptiveZoom: boolean;
     clickToGrab: boolean;
+    clearFocusOnCanvasLeave: boolean;
     intelligentPolygonCrop: boolean;
     textFontSize: number;
     controlPointsSize: number;
@@ -53,7 +54,7 @@ interface DispatchToProps {
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
     onSwitchShowingObjectsTextAlways(enabled: boolean): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
-    onSwitchRectanglePrecision(tool: 'clickToGrab', enabled: boolean): void;
+    onSwitchRectanglePrecision(tool: 'clickToGrab' | 'clearFocusOnCanvasLeave', enabled: boolean): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeDefaultApproxPolyAccuracy(approxPolyAccuracy: number): void;
     onChangeTextFontSize(fontSize: number): void;
@@ -74,6 +75,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         showObjectsTextAlways,
         adaptiveZoom,
         clickToGrab,
+        clearFocusOnCanvasLeave,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,
@@ -92,6 +94,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         showObjectsTextAlways,
         adaptiveZoom,
         clickToGrab,
+        clearFocusOnCanvasLeave,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,

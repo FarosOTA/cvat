@@ -127,6 +127,7 @@ interface StateToProps {
     snapToPoint: boolean;
     adaptiveZoom: boolean;
     clickToGrab: boolean;
+    clearFocusOnCanvasLeave: boolean;
     editingCrosshair: boolean;
     cursorMagnifier: boolean;
     cursorMagnifierHover: boolean;
@@ -226,6 +227,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 snapToPoint,
                 adaptiveZoom,
                 clickToGrab,
+                clearFocusOnCanvasLeave,
                 editingCrosshair,
                 cursorMagnifier,
                 cursorMagnifierHover,
@@ -294,6 +296,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         snapToPoint,
         adaptiveZoom,
         clickToGrab,
+        clearFocusOnCanvasLeave,
         editingCrosshair,
         cursorMagnifier,
         cursorMagnifierHover,
@@ -745,6 +748,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
 
         canvasInstance.html().removeEventListener('mousedown', this.onCanvasMouseDown);
         canvasInstance.html().removeEventListener('click', this.onCanvasClicked);
+        canvasInstance.html().removeEventListener('mouseleave', this.onCanvasMouseLeave);
         canvasInstance.html().removeEventListener('canvas.editstart', this.onCanvasEditStart);
         canvasInstance.html().removeEventListener('canvas.edited', this.onCanvasEditDone);
         canvasInstance.html().removeEventListener('canvas.sliced', this.onCanvasSliceDone);
@@ -996,6 +1000,18 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         // and triggers this event
         // in this case we do not need to update our state
         if (state.clientID === activatedStateID) {
+            onActivateObject(null, null);
+        }
+    };
+
+    private onCanvasMouseLeave = (): void => {
+        // A pending hover lookup must not reactivate an annotation after the pointer leaves.
+        this.hoverRequest++;
+        const {
+            clearFocusOnCanvasLeave, canvasInstance, workspace, activatedStateID, onActivateObject,
+        } = this.props;
+        if (clearFocusOnCanvasLeave && activatedStateID !== null && canvasInstance.mode() === CanvasMode.IDLE &&
+            [Workspace.STANDARD, Workspace.REVIEW, Workspace.SINGLE_SHAPE].includes(workspace)) {
             onActivateObject(null, null);
         }
     };
@@ -1303,6 +1319,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
 
         canvasInstance.html().addEventListener('mousedown', this.onCanvasMouseDown);
         canvasInstance.html().addEventListener('click', this.onCanvasClicked);
+        canvasInstance.html().addEventListener('mouseleave', this.onCanvasMouseLeave);
         canvasInstance.html().addEventListener('canvas.editstart', this.onCanvasEditStart);
         canvasInstance.html().addEventListener('canvas.edited', this.onCanvasEditDone);
         canvasInstance.html().addEventListener('canvas.sliced', this.onCanvasSliceDone);
