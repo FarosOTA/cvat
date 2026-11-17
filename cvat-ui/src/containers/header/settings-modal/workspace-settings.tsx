@@ -20,6 +20,7 @@ import {
     switchTextContent,
     switchShowingTagsOnFrame,
     switchAdaptiveZoom,
+    switchFlashAnnotations,
     switchRectanglePrecision,
 } from 'actions/settings-actions';
 
@@ -39,6 +40,7 @@ interface StateToProps {
     clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
+    flashAnnotations: boolean;
     intelligentPolygonCrop: boolean;
     textFontSize: number;
     controlPointsSize: number;
@@ -55,6 +57,7 @@ interface DispatchToProps {
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
     onSwitchShowingObjectsTextAlways(enabled: boolean): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
+    onSwitchFlashAnnotations(enabled: boolean): void;
     onSwitchRectanglePrecision(tool: 'clickToGrab' | 'clearFocusOnCanvasLeave' | 'resizeFromSides', enabled: boolean): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeDefaultApproxPolyAccuracy(approxPolyAccuracy: number): void;
@@ -78,6 +81,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         clickToGrab,
         clearFocusOnCanvasLeave,
         resizeFromSides,
+        flashAnnotations,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,
@@ -98,6 +102,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         clickToGrab,
         clearFocusOnCanvasLeave,
         resizeFromSides,
+        flashAnnotations,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,
@@ -116,6 +121,7 @@ const mapDispatchToProps: DispatchToProps = {
     onSwitchShowingInterpolatedTracks: switchShowingInterpolatedTracks,
     onSwitchShowingObjectsTextAlways: switchShowingObjectsTextAlways,
     onSwitchAdaptiveZoom: switchAdaptiveZoom,
+    onSwitchFlashAnnotations: switchFlashAnnotations,
     onSwitchRectanglePrecision: switchRectanglePrecision,
     onSwitchIntelligentPolygonCrop: switchIntelligentPolygonCrop,
     onChangeDefaultApproxPolyAccuracy: changeDefaultApproxPolyAccuracy,

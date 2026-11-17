@@ -39,6 +39,7 @@ const defaultState: SettingsState = {
         clickToGrab: false,
         clearFocusOnCanvasLeave: false,
         resizeFromSides: false,
+        flashAnnotations: true,
         editingCrosshair: true,
         cursorMagnifier: true,
         cursorMagnifierHover: true,
@@ -355,6 +356,15 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 workspace: {
                     ...state.workspace,
                     frameFitMargin: action.payload.frameFitMargin,
+                },
+            };
+        }
+        case SettingsActionTypes.SWITCH_FLASH_ANNOTATIONS: {
+            return {
+                ...state,
+                workspace: {
+                    ...state.workspace,
+                    flashAnnotations: action.payload.flashAnnotations,
                 },
             };
         }

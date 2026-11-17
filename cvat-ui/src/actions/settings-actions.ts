@@ -51,6 +51,7 @@ export enum SettingsActionTypes {
     SWITCH_AUTOMATIC_BORDERING = 'SWITCH_AUTOMATIC_BORDERING',
     SWITCH_SNAP_TO_POINT = 'SWITCH_SNAP_TO_POINT',
     SWITCH_ADAPTIVE_ZOOM = 'SWITCH_ADAPTIVE_ZOOM',
+    SWITCH_FLASH_ANNOTATIONS = 'SWITCH_FLASH_ANNOTATIONS',
     SWITCH_RECTANGLE_PRECISION = 'SWITCH_RECTANGLE_PRECISION',
     CHANGE_BORDER_MAGNIFIER = 'CHANGE_BORDER_MAGNIFIER',
     SWITCH_NEXT_FRAME_AFTER_PLACING = 'SWITCH_NEXT_FRAME_AFTER_PLACING',
@@ -377,6 +378,13 @@ export function changeFrameFitMargin(frameFitMargin: number): AnyAction {
     return {
         type: SettingsActionTypes.CHANGE_FRAME_FIT_MARGIN,
         payload: { frameFitMargin },
+    };
+}
+
+export function switchFlashAnnotations(flashAnnotations: boolean): AnyAction {
+    return {
+        type: SettingsActionTypes.SWITCH_FLASH_ANNOTATIONS,
+        payload: { flashAnnotations },
     };
 }
 

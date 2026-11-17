@@ -90,6 +90,7 @@ export interface Configuration {
     adaptiveZoom?: boolean;
     clickToGrab?: boolean;
     resizeFromSides?: boolean;
+    flashAnnotations?: boolean;
     editingCrosshair?: boolean;
     cursorMagnifier?: boolean;
     cursorMagnifierHover?: boolean;
@@ -453,6 +454,7 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
                 frameFitMargin: 8,
                 clickToGrab: false,
                 resizeFromSides: false,
+                flashAnnotations: true,
                 editingCrosshair: true,
                 cursorMagnifier: true,
                 cursorMagnifierHover: true,
@@ -1035,6 +1037,9 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
         }
         if (typeof configuration.resizeFromSides === 'boolean') {
             this.data.configuration.resizeFromSides = configuration.resizeFromSides;
+        }
+        if (typeof configuration.flashAnnotations === 'boolean') {
+            this.data.configuration.flashAnnotations = configuration.flashAnnotations;
         }
         if (typeof configuration.editingCrosshair === 'boolean') {
             this.data.configuration.editingCrosshair = configuration.editingCrosshair;

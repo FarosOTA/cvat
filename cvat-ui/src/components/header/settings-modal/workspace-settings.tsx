@@ -27,6 +27,7 @@ interface Props {
     clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
+    flashAnnotations: boolean;
     intelligentPolygonCrop: boolean;
     defaultApproxPolyAccuracy: number;
     textFontSize: number;
@@ -42,6 +43,7 @@ interface Props {
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
     onSwitchShowingObjectsTextAlways(enabled: boolean): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
+    onSwitchFlashAnnotations(enabled: boolean): void;
     onSwitchRectanglePrecision(tool: 'clickToGrab' | 'clearFocusOnCanvasLeave' | 'resizeFromSides', enabled: boolean): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeTextFontSize(fontSize: number): void;
@@ -63,6 +65,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         clickToGrab,
         clearFocusOnCanvasLeave,
         resizeFromSides,
+        flashAnnotations,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,
@@ -77,6 +80,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         onSwitchShowingInterpolatedTracks,
         onSwitchShowingObjectsTextAlways,
         onSwitchAdaptiveZoom,
+        onSwitchFlashAnnotations,
         onSwitchRectanglePrecision,
         onSwitchIntelligentPolygonCrop,
         onChangeDefaultApproxPolyAccuracy,
@@ -151,6 +155,25 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
                     <Text type='secondary'>
                         Click to pick up a box or resize handle, then click again to place it.
                         When disabled (default), hold the mouse button to drag.
+                    </Text>
+                </Col>
+            </Row>
+            <Row className='cvat-player-setting'>
+                <Col span={24}>
+                    <Checkbox
+                        className='cvat-text-color cvat-workspace-settings-flash-annotations'
+                        checked={flashAnnotations}
+                        onChange={(event: CheckboxChangeEvent): void => {
+                            onSwitchFlashAnnotations(event.target.checked);
+                        }}
+                    >
+                        Flash annotations
+                    </Checkbox>
+                </Col>
+                <Col span={24}>
+                    <Text type='secondary'>
+                        Briefly highlight shapes and tracks when they appear or the 2D frame changes.
+                        Enabled by default; respects reduced motion.
                     </Text>
                 </Col>
             </Row>

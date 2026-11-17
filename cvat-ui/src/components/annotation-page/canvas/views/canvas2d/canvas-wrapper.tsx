@@ -113,6 +113,7 @@ interface StateToProps {
     smoothImage: boolean;
     focusedObjectPadding: number;
     frameFitMargin: number;
+    flashAnnotations: boolean;
     showObjectsTextAlways: boolean;
     textFontSize: number;
     controlPointsSize: number;
@@ -221,6 +222,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
             workspace: {
                 focusedObjectPadding,
                 frameFitMargin,
+                flashAnnotations,
                 showObjectsTextAlways,
                 showAllInterpolationTracks,
                 showTagsOnFrame,
@@ -284,6 +286,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         smoothImage,
         focusedObjectPadding,
         frameFitMargin,
+        flashAnnotations,
         showObjectsTextAlways,
         textFontSize,
         controlPointsSize,
@@ -493,6 +496,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             resetZoom,
             focusedObjectPadding,
             frameFitMargin,
+            flashAnnotations,
         } = this.props;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
 
@@ -529,6 +533,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             resetZoom,
             focusedObjectPadding,
             frameFitMargin,
+            flashAnnotations,
         });
 
         this.initialSetup();
@@ -581,6 +586,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             imageFilters,
             focusedObjectPadding,
             frameFitMargin,
+            flashAnnotations,
             renderData,
         } = this.props;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
@@ -620,6 +626,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             prevProps.showGroundTruth !== showGroundTruth ||
             prevProps.resetZoom !== resetZoom ||
             prevProps.frameFitMargin !== frameFitMargin ||
+            prevProps.flashAnnotations !== flashAnnotations ||
             prevProps.focusedObjectPadding !== focusedObjectPadding
         ) {
             canvasInstance.configure({
@@ -650,6 +657,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 resetZoom,
                 focusedObjectPadding,
                 frameFitMargin,
+                flashAnnotations,
             });
         }
 

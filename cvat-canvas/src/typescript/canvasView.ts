@@ -998,6 +998,11 @@ export class CanvasViewImpl implements CanvasView, Listener {
     private setupObjects(states: any[]): void {
         const created = [];
         const updated = [];
+        const appeared = states.filter((state) => {
+            const previous = this.drawnStates[state.clientID];
+            return !state.hidden && !state.outside && (!previous || previous.frame !== state.frame ||
+                previous.hidden || previous.outside);
+        });
 
         for (const state of states) {
             if (!(state.clientID in this.drawnStates)) {
@@ -1047,6 +1052,28 @@ export class CanvasViewImpl implements CanvasView, Listener {
             }
 
             this.autoborderHandler.updateObjects();
+        }
+
+        if (this.configuration.flashAnnotations && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            for (const state of appeared) {
+                const shape = this.svgShapes[state.clientID];
+                if (!shape || this.isInnerHidden(state.clientID)) continue;
+
+                // Restart rather than stack halos when stepping quickly through frames.
+                shape.node.getAnimations().filter((animation) => animation.id === 'cvat-annotation-appear')
+                    .forEach((animation) => animation.cancel());
+                const radius = 6 / this.geometry.scale;
+                const { strokeWidth } = window.getComputedStyle(shape.node);
+                const flash = {
+                    filter: `brightness(2) drop-shadow(0 0 ${radius}px white)`,
+                    strokeWidth: `${Math.max(parseFloat(strokeWidth), radius)}px`,
+                };
+                shape.node.animate([
+                    flash,
+                    { ...flash, offset: 0.25 },
+                    { filter: 'brightness(1) drop-shadow(0 0 0 transparent)', strokeWidth },
+                ], { duration: 700, easing: 'ease-out', id: 'cvat-annotation-appear' });
+            }
         }
     }
 
@@ -2581,6 +2608,12 @@ export class CanvasViewImpl implements CanvasView, Listener {
             const { activeElement } = this;
             this.deactivate();
             const { configuration } = model;
+
+            if (!configuration.flashAnnotations) {
+                this.content.getAnimations({ subtree: true })
+                    .filter((animation) => animation.id === 'cvat-annotation-appear')
+                    .forEach((animation) => animation.cancel());
+            }
 
             const updateShapeViews = (states: DrawnState[], parentState?: DrawnState): void => {
                 for (const drawnState of states) {
