@@ -2514,6 +2514,12 @@ export class CanvasViewImpl implements CanvasView, Listener {
             event.preventDefault();
         });
 
+        this.canvas.addEventListener('mouseenter', (e): void => {
+            // Removing a loading overlay can reveal the canvas without a mouse move.
+            this.hoverPosition = { clientX: e.clientX, clientY: e.clientY };
+            if (!e.ctrlKey && !e.altKey) this.updateHover();
+        });
+
         this.canvas.addEventListener('mousemove', (e): void => {
             this.hoverPosition = { clientX: e.clientX, clientY: e.clientY };
         }, true); // Skeleton elements stop mousemove propagation during element activation.

@@ -112,4 +112,48 @@ context('Drawing object type and cancellation shortcuts', () => {
         });
         cy.get('.cvat-objects-sidebar-state-item').should('have.length', 2);
     });
+
+    it('deletes the new frame’s shape beneath a stationary pointer after an overlay closes', () => {
+        let nextFrameShapeId;
+        for (const frame of [0, 1]) {
+            if (frame) cy.realPress('F');
+            cy.get('.cvat-player-frame-selector input').should('have.value', `${frame}`);
+            startDrawing('rectangle', 'Shape', 'By 2 Points');
+            cy.get('.cvat-canvas-container').click(550, 200);
+            cy.get('.cvat-canvas-container').click(720, 350);
+        }
+        cy.get('.cvat_canvas_shape').last().invoke('attr', 'id').then((id) => {
+            nextFrameShapeId = id;
+        });
+        cy.realPress('D');
+        cy.get('.cvat-player-frame-selector input').should('have.value', '0');
+        cy.get('.cvat-canvas-container').realMouseMove(630, 270, { position: 'topLeft' });
+        cy.get('.cvat_canvas_shape_activated').should('exist');
+
+        // Model a loading overlay deterministically, without relying on network/cache timing.
+        cy.document().then((doc) => {
+            const overlay = doc.createElement('div');
+            overlay.id = 'shortcut-loading-overlay';
+            const bounds = doc.querySelector('.cvat-canvas-container').getBoundingClientRect();
+            Object.assign(overlay.style, {
+                position: 'fixed',
+                zIndex: '10000',
+                left: `${bounds.left}px`,
+                top: `${bounds.top}px`,
+                width: `${bounds.width}px`,
+                height: `${bounds.height}px`,
+            });
+            doc.body.append(overlay);
+        });
+        cy.get('#cvat_canvas_wrapper').should('not.match', ':hover');
+        cy.realPress('F');
+        cy.get('.cvat-player-frame-selector input').should('have.value', '1');
+        cy.get('.cvat-canvas-loading').should('not.exist');
+        cy.get('#shortcut-loading-overlay').then(($overlay) => $overlay.remove());
+        cy.then(() => {
+            cy.get(`#${nextFrameShapeId}`).should('have.class', 'cvat_canvas_shape_activated');
+            cy.realPress('DELETE');
+            cy.get(`#${nextFrameShapeId}`).should('not.exist');
+        });
+    });
 });

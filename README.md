@@ -90,7 +90,8 @@ after invalid drawings are unchanged. These keys use their configured shortcut b
 In the 2D Standard workspace, object shortcuts such as **Delete object** and **Redraw shape**
 use the annotation beneath the pointer without requiring a click. Hover targeting refreshes when
 frame annotations load, so you can switch frames and immediately use a shortcut without nudging
-the mouse. Moving over empty canvas clears the target rather than editing the previously hovered
+the mouse, including when the canvas reappears beneath the pointer after a loading overlay closes.
+Moving over empty canvas clears the target rather than editing the previously hovered
 object. Existing shortcut customizations (including a remapped Delete key), lock protections,
 and sidebar selection outside the canvas are preserved.
 
