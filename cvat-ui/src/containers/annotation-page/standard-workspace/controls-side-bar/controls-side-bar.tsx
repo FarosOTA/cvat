@@ -11,6 +11,7 @@ import {
     redrawShapeAsync,
     rotateCurrentFrame,
     repeatDrawShapeAsync,
+    advanceAndDrawAsync,
     pasteShapeAsync,
     resetAnnotationsGroup,
 } from 'actions/annotation-actions';
@@ -33,6 +34,7 @@ interface DispatchToProps {
     rotateFrame(angle: Rotation): void;
     resetGroup(): void;
     repeatDrawShape(): void;
+    advanceAndDraw(): Promise<void>;
     pasteShape(): void;
     redrawShape(): void;
 }
@@ -73,6 +75,9 @@ function dispatchToProps(dispatch: any): DispatchToProps {
         },
         repeatDrawShape(): void {
             dispatch(repeatDrawShapeAsync());
+        },
+        advanceAndDraw(): Promise<void> {
+            return dispatch(advanceAndDrawAsync());
         },
         pasteShape(): void {
             dispatch(pasteShapeAsync());

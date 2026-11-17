@@ -55,6 +55,7 @@ interface Props {
     updateActiveControl(activeControl: ActiveControl): void;
     rotateFrame(rotation: Rotation): void;
     repeatDrawShape(): void;
+    advanceAndDraw(): Promise<void>;
     pasteShape(): void;
     resetGroup(): void;
     redrawShape(): void;
@@ -84,6 +85,12 @@ const componentShortcuts = {
         description:
             'Repeat the latest procedure of drawing with the same parameters',
         sequences: ['n'],
+        scope: ShortcutScope.STANDARD_WORKSPACE_CONTROLS,
+    },
+    ADVANCE_AND_DRAW: {
+        name: 'Advance and draw',
+        description: 'Advance one frame and repeat the latest drawing procedure with the same parameters',
+        sequences: ['ctrl+n'],
         scope: ShortcutScope.STANDARD_WORKSPACE_CONTROLS,
     },
     SWITCH_REDRAW_MODE_STANDARD_CONTROLS: {
@@ -155,6 +162,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
         updateActiveControl,
         rotateFrame,
         repeatDrawShape,
+        advanceAndDraw,
         pasteShape,
         resetGroup,
         redrawShape,
@@ -184,6 +192,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
     });
 
     const containerRef = React.useRef<HTMLDivElement>(null);
+    const advancingRef = React.useRef(false);
     const containerHeightRef = React.useRef<number>(Number.MAX_SAFE_INTEGER);
     const [containerHeight, setContainerHeight] = React.useState(Number.MAX_SAFE_INTEGER);
 
@@ -348,6 +357,16 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
             },
             SWITCH_DRAW_MODE_STANDARD_CONTROLS: (event: KeyboardEvent | undefined) => {
                 handleDrawMode(event, 'draw');
+            },
+            ADVANCE_AND_DRAW: async (event: KeyboardEvent | undefined) => {
+                event?.preventDefault();
+                if (event?.repeat || advancingRef.current) return;
+                advancingRef.current = true;
+                try {
+                    await advanceAndDraw();
+                } finally {
+                    advancingRef.current = false;
+                }
             },
             SWITCH_REDRAW_MODE_STANDARD_CONTROLS: (event: KeyboardEvent | undefined) => {
                 handleDrawMode(event, 'redraw');

@@ -1826,6 +1826,39 @@ export function repeatDrawShapeAsync(): ThunkAction {
     };
 }
 
+export function advanceAndDrawAsync(): ThunkAction {
+    return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<void> => {
+        const {
+            annotation: {
+                job: { instance: job, labels },
+                player: { frame, playing },
+                canvas: { activeControl, ready },
+            },
+            settings: { player: { showDeletedFrames } },
+        } = getState();
+        if (!job || !labels.length || !ready || frame.fetching || playing ||
+            activeControl !== ActiveControl.CURSOR || frame.number >= job.stopFrame ||
+            !isAbleToChangeFrame()) return;
+
+        const nextFrame = await job.frames.search(
+            { notDeleted: !showDeletedFrames }, frame.number + 1, job.stopFrame,
+        );
+        if (nextFrame === null) return;
+
+        const current = getState().annotation;
+        if (current.player.frame.number !== frame.number || current.player.frame.fetching ||
+            current.player.playing || current.canvas.activeControl !== ActiveControl.CURSOR ||
+            !current.canvas.ready) return;
+
+        await dispatch(changeFrameAsync(nextFrame));
+        const { player, canvas } = getState().annotation;
+        if (player.frame.number === nextFrame && !player.frame.data.deleted &&
+            canvas.activeControl === ActiveControl.CURSOR) {
+            await dispatch(repeatDrawShapeAsync());
+        }
+    };
+}
+
 export function setContinuedTrack(
     continuedTrack: CombinedState['annotation']['drawing']['continuedTrack'],
 ): AnyAction {

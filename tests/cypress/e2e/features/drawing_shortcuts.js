@@ -156,4 +156,32 @@ context('Drawing object type and cancellation shortcuts', () => {
             cy.get(`#${nextFrameShapeId}`).should('not.exist');
         });
     });
+
+    it('advances one frame and repeats drawing, without interrupting drawing or restarting at the end', () => {
+        startDrawing('rectangle', 'Shape', 'By 2 Points');
+        cy.get('.cvat-canvas-container').click(230, 170);
+        cy.realPress(['Control', 'N']);
+        cy.get('.cvat-player-frame-selector input').should('have.value', '0');
+        cy.get('.cvat-canvas-container').click(410, 310);
+        cy.get('.cvat-cursor-control').should('have.class', 'cvat-active-canvas-control');
+
+        cy.realPress(['Control', 'N']);
+        cy.get('.cvat-player-frame-selector input').should('have.value', '1');
+        cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
+        cy.get('.cvat-canvas-container').click(470, 220);
+        cy.get('.cvat-canvas-container').click(650, 360);
+        cy.get('.cvat-cursor-control').should('have.class', 'cvat-active-canvas-control');
+
+        cy.realPress(['Control', 'N']);
+        cy.get('.cvat-player-frame-selector input').should('have.value', '1');
+        cy.get('.cvat-cursor-control').should('have.class', 'cvat-active-canvas-control');
+        cy.clickSaveAnnotationView();
+        cy.get('.cvat-annotation-header-save-button').should('not.have.class', 'cvat-annotation-disabled-header-button');
+        cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => {
+            const nextFrameShapes = body.shapes.filter((shape) => shape.frame === 1);
+            expect(nextFrameShapes).to.have.length(1);
+            expect(nextFrameShapes[0].type).to.equal('rectangle');
+            expect(nextFrameShapes[0].label_id).to.equal(body.shapes[0].label_id);
+        });
+    });
 });

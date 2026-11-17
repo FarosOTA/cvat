@@ -73,6 +73,14 @@ fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
 
 ## Cursor-targeted annotation shortcuts
 
+Press **Ctrl + N** in the **Standard 2D workspace** to advance one frame and start a new annotation
+using the last drawing tool, label, and parameters (the same action as **N** on the destination frame).
+Customize it as **Advance and draw** in shortcut settings. Browsers may reserve **Ctrl + N** for opening
+a new window; choose another binding if the browser intercepts it. It skips deleted frames when they are hidden,
+ignores annotation-search navigation modes and the configured frame step, and does nothing at the end
+of the job. It does not interrupt drawing, editing, playback, or frame loading, and does not fire while
+typing or while a modal is open. If deleted frames are shown, advancing to one does not start drawing.
+
 Press **Alt + T** in the Standard 2D or 3D workspace to switch manual annotation creation between
 **Shape** and **Track**. It changes the next annotation's type, or the current manual drawing's type
 without discarding points already placed; it does not convert existing annotations. The rectangle
