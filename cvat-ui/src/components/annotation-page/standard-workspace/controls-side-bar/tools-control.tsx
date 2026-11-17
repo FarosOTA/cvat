@@ -41,6 +41,7 @@ import {
     updateAnnotationsAsync,
     createAnnotationsAsync,
     placeAnnotationsAsync,
+    placeRectangleInteractionAsync,
 } from 'actions/annotation-actions';
 import DetectorRunner, {
     AnnotateTaskRequestBody,
@@ -77,6 +78,7 @@ interface StateToProps {
 }
 
 interface DispatchToProps {
+    placeRectangle: (states: ObjectState[], drawing: CombinedState['annotation']['drawing']) => void;
     updateAnnotations: (states: ObjectState[]) => Promise<void>;
     createAnnotations: (states: ObjectState[]) => void;
     placeAnnotations: (states: ObjectState[]) => void;
@@ -143,6 +145,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
 }
 
 const mapDispatchToProps = {
+    placeRectangle: placeRectangleInteractionAsync,
     onInteractionStart: interactWithCanvas,
     updateAnnotations: updateAnnotationsAsync,
     createAnnotations: createAnnotationsAsync,
@@ -1109,7 +1112,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
     private async constructFromLatestResponse(): Promise<void> {
         const { convertMasksToPolygons, convertMasksToBoxes, thresholdValue } = this.state;
         const {
-            frame, labels, currentZOrder, activeLabelID, placeAnnotations,
+            frame, labels, currentZOrder, activeLabelID, placeAnnotations, placeRectangle, drawing,
         } = this.props;
 
         if (!this.interaction.latestResponse.length) {
@@ -1118,7 +1121,8 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
 
         const common = {
             frame,
-            objectType: ObjectType.SHAPE,
+            objectType: convertMasksToBoxes && drawing.activeObjectType === ObjectType.TRACK ?
+                ObjectType.TRACK : ObjectType.SHAPE,
             source: core.enums.Source.SEMI_AUTO,
             label: labels.find((label) => label.id === activeLabelID as number) as Label,
             occluded: false,
@@ -1160,7 +1164,11 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                     })
                 ));
         }
-        placeAnnotations(objects);
+        if (convertMasksToBoxes) {
+            placeRectangle(objects, drawing);
+        } else {
+            placeAnnotations(objects);
+        }
     }
 
     private async initializeOpenCV(): Promise<void> {

@@ -952,6 +952,8 @@ export interface AnnotationState {
         hoveredChapter: number | null;
     };
     drawing: {
+        rectangleMode?: string;
+        activeInteractorRedraw?: number;
         activeInteractor?: MLModel | OpenCVTool;
         activeInteractorShapeType?: ShapeType;
         activeInteractorParameters: Partial<{

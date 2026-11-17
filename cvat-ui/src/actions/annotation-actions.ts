@@ -18,6 +18,8 @@ import {
 } from 'cvat-core-wrapper';
 import logger, { EventScope } from 'cvat-logger';
 import { getCVATStore } from 'cvat-store';
+import openCVWrapper from 'utils/opencv-wrapper/opencv-wrapper';
+import notification from 'antd/lib/notification';
 
 import {
     ActiveControl,
@@ -1268,6 +1270,7 @@ export function finishCurrentJobAsync(onSuccess: () => void): ThunkAction {
 
 // used to reproduce the latest drawing (in case of tags just creating) by using N
 export function rememberObject(createParams: {
+    rectangleMode?: string;
     activeObjectType?: ObjectType;
     activeLabelID?: number;
     activeShapeType?: ShapeType | null;
@@ -1729,6 +1732,7 @@ export function interactWithCanvas(
     activeLabelID: number,
     activeInteractorParameters: CombinedState['annotation']['drawing']['activeInteractorParameters'],
     activeInteractorShapeType?: ShapeType,
+    activeInteractorRedraw?: number,
 ): AnyAction {
     return {
         type: AnnotationActionTypes.INTERACT_WITH_CANVAS,
@@ -1737,7 +1741,63 @@ export function interactWithCanvas(
             activeLabelID,
             activeInteractorParameters,
             activeInteractorShapeType,
+            activeInteractorRedraw,
         },
+    };
+}
+
+export function startRectangleInteractionAsync(
+    mode: string, labelID: number, objectType: ObjectType, redraw?: number,
+): ThunkAction {
+    return async (dispatch, getState): Promise<void> => {
+        const {
+            canvas: { instance: canvas }, player: { frame: { number: frame } }, job: { instance: job },
+        } = getState().annotation;
+        if (!(canvas instanceof Canvas)) return;
+        let canceled = false;
+        const onCancel = (): void => { canceled = true; };
+        canvas.html().addEventListener('canvas.canceled', onCancel);
+        try {
+            await openCVWrapper.initialize(() => {});
+            const current = getState().annotation;
+            if (canceled || current.player.frame.number !== frame || current.job.instance !== job ||
+                current.canvas.instance !== canvas || !current.canvas.ready) return;
+            const model = getState().models.interactors.find((candidate) => `interactor:${candidate.id}` === mode);
+            if (mode !== 'scissors' && !model) return;
+            const scissors = mode === 'scissors';
+            const startWithBox = !scissors && model.params.canvas.startWithBox &&
+                !model.params.canvas.startWithBoxOptional;
+            const parameters = {
+                command: startWithBox ? 'draw_box' as const : 'draw_points' as const,
+                settings: {
+                    appendCursorPositionAsPoint: scissors,
+                    removalStrategy: scissors ? 'last' as const : 'any' as const,
+                    points_type: scissors ? 'positive' as const : 'any' as const,
+                    crosshair: !!startWithBox,
+                    ...(scissors ? { hint: 'Click along object edges; press N or Done to create their bounding box' } : {}),
+                },
+            };
+            dispatch(rememberObject({
+                activeLabelID: labelID, activeObjectType: objectType, activeShapeType: ShapeType.RECTANGLE,
+            }, false));
+            dispatch(interactWithCanvas(
+                scissors ? openCVWrapper.segmentation.intelligentScissorsFactory('rectangle') : model,
+                labelID,
+                parameters,
+                ShapeType.RECTANGLE,
+                redraw,
+            ));
+            canvas.interact({ enabled: true, ...parameters });
+        } catch (error: unknown) {
+            if (!canceled) {
+                notification.error({
+                    message: 'Could not start assisted rectangle',
+                    description: error instanceof Error ? error.message : String(error),
+                });
+            }
+        } finally {
+            canvas.html().removeEventListener('canvas.canceled', onCancel);
+        }
     };
 }
 
@@ -1923,20 +1983,58 @@ export function placeAnnotationsAsync(
     };
 }
 
+// Assisted redraw changes geometry only, through the same update/history path as manual redraw.
+export function placeRectangleInteractionAsync(
+    objects: ObjectState[], drawing: CombinedState['annotation']['drawing'],
+): ThunkAction {
+    return async (dispatch, getState): Promise<void> => {
+        if (drawing.activeInteractorRedraw !== undefined) {
+            const state = getState().annotation.annotations.states.find(
+                (candidate) => candidate.clientID === drawing.activeInteractorRedraw,
+            );
+            if (objects.length === 1 && state && !state.lock && !state.isGroundTruth &&
+                state.frame === objects[0].frame) {
+                state.points = objects[0].points;
+                state.rotation = 0;
+                await dispatch(updateAnnotationsAsync([state]));
+            } else if (objects.length > 1) {
+                notification.warning({ message: 'Redraw requires exactly one bounding box' });
+            }
+        } else {
+            await dispatch(placeAnnotationsAsync(objects));
+        }
+    };
+}
+
 export function redrawShapeAsync(clientID?: number): ThunkAction {
     return async (dispatch: ThunkDispatch): Promise<void> => {
         const {
             annotations: { activatedStateID, states },
             canvas: { instance: canvasInstance },
+            drawing: { rectangleMode },
         } = getStore().getState().annotation;
 
         const targetID = clientID ?? activatedStateID;
         if (targetID !== null) {
             const [state] = states.filter((_state: any): boolean => _state.clientID === targetID);
-            if (state && !state.lock && state.objectType !== ObjectType.TAG) {
+            if (state && !state.lock && !state.isGroundTruth && state.objectType !== ObjectType.TAG) {
                 const activeControl = ShapeTypeToControl[state.shapeType as ShapeType] || ActiveControl.CURSOR;
                 if (canvasInstance instanceof Canvas) {
                     canvasInstance.cancel();
+                    if (state.shapeType === ShapeType.RECTANGLE && rectangleMode && rectangleMode !== 'manual') {
+                        await dispatch(startRectangleInteractionAsync(
+                            rectangleMode, state.label.id, state.objectType, targetID,
+                        ));
+                        return;
+                    }
+                    if (state.shapeType === ShapeType.RECTANGLE) {
+                        dispatch(rememberObject({
+                            activeLabelID: state.label.id,
+                            activeObjectType: state.objectType,
+                            activeShapeType: ShapeType.RECTANGLE,
+                            activeRectDrawingMethod: RectDrawingMethod.CLASSIC,
+                        }, false));
+                    }
                 }
 
                 dispatch({

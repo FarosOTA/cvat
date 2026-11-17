@@ -9,8 +9,8 @@ import React, {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Button from 'antd/lib/button';
-import Select from 'antd/lib/select';
-import notification from 'antd/lib/notification';
+import Select, { type RefSelectProps } from 'antd/lib/select';
+import Switch from 'antd/lib/switch';
 
 import { Canvas, CanvasMode, RectDrawingMethod } from 'cvat-canvas-wrapper';
 import {
@@ -18,13 +18,12 @@ import {
 } from 'cvat-core-wrapper';
 import { ActiveControl, CombinedState } from 'reducers';
 import {
-    interactWithCanvas, rememberObject, switchPlay, updateAnnotationsAsync,
+    startRectangleInteractionAsync, rememberObject, switchPlay, updateAnnotationsAsync,
 } from 'actions/annotation-actions';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
 import { ShortcutScope } from 'utils/enums';
 import { shallowEqual } from 'utils/redux';
-import openCVWrapper from 'utils/opencv-wrapper/opencv-wrapper';
 
 const labelDragType = 'application/x-cvat-rectangle-label';
 const digits = '12345';
@@ -48,8 +47,9 @@ export default function RectangleLabelBar(): JSX.Element {
         keyMap: state.shortcuts.keyMap,
         interactors: state.models.interactors,
     }), shallowEqual);
-    const [defaultMode, setDefaultMode] = useState('manual');
+    const defaultMode = drawing.rectangleMode ?? 'manual';
     const [initializing, setInitializing] = useState(false);
+    const modeSelect = useRef<RefSelectProps>(null);
     const startRequest = useRef(0);
     const draggedLabel = useRef<number | null>(null);
     const keyMapRef = useRef(keyMap);
@@ -60,6 +60,9 @@ export default function RectangleLabelBar(): JSX.Element {
         [LabelType.MASK, LabelType.ANY].includes(model.returnType));
     const mode = defaultMode.startsWith('interactor:') &&
         !segmentationModels.some((model) => `interactor:${model.id}` === defaultMode) ? 'manual' : defaultMode;
+    useEffect(() => {
+        if (mode !== defaultMode) dispatch(rememberObject({ ...drawing, rectangleMode: mode }, false));
+    }, [mode, defaultMode]);
     const rectangleLabels = useMemo(() => labels.filter((label) => (
         !label.hasParent && [LabelType.ANY, LabelType.RECTANGLE].includes(label.type)
     )), [labels]);
@@ -173,49 +176,7 @@ export default function RectangleLabelBar(): JSX.Element {
             const request = ++startRequest.current;
             setInitializing(true);
             try {
-                await openCVWrapper.initialize(() => {});
-                if (startRequest.current !== request) return;
-                dispatch(rememberObject({
-                    activeLabelID: label.id,
-                    activeObjectType: ObjectType.SHAPE,
-                    activeShapeType: ShapeType.RECTANGLE,
-                }, false));
-                if (selectedMode === 'scissors') {
-                    const tool = openCVWrapper.segmentation.intelligentScissorsFactory('rectangle');
-                    const parameters = {
-                        command: 'draw_points' as const,
-                        settings: {
-                            appendCursorPositionAsPoint: true,
-                            removalStrategy: 'last' as const,
-                            points_type: 'positive' as const,
-                            hint: 'Click along object edges; press N or Done to create their bounding box',
-                        },
-                    };
-                    dispatch(interactWithCanvas(tool, label.id, parameters, ShapeType.RECTANGLE));
-                    canvas.interact({ enabled: true, ...parameters });
-                } else {
-                    const model = segmentationModels.find((candidate) => `interactor:${candidate.id}` === selectedMode);
-                    if (!model) return;
-                    const startWithBox = model.params.canvas.startWithBox && !model.params.canvas.startWithBoxOptional;
-                    const parameters = {
-                        command: startWithBox ? 'draw_box' as const : 'draw_points' as const,
-                        settings: {
-                            appendCursorPositionAsPoint: false,
-                            removalStrategy: 'any' as const,
-                            points_type: 'any' as const,
-                            crosshair: !!startWithBox,
-                        },
-                    };
-                    dispatch(interactWithCanvas(model, label.id, parameters, ShapeType.RECTANGLE));
-                    canvas.interact({ enabled: true, ...parameters });
-                }
-            } catch (error: unknown) {
-                if (startRequest.current === request) {
-                    notification.error({
-                        message: 'Could not start assisted rectangle',
-                        description: error instanceof Error ? error.message : String(error),
-                    });
-                }
+                await dispatch(startRectangleInteractionAsync(selectedMode, label.id, objectType));
             } finally {
                 if (startRequest.current === request) setInitializing(false);
             }
@@ -248,6 +209,7 @@ export default function RectangleLabelBar(): JSX.Element {
             <div className='cvat-rectangle-label-bar-heading'>
                 <strong>New rectangle</strong>
                 <Select
+                    ref={modeSelect}
                     aria-label='Default rectangle action'
                     className='cvat-rectangle-label-mode'
                     size='small'
@@ -265,21 +227,29 @@ export default function RectangleLabelBar(): JSX.Element {
                         }] : []),
                     ]}
                     onChange={(value: string) => {
-                        setDefaultMode(value);
-                        if (value !== 'manual') {
-                            dispatch(rememberObject({ ...drawing, activeObjectType: ObjectType.SHAPE }, false));
-                        }
+                        canvas.cancel();
+                        dispatch(rememberObject({ rectangleMode: value, activeObjectType: objectType }, false));
+                    }}
+                    onSelect={() => {
+                        modeSelect.current?.blur();
+                        // rc-select also restores focus from popup mousedown in a timer.
+                        setTimeout(() => modeSelect.current?.blur(), 0);
                     }}
                 />
-                <Select
-                    aria-label='New rectangle object type'
+                <Switch
+                    aria-label='New rectangle track mode'
                     size='small'
-                    value={mode === 'manual' ? objectType : ObjectType.SHAPE}
-                    disabled={disabled || mode !== 'manual'}
-                    options={[{ value: ObjectType.SHAPE, label: 'Shape' }, { value: ObjectType.TRACK, label: 'Track' }]}
-                    onChange={(value: ObjectType) => dispatch(rememberObject({
-                        ...drawing, activeObjectType: value,
-                    }, false))}
+                    checked={objectType === ObjectType.TRACK}
+                    checkedChildren='Track'
+                    unCheckedChildren='Shape'
+                    disabled={disabled}
+                    onChange={(checked: boolean, event) => {
+                        event.currentTarget.blur();
+                        canvas.cancel();
+                        dispatch(rememberObject({
+                            activeObjectType: checked ? ObjectType.TRACK : ObjectType.SHAPE,
+                        }, false));
+                    }}
                 />
                 <span>
                     {initializing ? 'Loading OpenCV…' :

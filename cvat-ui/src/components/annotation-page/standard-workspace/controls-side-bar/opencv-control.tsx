@@ -30,6 +30,7 @@ import {
 import {
     interactWithCanvas,
     placeAnnotationsAsync,
+    placeRectangleInteractionAsync,
 } from 'actions/annotation-actions';
 import LabelSelector from 'components/label-selector/label-selector';
 import CVATTooltip from 'components/common/cvat-tooltip';
@@ -56,6 +57,7 @@ interface Props {
 }
 
 interface DispatchToProps {
+    placeRectangle: (states: ObjectState[], drawing: CombinedState['annotation']['drawing']) => void;
     placeAnnotations: (states: ObjectState[]) => void;
     onInteractionStart: typeof interactWithCanvas;
     enableImageFilter: typeof enableImageFilterAction;
@@ -115,6 +117,7 @@ function mapStateToProps(state: CombinedState): Props {
 }
 
 const mapDispatchToProps = {
+    placeRectangle: placeRectangleInteractionAsync,
     onInteractionStart: interactWithCanvas,
     placeAnnotations: placeAnnotationsAsync,
     enableImageFilter: enableImageFilterAction,
@@ -249,7 +252,7 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
     private onInteraction = async (e: Event): Promise<void> => {
         const { approxPolyAccuracy } = this.state;
         const {
-            placeAnnotations, isActivated, frame,
+            placeAnnotations, placeRectangle, drawing, isActivated, frame,
             labels, currentZOrder, canvasInstance, toolsBlockerState,
         } = this.props;
 
@@ -276,16 +279,17 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
                 const valid = contour.length > 1 && points[2] > points[0] && points[3] > points[1];
                 if (finished) {
                     if (valid) {
-                        placeAnnotations([new core.classes.ObjectState({
+                        placeRectangle([new core.classes.ObjectState({
                             frame,
-                            objectType: ObjectType.SHAPE,
+                            objectType: drawing.activeObjectType === ObjectType.TRACK ?
+                                ObjectType.TRACK : ObjectType.SHAPE,
                             shapeType: ShapeType.RECTANGLE,
                             source: core.enums.Source.SEMI_AUTO,
                             label: labels.find((label: any) => label.id === activeLabelID),
                             points,
                             occluded: false,
                             zOrder: currentZOrder,
-                        })]);
+                        })], drawing);
                     }
                 } else {
                     canvasInstance.interact({

@@ -171,7 +171,7 @@ context('Quick rectangle classes', () => {
 
         cy.get('.cvat-rectangle-label-mode').click();
         cy.get('.ant-select-item-option').contains('Assisted box: Class strip segmenter').click();
-        cy.get('input[aria-label="New rectangle object type"]').should('be.disabled');
+        cy.get('[role="switch"][aria-label="New rectangle track mode"]').should('not.be.disabled');
         cy.get('body').type('12', { delay: 100 });
         cy.get(classButton('person')).should('have.attr', 'aria-pressed', 'true');
         cy.get('.cvat-canvas-container').click(260, 240);
@@ -193,5 +193,108 @@ context('Quick rectangle classes', () => {
         cy.get('body').type('n');
         cy.get(classButton('bus')).should('have.attr', 'aria-pressed', 'true');
         cy.get('body').type('{esc}');
+    });
+
+    it('creates and redraws shapes and tracks with every rectangle mode without replacing identity', () => {
+        const models = ['Segment Anything', 'IOG'].map((name, index) => ({
+            id: `rectangle-matrix-${index}`,
+            name,
+            kind: 'interactor',
+            version: 2,
+            min_pos_points: 1,
+            min_neg_points: 0,
+            startswith_box: index === 1,
+        }));
+        cy.intercept('GET', '**/api/lambda/functions*', models);
+        const response = { left: 100 };
+        cy.intercept('POST', '**/api/lambda/functions/rectangle-matrix-*', (request) => {
+            request.reply({
+                shapes: [{
+                    type: 'mask', points: [0, 600, response.left, 100, response.left + 29, 119], attributes: [],
+                }],
+            });
+        }).as('matrixSegment');
+        cy.reload();
+
+        const select = (label, value) => {
+            cy.get(`input[aria-label="${label}"]`).closest('.ant-select').click();
+            cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option')
+                .contains(value).click();
+            cy.get(`input[aria-label="${label}"]`).should('not.be.focused');
+        };
+        const finish = (mode, redraw = false) => {
+            if (mode === 'Manual rectangle' || mode.endsWith('IOG')) {
+                cy.get('.cvat-canvas-container').click(redraw ? 280 : 200, 180);
+                cy.get('.cvat-canvas-container').click(redraw ? 450 : 370, 310);
+            } else {
+                cy.get('.cvat-canvas-container').click(redraw ? 280 : 200, 180);
+            }
+            if (mode === 'Scissors rectangle') {
+                cy.get('.cvat-canvas-container').click(redraw ? 450 : 370, 180);
+                cy.get('.cvat-canvas-container').click(redraw ? 450 : 370, 310);
+            }
+            if (mode.startsWith('Assisted box')) cy.wait('@matrixSegment');
+            if (mode !== 'Manual rectangle') {
+                cy.get('.cvat_canvas_interact_intermediate_shape').should('be.visible');
+                cy.get('body').type('n');
+            }
+            cy.clickSaveAnnotationView();
+            cy.get('.cvat-annotation-header-save-button')
+                .should('not.have.class', 'cvat-annotation-disabled-header-button');
+        };
+
+        for (const mode of ['Manual rectangle', 'Scissors rectangle', ...models.map((m) => `Assisted box: ${m.name}`)]) {
+            for (const objectType of ['Shape', 'Track']) {
+                let before;
+                let original;
+                select('Default rectangle action', mode);
+                cy.get('[role="switch"][aria-label="New rectangle track mode"]').then(($toggle) => {
+                    if (($toggle.attr('aria-checked') === 'true') !== (objectType === 'Track')) {
+                        cy.wrap($toggle).click();
+                    }
+                });
+                cy.get('[role="switch"][aria-label="New rectangle track mode"]')
+                    .should('have.attr', 'aria-checked', String(objectType === 'Track'))
+                    .and('not.be.focused');
+                cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => { before = body; });
+                cy.then(() => { response.left = 100; });
+                cy.get(classButton('truck')).click();
+                finish(mode);
+                const collection = objectType === 'Track' ? 'tracks' : 'shapes';
+                cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => {
+                    expect(body[collection]).to.have.length(before[collection].length + 1);
+                    const other = objectType === 'Track' ? 'shapes' : 'tracks';
+                    expect(body[other]).to.deep.equal(before[other]);
+                    original = body[collection].find((object) => (
+                        !before[collection].some((old) => old.id === object.id)
+                    ));
+                });
+                cy.get('.cvat-objects-sidebar-state-item').last().click();
+                cy.get('body').type('{shift}n');
+                cy.get('body').type('{esc}');
+                cy.clickSaveAnnotationView();
+                cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => {
+                    expect(body[collection].find((object) => object.id === original.id)).to.deep.equal(original);
+                });
+                cy.then(() => { response.left = 160; });
+                cy.get('.cvat-objects-sidebar-state-item').last().click();
+                cy.get('body').type('{shift}n');
+                finish(mode, true);
+                cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => {
+                    expect(body[collection]).to.have.length(before[collection].length + 1);
+                    const redrawn = body[collection].find((object) => object.id === original.id);
+                    expect(redrawn.label_id).to.equal(original.label_id);
+                    expect(redrawn.attributes).to.deep.equal(original.attributes);
+                    const geometry = (object) => (objectType === 'Track' ? object.shapes[0].points : object.points);
+                    expect(geometry(redrawn)).not.to.deep.equal(geometry(original));
+                    if (mode.startsWith('Assisted box')) expect(geometry(redrawn)).to.deep.equal([160, 100, 190, 120]);
+                });
+                cy.get('.cvat-annotation-header-undo-button').click();
+                cy.clickSaveAnnotationView();
+                cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => {
+                    expect(body[collection].find((object) => object.id === original.id)).to.deep.equal(original);
+                });
+            }
+        }
     });
 });

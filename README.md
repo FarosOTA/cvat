@@ -118,13 +118,18 @@ or type its displayed code to start that action with the chosen label. **Right-c
 start a scissors rectangle regardless of the default. The dropdown also makes scissors accessible
 without a right mouse button. An already selected annotation is not relabeled.
 
-Manual rectangles support **Shape** or **Track**; assisted modes use **Shape** only and disable
-the object-type selector. Right-clicking also selects Shape. Scissors loads bundled OpenCV on first
+All rectangle modes support **Shape** or **Track**, including right-click scissors. Use the class
+strip's toggle: **on = Track**, **off = Shape**. Selecting a dropdown option or changing the toggle
+immediately releases keyboard focus so annotation shortcuts work without an extra canvas click. The selected
+default action also applies to **Replace box** and the redraw shortcut for existing rectangle shapes
+and tracks. Redraw preserves the object's identity, label, attributes, and other track keyframes; it
+replaces the current frame's geometry with an axis-aligned box. Canceling leaves the object unchanged.
+Scissors loads bundled OpenCV on first
 use; a loading message appears and startup can be canceled with `Esc`. Assisted boxes require an
 existing compatible interactor (API v2 or newer); the unavailable option is disabled when none is
 configured. They start with click prompts unless the selected model requires an initial box.
 See [Assisted bounding boxes](#assisted-bounding-boxes) for prompting and finishing controls.
-The default lasts while the strip is mounted. `Esc` cancels drawing, and the existing `N` shortcut
+The default lasts for the current job. `Esc` cancels drawing, and the existing `N` shortcut
 finishes an assisted interaction or repeats the chosen class and mode when idle. Pointer-centred
 zoom and middle-button panning remain available during all these modes.
 
@@ -213,7 +218,7 @@ keyframe until you mark it outside.
 
 ## Assisted bounding boxes
 
-Two additional output modes create ordinary, editable 2D rectangle **shapes**, using the selected
+Two additional output modes create ordinary, editable 2D rectangle **shapes or tracks**, using the selected
 label and current frame/Z-order, with semi-automatic source and normal undo/redo/save behavior:
 
 - **OpenCV → Drawing → Scissors rectangle** (outlined-box button): click successive anchors along
@@ -237,7 +242,8 @@ OpenCV.js and needs no segmentation service. The AI workflow reuses CVAT's exist
 integration (including its SAM integration when configured); **a working interactor must already be
 deployed/configured**. This fork adds no model, model download, or external API. Segmentation quality
 depends on the configured model, image contrast, and prompts; inspect and adjust the resulting boxes.
-Neither mode creates tracks or rotated rectangles.
+Neither mode creates rotated rectangles. Assisted redraw requires exactly one accepted box; empty or
+multiple-box results leave the original annotation unchanged rather than creating extra objects.
 
 The AI-tools (magic-wand) button appears only when the model catalog contains an interactor, detector,
 or tracker. Assisted boxes require a segmentation interactor using API v2 or newer. Model discovery

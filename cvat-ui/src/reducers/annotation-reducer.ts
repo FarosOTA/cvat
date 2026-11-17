@@ -644,6 +644,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
                 drawing: {
                     ...defaultState.drawing,
+                    rectangleMode: state.drawing.rectangleMode,
                     ...payload,
                 },
             };
@@ -1203,6 +1204,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
         case AnnotationActionTypes.INTERACT_WITH_CANVAS: {
             const {
                 activeInteractor, activeLabelID, activeInteractorParameters, activeInteractorShapeType,
+                activeInteractorRedraw,
             } = action.payload;
             return {
                 ...state,
@@ -1215,6 +1217,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     activeInteractor,
                     activeInteractorParameters: _.cloneDeep(activeInteractorParameters),
                     activeInteractorShapeType,
+                    activeInteractorRedraw,
                     activeLabelID,
                 },
                 canvas: {
