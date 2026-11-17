@@ -234,6 +234,7 @@ as an empty model catalog; other failures are reported rather than hidden.
   changing frame identity, annotation coordinates, selection, or viewport. Navigation cancels stale
   refinement. Pixel-processing tools use task-quality pixels. Task quality means the task's normal
   compressed representation, not necessarily the original upload's full detail.
+  Image refinement also preserves an in-progress drag or resize instead of cancelling the edit.
 - **Bounded, bidirectional image buffering:** **Settings → Player → Lookaround buffer multiplier**
   accepts integers from 1 to 10 (default **10**). Each step permits **16 MiB of compressed chunks**
   and **10 chunks**, shared between frames ahead and behind. The default ceiling is **160 MiB /

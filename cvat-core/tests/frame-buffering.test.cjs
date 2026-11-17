@@ -578,6 +578,30 @@ test('an older server falls back once, then keeps working with existing chunks',
     }
 });
 
+test('canvas refinement does not reconfigure editing tools, but visual settings still do', async () => {
+    const { canvas: { CanvasModelImpl, UpdateReasons, Mode } } = createSession();
+    const model = new CanvasModelImpl();
+    const notifications = [];
+    model.subscribe({ notify: (_, reason) => notifications.push(reason) });
+    const frame = (name) => ({ number: 0, width: 32, height: 24, deleted: false,
+        data: async () => ({ renderWidth: 32, renderHeight: 24, imageData: { name } }) });
+    model.setup(frame('preview'), []);
+    await settle();
+    notifications.length = 0;
+    model.mode = Mode.DRAG;
+    model.configure({ forceFrameUpdate: true });
+    model.setup(frame('full'), []);
+    model.configure({ forceFrameUpdate: false });
+    await settle();
+    assert.equal(model.image.imageData.name, 'full');
+    assert.equal(model.mode, Mode.DRAG);
+    assert.ok(!notifications.includes(UpdateReasons.CONFIG_UPDATED),
+        'image-only refresh must not deactivate editing tools');
+    model.configure({ forceFrameUpdate: true, shapeOpacity: 25 });
+    assert.equal(notifications.filter((reason) => reason === UpdateReasons.CONFIG_UPDATED).length, 1);
+    assert.equal(model.configuration.shapeOpacity, 25);
+});
+
 test('canvas readiness waits for the requested image and stale previews cannot replace refinement', async () => {
     const { canvas: { CanvasModelImpl, UpdateReasons } } = createSession();
     const model = new CanvasModelImpl();

@@ -1100,7 +1100,11 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
             this.data.configuration.frameFitMargin = configuration.frameFitMargin;
         }
 
-        this.notify(UpdateReasons.CONFIG_UPDATED);
+        // This flag only controls image loading. Reconfiguring the view for it
+        // deactivates the selected shape and aborts an in-progress drag/resize.
+        if (Object.keys(configuration).some((key) => key !== 'forceFrameUpdate')) {
+            this.notify(UpdateReasons.CONFIG_UPDATED);
+        }
     }
 
     public isAbleToChangeFrame(): boolean {
