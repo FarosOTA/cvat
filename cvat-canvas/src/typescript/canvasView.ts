@@ -96,7 +96,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
     private resizableShape: SVG.Shape | null;
     private skeletonResizerRefreshRequest: number | null;
     private ctrlPressed: boolean;
-    private editingCrosshair = new Crosshair();
+    private editingCrosshairs = [new Crosshair(), new Crosshair()];
     private cursorMagnifier: HTMLCanvasElement;
     private precisionToolsRequest: number | null = null;
     private middleMousePosition: { clientX: number; clientY: number } | null = null;
@@ -2026,7 +2026,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
             window.cancelAnimationFrame(this.precisionToolsRequest);
             this.precisionToolsRequest = null;
         }
-        this.editingCrosshair.hide();
+        this.editingCrosshairs.forEach((crosshair) => crosshair.hide());
         if (this.cursorMagnifier) this.cursorMagnifier.hidden = true;
     }
 
@@ -2056,11 +2056,14 @@ export class CanvasViewImpl implements CanvasView, Listener {
             return;
         }
 
-        const [x, y] = translateToSVG(this.content, [event.clientX, event.clientY]);
         if (editingRectangle && this.configuration.editingCrosshair) {
-            this.editingCrosshair.show(this.adoptedContent, x, y, this.geometry.scale);
+            const {
+                x, y, x2, y2,
+            } = editingRectangle.rbox(this.adoptedContent);
+            this.editingCrosshairs[0].show(this.adoptedContent, x, y, this.geometry.scale);
+            this.editingCrosshairs[1].show(this.adoptedContent, x2, y2, this.geometry.scale);
         } else {
-            this.editingCrosshair.hide();
+            this.editingCrosshairs.forEach((crosshair) => crosshair.hide());
         }
 
         const rectangle = editingRectangle?.node || hoveredRectangle?.node ||

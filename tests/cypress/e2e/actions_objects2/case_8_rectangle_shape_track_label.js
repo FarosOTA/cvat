@@ -248,7 +248,22 @@ context('Actions on rectangle', () => {
                     cy.get(target).click();
                     cy.get('.cvat-canvas-container').trigger('mousemove', { clientX: 500, clientY: 400 });
                     cy.get('.cvat_canvas_cursor_magnifier').should(editing ? 'be.visible' : 'not.be.visible');
-                    cy.get('.cvat_canvas_crosshair').should('have.length', 2);
+                    cy.get('.cvat_canvas_crosshair').should('have.length', 4).and((lines) => {
+                        const box = lines[0].ownerDocument.querySelector('#cvat_canvas_shape_5')
+                            .getBoundingClientRect();
+                        const vertical = [...lines].filter((line) => line.x1.baseVal.value === line.x2.baseVal.value)
+                            .map((line) => line.getBoundingClientRect().left).sort((a, b) => a - b);
+                        const horizontal = [...lines].filter((line) => line.y1.baseVal.value === line.y2.baseVal.value)
+                            .map((line) => line.getBoundingClientRect().top).sort((a, b) => a - b);
+                        expect(vertical).to.have.length(2);
+                        expect(horizontal).to.have.length(2);
+                        for (const [actual, expected] of [
+                            [vertical[0], box.left], [vertical[1], box.right],
+                            [horizontal[0], box.top], [horizontal[1], box.bottom],
+                        ]) {
+                            expect(actual).to.be.closeTo(expected, 0.5);
+                        }
+                    });
                     cy.get('body').type('{esc}', { scrollBehavior: false });
                 }
             }

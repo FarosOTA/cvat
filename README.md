@@ -161,7 +161,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   leaving the current annotation tool.
 - **Cancel safely:** Press `Esc` during a move or resize to restore the box's geometry from before
   the interaction instead of keeping the unfinished edit.
-- **Editing crosshairs:** Crosshairs help align boxes while moving or resizing them.
+- **Editing crosshairs:** Guides extend all four box borders while moving or resizing, anchored to
+  the box edges rather than the mouse pointer.
 - **Magnified borders:** Hover over a box or its resize handles to inspect magnified image strips
   along **all four edges**, without clicking or dragging. The strips disappear when the pointer
   leaves the box and remain available while drawing, moving, or resizing it. This is a border
