@@ -151,6 +151,16 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   pick it up, move the pointer without holding the mouse button, and click again to place it.
   The same interaction works with corner and edge handles for resizing. The setting is saved in
   the browser; traditional press-and-hold dragging remains available when it is enabled.
+- **Resize from sides:** Enable **Settings → Workspace → Resize bounding boxes from sides** to
+  resize an active 2D rectangle by dragging anywhere along a side, not only its midpoint handle.
+  Each side has an invisible grab area extending **6 screen pixels inside and outside** its border,
+  independent of outline thickness and zoom. Hovering there shows a directional resize cursor,
+  including on rotated boxes and images.
+  It is off by default and saved in the browser. Corner handles and moving the box body are unchanged;
+  side resizing also supports click-to-grab and `Esc` cancellation.
+- **Finer annotation controls:** 2D annotation outlines are 0.75 screen pixels wide, with a default
+  control-point radius of 3 pixels. Adjust **Settings → Workspace → Control points size** to taste;
+  existing saved control-point sizes are retained.
 - **Middle-button navigation:** Hold the middle mouse button to pan the image, including while a
   shape, corner, edge, or point is engaged in an edit. Release the middle button to resume the edit
   without placing it or changing its image coordinates. Double-click the middle button to fit the

@@ -38,6 +38,7 @@ const defaultState: SettingsState = {
         adaptiveZoom: true,
         clickToGrab: false,
         clearFocusOnCanvasLeave: false,
+        resizeFromSides: false,
         editingCrosshair: true,
         cursorMagnifier: true,
         cursorMagnifierHover: true,
@@ -49,7 +50,7 @@ const defaultState: SettingsState = {
         intelligentPolygonCrop: true,
         defaultApproxPolyAccuracy: 9,
         textFontSize: 14,
-        controlPointsSize: 5,
+        controlPointsSize: 3,
         textPosition: 'auto',
         textContent: 'id,source,label,attributes,descriptions,dimensions',
         toolsBlockerState: {

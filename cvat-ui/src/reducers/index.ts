@@ -1090,6 +1090,7 @@ export interface WorkspaceSettingsState {
     adaptiveZoom: boolean;
     clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
+    resizeFromSides: boolean;
     editingCrosshair: boolean;
     cursorMagnifier: boolean;
     cursorMagnifierHover: boolean;

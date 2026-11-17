@@ -128,6 +128,7 @@ interface StateToProps {
     adaptiveZoom: boolean;
     clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
+    resizeFromSides: boolean;
     editingCrosshair: boolean;
     cursorMagnifier: boolean;
     cursorMagnifierHover: boolean;
@@ -228,6 +229,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 adaptiveZoom,
                 clickToGrab,
                 clearFocusOnCanvasLeave,
+                resizeFromSides,
                 editingCrosshair,
                 cursorMagnifier,
                 cursorMagnifierHover,
@@ -297,6 +299,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         adaptiveZoom,
         clickToGrab,
         clearFocusOnCanvasLeave,
+        resizeFromSides,
         editingCrosshair,
         cursorMagnifier,
         cursorMagnifierHover,
@@ -467,6 +470,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             snapToPoint,
             adaptiveZoom,
             clickToGrab,
+            resizeFromSides,
             editingCrosshair,
             cursorMagnifier,
             cursorMagnifierHover,
@@ -504,6 +508,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             snapToPoint,
             adaptiveZoom,
             clickToGrab,
+            resizeFromSides,
             editingCrosshair,
             cursorMagnifier,
             cursorMagnifierHover,
@@ -561,6 +566,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             snapToPoint,
             adaptiveZoom,
             clickToGrab,
+            resizeFromSides,
             editingCrosshair,
             cursorMagnifier,
             cursorMagnifierHover,
@@ -593,6 +599,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             prevProps.snapToPoint !== snapToPoint ||
             prevProps.adaptiveZoom !== adaptiveZoom ||
             prevProps.clickToGrab !== clickToGrab ||
+            prevProps.resizeFromSides !== resizeFromSides ||
             prevProps.editingCrosshair !== editingCrosshair ||
             prevProps.cursorMagnifier !== cursorMagnifier ||
             prevProps.cursorMagnifierHover !== cursorMagnifierHover ||
@@ -622,6 +629,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 snapToPoint,
                 adaptiveZoom,
                 clickToGrab,
+                resizeFromSides,
                 editingCrosshair,
                 cursorMagnifier,
                 cursorMagnifierHover,

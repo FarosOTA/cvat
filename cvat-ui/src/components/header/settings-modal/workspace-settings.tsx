@@ -26,6 +26,7 @@ interface Props {
     adaptiveZoom: boolean;
     clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
+    resizeFromSides: boolean;
     intelligentPolygonCrop: boolean;
     defaultApproxPolyAccuracy: number;
     textFontSize: number;
@@ -41,7 +42,7 @@ interface Props {
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
     onSwitchShowingObjectsTextAlways(enabled: boolean): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
-    onSwitchRectanglePrecision(tool: 'clickToGrab' | 'clearFocusOnCanvasLeave', enabled: boolean): void;
+    onSwitchRectanglePrecision(tool: 'clickToGrab' | 'clearFocusOnCanvasLeave' | 'resizeFromSides', enabled: boolean): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeTextFontSize(fontSize: number): void;
     onChangeControlPointsSize(pointsSize: number): void;
@@ -61,6 +62,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         adaptiveZoom,
         clickToGrab,
         clearFocusOnCanvasLeave,
+        resizeFromSides,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
         textFontSize,
@@ -110,6 +112,26 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
                     <Text type='secondary'>
                         Remove the active annotation highlight when the pointer leaves the 2D canvas.
                         Off by default. Dragging and resizing are not interrupted.
+                    </Text>
+                </Col>
+            </Row>
+            <Row className='cvat-player-setting'>
+                <Col span={24}>
+                    <Checkbox
+                        className='cvat-workspace-settings-resize-from-sides'
+                        checked={resizeFromSides}
+                        onChange={(event: CheckboxChangeEvent): void => {
+                            onSwitchRectanglePrecision('resizeFromSides', event.target.checked);
+                        }}
+                    >
+                        Resize bounding boxes from sides
+                    </Checkbox>
+                </Col>
+                <Col span={24}>
+                    <Text type='secondary'>
+                        Drag within 6 screen pixels inside or outside an active box edge to resize that side.
+                        A directional resize cursor marks the grab area, independently of outline thickness or zoom.
+                        Disabled by default. Corner handles and dragging the box body are unchanged.
                     </Text>
                 </Col>
             </Row>

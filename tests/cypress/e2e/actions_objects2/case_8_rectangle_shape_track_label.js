@@ -88,6 +88,7 @@ context('Actions on rectangle', () => {
         cy.openSettings();
         cy.get('.cvat-settings-modal').contains('Workspace').click();
         cy.get('.cvat-workspace-settings-click-to-grab input').uncheck();
+        cy.get('.cvat-workspace-settings-resize-from-sides input').uncheck();
         cy.closeSettings();
     });
 
@@ -164,6 +165,61 @@ context('Actions on rectangle', () => {
                     expect(['x', 'y', 'width', 'height'].map((attr) => shape.getAttribute(attr))).to.deep.equal(geometry);
                 });
             });
+        });
+
+        it('Shows resize cursors and resizes from a margin around each side away from its midpoint', () => {
+            cy.openSettings();
+            cy.get('.cvat-settings-modal').contains('Workspace').click();
+            cy.get('.cvat-workspace-settings-click-to-grab input').uncheck();
+            cy.get('.cvat-workspace-settings-resize-from-sides input').check();
+            cy.closeSettings();
+            cy.get('.cvat-fit-control').click({ scrollBehavior: false });
+            for (const [fx, fy, offsetX, offsetY, dx, dy, changedEdge, cursor] of [
+                [0.25, 0, 0, -5, 0, -13, 'top', 'ns-resize'],
+                [1, 0.25, -5, 0, 17, 0, 'right', 'ew-resize'],
+                [0.75, 1, 0, -5, 0, 13, 'bottom', 'ns-resize'],
+                [0, 0.75, -5, 0, -17, 0, 'left', 'ew-resize'],
+            ]) {
+                cy.get('#cvat_canvas_shape_5').realHover();
+                cy.get('#cvat_canvas_shape_5').should('have.class', 'cvat_canvas_shape_activated');
+                cy.get('#cvat_canvas_shape_5').then(([rectangle]) => {
+                    const original = rectangle.getBoundingClientRect();
+                    const clientX = original.left + fx * original.width + offsetX;
+                    const clientY = original.top + fy * original.height + offsetY;
+                    // Hit-test inside/outside the outline instead of selecting the midpoint handle.
+                    cy.document().then((document) => {
+                        const target = document.elementFromPoint(clientX, clientY);
+                        cy.wrap(target).trigger('mousemove', { clientX, clientY, scrollBehavior: false });
+                        cy.wrap(target).should('have.css', 'cursor', cursor);
+                        cy.wrap(target).trigger('mousedown', {
+                            clientX, clientY, button: 0, buttons: 1, scrollBehavior: false,
+                        });
+                    });
+                    cy.get('.cvat-canvas-container').trigger('mousemove', {
+                        clientX: clientX + dx, clientY: clientY + dy, buttons: 1, scrollBehavior: false,
+                    });
+                    cy.get('.cvat-canvas-container').trigger('mouseup', {
+                        clientX: clientX + dx, clientY: clientY + dy, button: 0, scrollBehavior: false,
+                    });
+                    cy.get('#cvat_canvas_shape_5').should(([shape]) => {
+                        const actual = shape.getBoundingClientRect();
+                        for (const edge of ['left', 'top', 'right', 'bottom']) {
+                            const delta = edge === changedEdge ? dx || dy : 0;
+                            expect(actual[edge], edge).to.be.closeTo(original[edge] + delta, 2);
+                        }
+                    });
+                    cy.get('body').type('{ctrl}z', { scrollBehavior: false });
+                    cy.get('#cvat_canvas_shape_5').should(([shape]) => {
+                        const restored = shape.getBoundingClientRect();
+                        for (const edge of ['left', 'top', 'right', 'bottom']) {
+                            expect(restored[edge], edge).to.be.closeTo(original[edge], 1);
+                        }
+                    });
+                });
+            }
+            cy.openSettings();
+            cy.get('.cvat-workspace-settings-resize-from-sides input').uncheck();
+            cy.closeSettings();
         });
 
         it('Adjust border size and magnification independently and retain them when disabled', () => {

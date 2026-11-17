@@ -830,6 +830,10 @@ export class CanvasViewImpl implements CanvasView, Listener {
         ]) {
             element.setAttribute('stroke-width', `${consts.POINTS_STROKE_WIDTH / this.geometry.scale}`);
             element.setAttribute('r', `${this.configuration.controlPointsSize / this.geometry.scale}`);
+            if (element.classList.contains('cvat_canvas_side_grab')) {
+                (element as SVGElement).style.strokeWidth =
+                    `${this.screenToCanvasSize(2 * consts.RECTANGLE_SIDE_GRAB_RADIUS)}px`;
+            }
         }
 
         for (const element of window.document.getElementsByClassName('cvat_canvas_poly_direction')) {
@@ -1522,6 +1526,32 @@ export class CanvasViewImpl implements CanvasView, Listener {
         const handler = shape.remember('_selectHandler');
         if (handler && handler.nested) {
             handler.nested.fill(shape.attr('fill'));
+            if (value && shape.type === 'rect' && !isSkeletonRect && this.configuration.resizeFromSides) {
+                const border = handler.rectSelection.set.get(0);
+                border.addClass('cvat_canvas_side_grab').attr({
+                    fill: 'none',
+                    stroke: 'transparent',
+                }).style({
+                    'stroke-width': `${this.screenToCanvasSize(2 * consts.RECTANGLE_SIDE_GRAB_RADIUS)}px`,
+                    'pointer-events': 'stroke',
+                });
+                border.on('mousemove mousedown', (event: MouseEvent): void => {
+                    const matrix = handler.nested.node.getScreenCTM();
+                    const { x, y } = new DOMPoint(event.clientX, event.clientY)
+                        .matrixTransform(matrix.inverse());
+                    const distances = [y, border.width() - x, border.height() - y, x].map(Math.abs);
+                    const sideIndex = distances.indexOf(Math.min(...distances));
+                    const side = ['t', 'r', 'b', 'l'][sideIndex];
+                    const angle = sideIndex % 2 === 0 ?
+                        Math.atan2(matrix.d, matrix.c) : Math.atan2(matrix.b, matrix.a);
+                    const direction = ((Math.round(angle / (Math.PI / 4)) % 4) + 4) % 4;
+                    border.style('cursor', ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][direction]);
+                    if (event.type !== 'mousedown' || event.button !== 0 || event.altKey) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    shape.fire(side, { x: event.pageX, y: event.pageY, event });
+                });
+            }
             if (value && isSkeletonRect) {
                 this.setupSkeletonResizer(handler.nested);
             }
