@@ -6,6 +6,7 @@
 import { AnyAction, Store } from 'redux';
 import { ThunkAction, ThunkDispatch } from 'utils/redux';
 import isAbleToChangeFrame from 'utils/is-able-to-change-frame';
+import { waitForRepeatActionFeedback } from 'utils/repeat-action-feedback';
 import { CanvasMode as Canvas3DMode } from 'cvat-canvas3d-wrapper';
 import {
     RectDrawingMethod, CuboidDrawingMethod, Canvas, CanvasMode as Canvas2DMode, CanvasHistorySource,
@@ -864,6 +865,10 @@ export function changeFrameAsync(
                 Math.round(1000 / frameSpeed) - currentTime + (state.annotation.player.frame.changeTime as number),
             );
 
+            // Keep the source frame visible through an in-flight repeat edit and its confirmation.
+            // Fetch afterwards so track states include the completed edit.
+            await waitForRepeatActionFeedback();
+            if (receiveAnnotationsParameters().jobInstance !== job) return;
             const { states, previousFrameBoxes, history } = await fetchAnnotations(toFrame);
 
             if (state.annotation.workspace === Workspace.REVIEW) {

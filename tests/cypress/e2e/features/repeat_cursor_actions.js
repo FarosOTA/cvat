@@ -92,10 +92,13 @@ context('Repeat cursor actions', () => {
         pointAtOverlap();
         shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
         cy.get('.cvat_canvas_shape_occluded').should('have.length', 2);
+        cy.get('.cvat-repeat-action-feedback').should('contain.text', 'Applied')
+            .and('contain.text', 'Marked occluded · object #').and('contain.text', 'Frame 0');
         shortcut('Q', {
             keyCode: 81, which: 81, shiftKey: true, altKey: true,
         });
         cy.get('.cvat_canvas_shape_occluded').should('not.exist');
+        cy.get('.cvat-repeat-action-feedback').should('contain.text', 'Marked not occluded · object #');
         shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
         cy.get('.cvat_canvas_shape_occluded').should('have.length', 2);
         shortcut('f', { keyCode: 70, which: 70 });
@@ -113,6 +116,8 @@ context('Repeat cursor actions', () => {
         pointAtOverlap();
         shortcut('Backspace', { keyCode: 8, which: 8, shiftKey: true });
         cy.get('.cvat_canvas_shape').should('have.length', 1);
+        cy.get('.cvat-repeat-action-feedback').should('contain.text', 'Deleted · object #')
+            .and('contain.text', 'Frame 1');
         shortcut('f', { keyCode: 70, which: 70 });
         cy.get('.cvat-player-frame-selector input').should('have.value', '2');
         cy.get('.cvat_canvas_shape').should('have.length', 1);

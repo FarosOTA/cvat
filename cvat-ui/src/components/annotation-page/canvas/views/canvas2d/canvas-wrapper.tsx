@@ -75,6 +75,7 @@ import { ImageFilter } from 'utils/image-processing';
 import { ShortcutScope } from 'utils/enums';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import { subKeyMap } from 'utils/component-subkeymap';
+import { beginRepeatActionFeedback } from 'utils/repeat-action-feedback';
 import ImageSetupsContent from './image-setups-content';
 import CanvasTipsComponent from './canvas-hints';
 
@@ -512,6 +513,10 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
 type Props = StateToProps & DispatchToProps;
 
 class CanvasWrapperComponent extends React.PureComponent<Props> {
+    public state = {
+        repeatFeedback: null as { text: string; x: number; y: number } | null,
+    };
+
     private debouncedUpdate = debounce(this.updateCanvas.bind(this), 250, { leading: true });
     private canvasTipsRef = React.createRef<CanvasTipsComponent>();
     private unmounted = false;
@@ -521,6 +526,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     private repeatTimer: number | null = null;
     private repeatNotice = 0;
     private repeatBusy = false;
+    private repeatFeedbackTimer: number | null = null;
     private pointer: { x: number; y: number } | null = null;
     private repeatAttempted = new WeakSet<ObjectState>();
 
@@ -607,9 +613,33 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 if ([ShapeType.POLYLINE, ShapeType.POINTS].includes(state.shapeType) &&
                     result.distance > MAX_DISTANCE_TO_OPEN_SHAPE) continue;
                 this.repeatAttempted.add(state);
-                if (!await onRepeatAction(state, action)) {
-                    if (this.repeatAttempted === attempted) this.stopRepeatAction();
-                    break;
+                const finishFeedback = beginRepeatActionFeedback();
+                let applied = false;
+                try {
+                    if (!await onRepeatAction(state, action)) {
+                        if (this.repeatAttempted === attempted) this.stopRepeatAction();
+                        break;
+                    }
+                    if (!this.unmounted) {
+                        const verb = {
+                            delete: 'Deleted', occluded: 'Marked occluded', visible: 'Marked not occluded',
+                        }[action];
+                        this.setState({
+                            repeatFeedback: {
+                                text: `${verb} · ${state.label.name} #${state.clientID} · Frame ${frame}`,
+                                x: pointer.x,
+                                y: pointer.y,
+                            },
+                        });
+                        applied = true;
+                        if (this.repeatFeedbackTimer !== null) window.clearTimeout(this.repeatFeedbackTimer);
+                        this.repeatFeedbackTimer = window.setTimeout(() => {
+                            this.setState({ repeatFeedback: null });
+                            this.repeatFeedbackTimer = null;
+                        }, 1200);
+                    }
+                } finally {
+                    finishFeedback(applied);
                 }
             }
         } catch (error) {
@@ -935,6 +965,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     public componentWillUnmount(): void {
         this.unmounted = true;
         this.stopRepeatAction();
+        if (this.repeatFeedbackTimer !== null) window.clearTimeout(this.repeatFeedbackTimer);
         document.removeEventListener('mousemove', this.trackPointer);
         document.removeEventListener('keydown', this.onRepeatEscape, true);
         this.props.frameData?.cancelRefinement();
@@ -1565,6 +1596,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     }
 
     public render(): JSX.Element {
+        const { repeatFeedback } = this.state;
         const {
             currentZLayer,
             hiddenZLayers,
@@ -1640,6 +1672,19 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             <>
                 <GlobalHotKeys keyMap={subKeyMap(componentShortcuts, keyMap)} handlers={handlers} />
                 <CanvasTipsComponent ref={this.canvasTipsRef} />
+                {repeatFeedback && (
+                    <div
+                        className='cvat-repeat-action-feedback'
+                        role='status'
+                        style={{
+                            left: Math.max(8, Math.min(repeatFeedback.x + 16, window.innerWidth - 328)),
+                            top: Math.max(8, Math.min(repeatFeedback.y + 20, window.innerHeight - 88)),
+                        }}
+                    >
+                        <strong>✓ Applied</strong>
+                        <span>{repeatFeedback.text}</span>
+                    </div>
+                )}
                 {
                     !canvasIsReady && (
                         <div className='cvat-spinner-container cvat-canvas-loading'>
