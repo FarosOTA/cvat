@@ -229,8 +229,11 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   persistent notice to stop. With a class selected in the top label bar, repeat deletion and occlusion
   target only annotations of that class; with no class selected, they target all classes.
   Repeat apply label uses the selected class as the destination, not as a filter on existing labels.
-  The mode applies to
-  overlapping annotations under the pointer, including when the pointer is stationary, and stays
+  Only these repeat modes use a circular brush. Set **Repeat brush diameter (px)** in the right
+  sidebar's **Settings** section (1–500 px, default 50 px, remembered with your workspace settings).
+  Its visible footprint stays the same size on screen when zooming; ordinary selection, drawing,
+  and one-shot actions are unchanged. The mode applies to all annotations intersecting the brush,
+  including overlaps and when the pointer is stationary, and stays
   engaged through frame seeking (`F`, `D`, `C`,
   `V`, Left/Right), playback, and pauses. Repeat deletion bypasses confirmation and object locks;
   deleting a track removes the whole track, just like ordinary object deletion. Occlusion modes set

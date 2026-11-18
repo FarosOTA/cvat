@@ -33,6 +33,7 @@ const defaultState: SettingsState = {
         autoSaveInterval: 15 * 60 * 1000,
         focusedObjectPadding: 50,
         frameFitMargin: 8,
+        repeatBrushSize: 50,
         automaticBordering: false,
         snapToPoint: false,
         adaptiveZoom: true,
@@ -352,6 +353,15 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 workspace: {
                     ...state.workspace,
                     focusedObjectPadding: action.payload.focusedObjectPadding,
+                },
+            };
+        }
+        case SettingsActionTypes.CHANGE_REPEAT_BRUSH_SIZE: {
+            return {
+                ...state,
+                workspace: {
+                    ...state.workspace,
+                    repeatBrushSize: action.payload.repeatBrushSize,
                 },
             };
         }

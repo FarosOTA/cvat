@@ -87,6 +87,38 @@ context('Repeat cursor actions', () => {
         });
     }
 
+    it('uses the sidebar brush diameter only while a repeat mode is active', () => {
+        cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
+        cy.get('.cvat_canvas_shape').should('have.length', 3);
+        cy.get('.cvat-objects-appearance-collapse .ant-collapse-item').then(($item) => {
+            if (!$item.hasClass('ant-collapse-item-active')) {
+                cy.contains('.cvat-objects-appearance-collapse-header', 'Settings').click();
+            }
+        });
+        cy.get('.cvat-repeat-brush-size input').clear();
+        cy.get('.cvat-repeat-brush-size input').type('1{enter}');
+        cy.get('.cvat_canvas_shape').first().then(([shape]) => {
+            const rect = shape.getBoundingClientRect();
+            const point = { clientX: rect.left - 15, clientY: rect.top + 10, bubbles: true };
+            cy.get('.cvat-canvas-container').trigger('mousemove', { ...point, scrollBehavior: false });
+            cy.get('.cvat-repeat-action-brush').should('not.exist');
+            shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
+            cy.get('.cvat-repeat-action-brush').should('have.css', 'width', '1px');
+            cy.get('.cvat_canvas_shape').first().should('not.have.class', 'cvat_canvas_shape_occluded');
+            cy.get('.cvat-repeat-brush-size input').clear();
+            cy.get('.cvat-repeat-brush-size input').type('50{enter}');
+            cy.get('.cvat-canvas-container').trigger('mousemove', { ...point, scrollBehavior: false });
+            cy.get('.cvat-repeat-action-brush').should('have.css', 'width', '50px');
+            cy.get('.cvat_canvas_shape').first().should('have.class', 'cvat_canvas_shape_occluded');
+            cy.get('.cvat_canvas_shape').eq(1).should('not.have.class', 'cvat_canvas_shape_occluded');
+        });
+        shortcut('Escape', { keyCode: 27, which: 27 });
+        cy.get('.cvat-repeat-action-brush').should('not.exist');
+        // Undo the unsaved fixture edit so the following scenarios retain their original inputs.
+        shortcut('z', { keyCode: 90, which: 90, ctrlKey: true });
+        cy.get('.cvat_canvas_shape').first().should('not.have.class', 'cvat_canvas_shape_occluded');
+    });
+
     it('applies the top bar label to overlaps, follows label changes and stops with Escape', () => {
         cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
         cy.get('.cvat_canvas_shape').should('have.length', 3);

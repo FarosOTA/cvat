@@ -1089,6 +1089,7 @@ export interface WorkspaceSettingsState {
     autoSaveInterval: number; // in ms
     focusedObjectPadding: number;
     frameFitMargin: number;
+    repeatBrushSize: number;
     automaticBordering: boolean;
     snapToPoint: boolean;
     adaptiveZoom: boolean;

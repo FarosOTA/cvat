@@ -47,6 +47,7 @@ export enum SettingsActionTypes {
     CHANGE_AUTO_SAVE_INTERVAL = 'CHANGE_AUTO_SAVE_INTERVAL',
     CHANGE_FOCUSED_OBJECT_PADDING = 'CHANGE_FOCUSED_OBJECT_PADDING',
     CHANGE_FRAME_FIT_MARGIN = 'CHANGE_FRAME_FIT_MARGIN',
+    CHANGE_REPEAT_BRUSH_SIZE = 'CHANGE_REPEAT_BRUSH_SIZE',
     CHANGE_DEFAULT_APPROX_POLY_THRESHOLD = 'CHANGE_DEFAULT_APPROX_POLY_THRESHOLD',
     SWITCH_AUTOMATIC_BORDERING = 'SWITCH_AUTOMATIC_BORDERING',
     SWITCH_SNAP_TO_POINT = 'SWITCH_SNAP_TO_POINT',
@@ -320,6 +321,13 @@ export function changeAutoSaveInterval(autoSaveInterval: number): AnyAction {
     };
 }
 
+export function changeRepeatBrushSize(repeatBrushSize: number): AnyAction {
+    return {
+        type: SettingsActionTypes.CHANGE_REPEAT_BRUSH_SIZE,
+        payload: { repeatBrushSize },
+    };
+}
+
 export function changeFocusedObjectPadding(focusedObjectPadding: number): AnyAction {
     return {
         type: SettingsActionTypes.CHANGE_FOCUSED_OBJECT_PADDING,
@@ -545,6 +553,10 @@ export function restoreSettingsAsync(): ThunkAction {
                 }
                 if (key === 'frameFitMargin' &&
                     (!Number.isInteger(setValue) || setValue < 0 || setValue > 100)) {
+                    return;
+                }
+                if (key === 'repeatBrushSize' &&
+                    (!Number.isInteger(setValue) || setValue < 1 || setValue > 500)) {
                     return;
                 }
                 if (key === 'cursorMagnifierGap' &&

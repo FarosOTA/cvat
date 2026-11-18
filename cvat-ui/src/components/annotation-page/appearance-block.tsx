@@ -33,6 +33,7 @@ import {
     changeOrientationVisibility as changeOrientationVisibilityAction,
     switchRectanglePrecision,
     switchNextFrameAfterPlacing,
+    changeRepeatBrushSize,
     changeFrameStep,
     changeFrameSpeed,
     switchResetZoom,
@@ -208,7 +209,7 @@ function AppearanceBlock(props: Props): JSX.Element {
         (state: CombinedState) => state.settings.player,
     );
     const {
-        clickToGrab, showObjectsTextAlways, cornerHandles, drawingDimensions, autoAdvanceOnModify,
+        clickToGrab, showObjectsTextAlways, cornerHandles, drawingDimensions, autoAdvanceOnModify, repeatBrushSize,
     } = useSelector((state: CombinedState) => state.settings.workspace);
 
     const is2D = jobInstance.dimension === DimensionType.DIMENSION_2D;
@@ -292,6 +293,23 @@ function AppearanceBlock(props: Props): JSX.Element {
                                 </Button>
                             </ColorPicker>
                         </Checkbox>
+                        {is2D && workspace === Workspace.STANDARD && (
+                            <>
+                                <Text type='secondary'>Repeat brush diameter (px)</Text>
+                                <InputNumber
+                                    className='cvat-repeat-brush-size'
+                                    aria-label='Repeat brush diameter (px)'
+                                    title='Only affects repeat delete, occlusion, and apply label modes'
+                                    min={1}
+                                    max={500}
+                                    precision={0}
+                                    value={repeatBrushSize}
+                                    onChange={(value: number | null) => {
+                                        if (value !== null) dispatch(changeRepeatBrushSize(clamp(value, 1, 500)));
+                                    }}
+                                />
+                            </>
+                        )}
                         {is2D && workspace === Workspace.STANDARD && (
                             <Checkbox
                                 className='cvat-appearance-next-frame-after-placing-checkbox'

@@ -76,6 +76,7 @@ import { ShortcutScope } from 'utils/enums';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import { subKeyMap } from 'utils/component-subkeymap';
 import { beginRepeatActionFeedback } from 'utils/repeat-action-feedback';
+import repeatBrushHits from 'utils/repeat-brush';
 import ImageSetupsContent from './image-setups-content';
 import CanvasTipsComponent from './canvas-hints';
 
@@ -144,6 +145,7 @@ interface StateToProps {
     cursorMagnifierSize: number;
     cursorMagnifierScale: number;
     cursorMagnifierGap: number;
+    repeatBrushSize: number;
     intelligentPolygonCrop: boolean;
     switchableAutomaticBordering: boolean;
     keyMap: KeyMap;
@@ -254,6 +256,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 cursorMagnifierSize,
                 cursorMagnifierScale,
                 cursorMagnifierGap,
+                repeatBrushSize,
                 intelligentPolygonCrop,
                 textFontSize,
                 controlPointsSize,
@@ -334,6 +337,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         cursorMagnifierSize,
         cursorMagnifierScale,
         cursorMagnifierGap,
+        repeatBrushSize,
         intelligentPolygonCrop,
         workspace,
         keyMap,
@@ -528,6 +532,7 @@ type Props = StateToProps & DispatchToProps;
 class CanvasWrapperComponent extends React.PureComponent<Props> {
     public state = {
         repeatFeedback: null as { text: string; x: number; y: number } | null,
+        repeatBrush: null as { x: number; y: number } | null,
     };
 
     private debouncedUpdate = debounce(this.updateCanvas.bind(this), 250, { leading: true });
@@ -542,6 +547,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     private repeatFeedbackTimer: number | null = null;
     private pointer: { x: number; y: number } | null = null;
     private repeatAttempted = new WeakSet<ObjectState>();
+    private repeatBrushContext = document.createElement('canvas').getContext('2d');
 
     private trackPointer = (event: MouseEvent): void => {
         this.pointer = { x: event.clientX, y: event.clientY };
@@ -550,6 +556,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
 
     private stopRepeatAction = (): void => {
         this.repeatAction = null;
+        if (!this.unmounted) this.setState({ repeatBrush: null });
         this.repeatAttempted = new WeakSet();
         if (this.repeatTimer !== null) window.clearInterval(this.repeatTimer);
         this.repeatTimer = null;
@@ -577,7 +584,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 visible: 'REPEAT_NOT_OCCLUDED',
                 label: 'REPEAT_APPLY_LABEL',
             }[action]].name,
-            description: 'Active under the pointer, including during playback. Press Escape or close this notice to stop.',
+            description: 'Active inside the brush, including during playback. Set its diameter in sidebar Settings. Press Escape or close this notice to stop.',
             duration: 0,
             onClose: () => {
                 // A replaced notice can finish closing after the next mode has already started.
@@ -594,23 +601,29 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const attempted = this.repeatAttempted;
         const {
             annotations, frame, frameData, canvasIsReady, workspace, hiddenZLayers, jobInstance, onRepeatAction,
-            activeLabelID, selectedRectangleLabelID,
+            activeLabelID, selectedRectangleLabelID, repeatBrushSize,
         } = this.props;
         const label: Label | undefined = action === 'label' ?
             jobInstance.labels.find((candidate: Label) => candidate.id === activeLabelID) : undefined;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
-        if (!action || !pointer || this.repeatBusy || this.unmounted || !canvasIsReady || frameData?.deleted ||
+        if (this.unmounted) return;
+        const brushVisible = action && pointer && canvasIsReady && !frameData?.deleted &&
+            workspace === Workspace.STANDARD && document.hasFocus() &&
+            [CanvasMode.IDLE, CanvasMode.DRAW].includes(canvasInstance.mode()) &&
+            canvasInstance.html().contains(document.elementFromPoint(pointer.x, pointer.y));
+        const repeatBrush = brushVisible ? pointer : null;
+        if (this.state.repeatBrush !== repeatBrush) this.setState({ repeatBrush });
+        if (!brushVisible || this.repeatBusy ||
             (action === 'label' && !label) ||
-            workspace !== Workspace.STANDARD || !document.hasFocus() ||
-            ![CanvasMode.IDLE, CanvasMode.DRAW].includes(canvasInstance.mode()) ||
-            !canvasInstance.html().contains(document.elementFromPoint(pointer.x, pointer.y))) return;
+            !this.repeatBrushContext) return;
 
         this.repeatBusy = true;
         try {
             // Reproject screen coordinates each time: zoom, pan and frame fitting can move the image
             // under a stationary pointer. Ignore hover's active-handle retention for destructive actions.
             const [svgX, svgY] = canvasInstance.translateToSVG([pointer.x, pointer.y]);
-            const { offset } = canvasInstance.geometry;
+            const { offset, scale } = canvasInstance.geometry;
+            const radius = repeatBrushSize / (2 * scale);
             const candidates = annotations.filter((state) => (
                 !state.isGroundTruth && !state.hidden && !state.outside && state.objectType !== ObjectType.TAG &&
                 (action === 'label' || selectedRectangleLabelID === null ||
@@ -619,23 +632,20 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 (action === 'delete' || (!state.lock && (action === 'label' ? (
                     state.label.id !== label.id && state.shapeType !== ShapeType.SKELETON &&
                     !label.hasParent && (label.type === LabelType.ANY || label.type === String(state.shapeType))
-                ) : state.occluded !== (action === 'occluded'))))
+                ) : state.occluded !== (action === 'occluded')))) &&
+                repeatBrushHits(this.repeatBrushContext, state, svgX - offset, svgY - offset, radius)
             ));
-            // select returns one hit. Remove it from the candidates to reach overlapping annotations too.
+            // Apply to every intersecting annotation, including overlaps.
             while (candidates.length) {
-                const result = await jobInstance.annotations.select(candidates, svgX - offset, svgY - offset);
                 if (this.unmounted || this.repeatAction !== action || this.pointer !== pointer ||
                     (action === 'label' && this.props.activeLabelID !== activeLabelID) ||
                     this.repeatAttempted !== attempted || !document.hasFocus() ||
                     this.props.frame !== frame || this.props.annotations !== annotations ||
                     this.props.selectedRectangleLabelID !== selectedRectangleLabelID ||
+                    this.props.repeatBrushSize !== repeatBrushSize ||
                     this.props.hiddenZLayers !== hiddenZLayers || !this.props.canvasIsReady ||
                     ![CanvasMode.IDLE, CanvasMode.DRAW].includes(canvasInstance.mode())) break;
-                const state = result?.state;
-                if (!state) break;
-                candidates.splice(candidates.indexOf(state), 1);
-                if ([ShapeType.POLYLINE, ShapeType.POINTS].includes(state.shapeType) &&
-                    result.distance > MAX_DISTANCE_TO_OPEN_SHAPE) continue;
+                const state = candidates.shift();
                 this.repeatAttempted.add(state);
                 const finishFeedback = beginRepeatActionFeedback();
                 let applied = false;
@@ -1628,7 +1638,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     }
 
     public render(): JSX.Element {
-        const { repeatFeedback } = this.state;
+        const { repeatFeedback, repeatBrush } = this.state;
         const {
             currentZLayer,
             hiddenZLayers,
@@ -1705,6 +1715,18 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             <>
                 <GlobalHotKeys keyMap={subKeyMap(componentShortcuts, keyMap)} handlers={handlers} />
                 <CanvasTipsComponent ref={this.canvasTipsRef} />
+                {repeatBrush && (
+                    <div
+                        className='cvat-repeat-action-brush'
+                        aria-hidden='true'
+                        style={{
+                            left: repeatBrush.x,
+                            top: repeatBrush.y,
+                            width: this.props.repeatBrushSize,
+                            height: this.props.repeatBrushSize,
+                        }}
+                    />
+                )}
                 {repeatFeedback && (
                     <div
                         className='cvat-repeat-action-feedback'
