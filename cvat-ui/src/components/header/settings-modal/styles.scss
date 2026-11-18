@@ -36,6 +36,13 @@
     width: 100%;
 }
 
+.cvat-workspace-settings-magnifier-size,
+.cvat-workspace-settings-magnifier-scale {
+    display: block;
+    width: 100%;
+    margin: 4px 0 8px;
+}
+
 .cvat-workspace-settings-approx-poly-threshold {
     user-select: none;
 }

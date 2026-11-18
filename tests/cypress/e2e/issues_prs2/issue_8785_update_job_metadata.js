@@ -11,8 +11,8 @@ context('The UI remains stable even when the metadata request fails.', () => {
 
     before(() => {
         cy.prepareUserSession();
-        cy.checkDeletedFrameVisibility();
         cy.openTaskJob(taskName);
+        cy.checkDeletedFrameVisibility();
         cy.goToNextFrame(1);
     });
     after(() => {

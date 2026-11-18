@@ -739,6 +739,15 @@ Cypress.Commands.add('createSkeleton', (skeletonParameters) => {
     cy.checkObjectParameters(skeletonParameters, 'SKELETON');
 });
 
+Cypress.Commands.add('openSidebarSettings', () => {
+    cy.get('.cvat-objects-appearance-collapse').then(($settings) => {
+        if (!$settings.find('.ant-collapse-item-active').length) {
+            cy.wrap($settings).find('.ant-collapse-header').click();
+        }
+    });
+    cy.get('.cvat-objects-appearance-collapse-header').should('have.text', 'Settings');
+});
+
 Cypress.Commands.add('changeAppearance', (colorBy) => {
     cy.get('.cvat-appearance-color-by-radio-group').within(() => {
         cy.get('[type="radio"]').check(colorBy, { force: true });
@@ -1873,11 +1882,10 @@ Cypress.Commands.add('hideTooltips', () => {
 });
 
 Cypress.Commands.add('checkDeletedFrameVisibility', () => {
-    cy.openSettings();
+    cy.openSidebarSettings();
     cy.get('.cvat-workspace-settings-show-deleted').within(() => {
         cy.get('[type="checkbox"]').should('not.be.checked').check();
     });
-    cy.closeSettings();
 });
 
 Cypress.Commands.add('checkCsvFileContent', (expectedFileName, header, rowsCount, checkRow = null) => {

@@ -164,7 +164,7 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 ## Precision bounding-box controls
 
 - **Click to grab (off by default):** Hold the mouse button to drag or resize boxes by default.
-  Enable **Settings → Workspace → Click to grab bounding boxes** to click an active box body to
+  Enable **right sidebar → Settings → Click to grab bounding boxes** to click an active box body to
   pick it up, move the pointer without holding the mouse button, and click again to place it.
   The same interaction works with corner and edge handles for resizing. The setting is saved in
   the browser; traditional press-and-hold dragging remains available when it is enabled.
@@ -173,7 +173,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   Each side has an invisible grab area extending **6 screen pixels inside and outside** its border,
   independent of outline thickness and zoom. Hovering there shows a directional resize cursor,
   including on rotated boxes and images.
-  It is off by default and saved in the browser. Corner handles and moving the box body are unchanged;
+  It is off by default and saved in the browser. When enabled, midpoint handles are hidden and only
+  corner resize handles remain. Moving the box body is unchanged;
   side resizing also supports click-to-grab and `Esc` cancellation.
 - **Finer annotation controls:** 2D annotation outlines are 0.75 screen pixels wide, with a default
   control-point radius of 3 pixels. Adjust **Settings → Workspace → Control points size** to taste;
@@ -199,20 +200,26 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   track identity and attributes rather than deleting and recreating the annotation.
 
 Crosshairs and magnified borders are enabled by default and can be toggled in the right sidebar's
-**Appearance** section, next to **Outlined borders**. **Magnified borders on hover** and
-**Magnified borders while drawing/editing** are independent: the latter applies while drawing,
-moving, or resizing, including click-to-place edits and press-and-hold drags. **Crosshairs while
-editing bounding boxes** is a separate checkbox. These controls are available for 2D jobs.
+**Settings** section (formerly **Appearance**), next to **Outlined borders**.
+**Magnify box borders on hover** and **Magnify box borders while drawing or editing** are independent:
+the latter applies while drawing, moving, or resizing, including click-to-place edits and press-and-hold
+drags. **Show box-edge guides while editing** is a separate checkbox. These controls are available for 2D jobs.
 Existing saved magnifier preferences initially apply to both hover and drawing/editing.
 
-In the same section, **Border magnifier size** and **Border magnification** can be adjusted
+In the global **Settings → Workspace** tab, **Border magnifier size** and **Border magnification** can be adjusted
 independently. Each offers **Low**, **Medium (default)**, and **High**: strip thicknesses are
 16/32/48 screen pixels, and magnification is 2×/4×/8× perpendicular to each edge. Medium preserves
 the original appearance. Both choices are saved in the browser and retained when the magnifier
 is disabled; the controls are disabled only when both magnifier checkboxes are off. All these
-preferences are saved in the browser and no longer appear in **Settings → Workspace**.
+preferences are saved in the browser.
 
-**Next frame after placing an annotation** (off by default, 2D Standard workspace) is also in this
+The right sidebar's **Settings** section also contains **Player step**, **Player speed**, **Reset zoom**,
+**Smooth image**, **Show deleted frames**, **Click to grab bounding boxes**, and **Always show object details**,
+moved from the global Player/Workspace tabs. Existing values and browser persistence are unchanged.
+Player step sets the jump distance (2–1000 frames); reset zoom fits the image after changing frames.
+Smooth image interpolates pixels when zoomed in; object details can remain visible for inactive objects.
+
+**Advance to next frame after drawing** (off by default, 2D Standard workspace) is also in the sidebar
 section. When enabled, finishing a new shape moves to the next frame and restarts the same tool
 with the same label, shape type, and Shape/Track choice, as the `N` shortcut would. This covers
 manual drawing, class-strip boxes, scissors, and assisted/interactor results. Deleted frames are

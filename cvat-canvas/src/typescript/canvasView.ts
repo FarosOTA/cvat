@@ -1421,6 +1421,12 @@ export class CanvasViewImpl implements CanvasView, Listener {
 
     private selectize(value: boolean, shape: SVG.Element): void {
         const isSkeletonRect = shape.hasClass('cvat_canvas_skeleton_wrapping_rect');
+        let pointsExclude: string[] = [];
+        if (shape.type === 'image') {
+            pointsExclude = ['lt', 'rt', 'rb', 'lb', 't', 'r', 'b', 'l'];
+        } else if (shape.type === 'rect' && !isSkeletonRect && this.configuration.resizeFromSides) {
+            pointsExclude = ['t', 'r', 'b', 'l'];
+        }
         const mousedownHandler = (e: MouseEvent): void => {
             if (e.button !== 0) return;
             e.preventDefault();
@@ -1528,7 +1534,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 deepSelect: true,
                 pointSize: (2 * this.configuration.controlPointsSize) / this.geometry.scale,
                 rotationPoint: shape.type === 'rect' || shape.type === 'ellipse',
-                pointsExclude: shape.type === 'image' ? ['lt', 'rt', 'rb', 'lb', 't', 'r', 'b', 'l'] : [],
+                pointsExclude,
                 pointType(cx: number, cy: number): SVG.Circle {
                     const circle: SVG.Circle = this.nested
                         .circle(this.options.pointSize)

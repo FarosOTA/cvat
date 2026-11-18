@@ -22,9 +22,11 @@ interface Props {
     focusedObjectPadding: number;
     frameFitMargin: number;
     showAllInterpolationTracks: boolean;
-    showObjectsTextAlways: boolean;
+    cursorMagnifier: boolean;
+    cursorMagnifierHover: boolean;
+    cursorMagnifierSize: number;
+    cursorMagnifierScale: number;
     adaptiveZoom: boolean;
-    clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
     flashAnnotations: boolean;
@@ -41,10 +43,10 @@ interface Props {
     onChangeFrameFitMargin(margin: number): void;
     onChangeDefaultApproxPolyAccuracy(approxPolyAccuracy: number): void;
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
-    onSwitchShowingObjectsTextAlways(enabled: boolean): void;
+    onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
     onSwitchFlashAnnotations(enabled: boolean): void;
-    onSwitchRectanglePrecision(tool: 'clickToGrab' | 'clearFocusOnCanvasLeave' | 'resizeFromSides', enabled: boolean): void;
+    onSwitchRectanglePrecision(tool: 'clearFocusOnCanvasLeave' | 'resizeFromSides', enabled: boolean): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeTextFontSize(fontSize: number): void;
     onChangeControlPointsSize(pointsSize: number): void;
@@ -60,9 +62,11 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         focusedObjectPadding,
         frameFitMargin,
         showAllInterpolationTracks,
-        showObjectsTextAlways,
+        cursorMagnifier,
+        cursorMagnifierHover,
+        cursorMagnifierSize,
+        cursorMagnifierScale,
         adaptiveZoom,
-        clickToGrab,
         clearFocusOnCanvasLeave,
         resizeFromSides,
         flashAnnotations,
@@ -78,7 +82,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         onChangeFocusedObjectPadding,
         onChangeFrameFitMargin,
         onSwitchShowingInterpolatedTracks,
-        onSwitchShowingObjectsTextAlways,
+        onChangeBorderMagnifier,
         onSwitchAdaptiveZoom,
         onSwitchFlashAnnotations,
         onSwitchRectanglePrecision,
@@ -135,27 +139,39 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
                     <Text type='secondary'>
                         Drag within 6 screen pixels inside or outside an active box edge to resize that side.
                         A directional resize cursor marks the grab area, independently of outline thickness or zoom.
-                        Disabled by default. Corner handles and dragging the box body are unchanged.
+                        Disabled by default. When enabled, only corner handles are shown.
+                        Dragging the box body is unchanged.
                     </Text>
                 </Col>
             </Row>
             <Row className='cvat-player-setting'>
                 <Col span={24}>
-                    <Checkbox
-                        className='cvat-workspace-settings-click-to-grab'
-                        checked={clickToGrab}
-                        onChange={(event: CheckboxChangeEvent): void => {
-                            onSwitchRectanglePrecision('clickToGrab', event.target.checked);
-                        }}
+                    <Text type='secondary'>Border magnifier size</Text>
+                    <Select
+                        className='cvat-workspace-settings-magnifier-size'
+                        aria-label='Border magnifier size'
+                        disabled={!cursorMagnifier && !cursorMagnifierHover}
+                        value={cursorMagnifierSize}
+                        onChange={(value: number) => onChangeBorderMagnifier('cursorMagnifierSize', value)}
                     >
-                        Click to grab bounding boxes
-                    </Checkbox>
+                        <Select.Option value={16}>Low (16 px)</Select.Option>
+                        <Select.Option value={32}>Medium (default, 32 px)</Select.Option>
+                        <Select.Option value={48}>High (48 px)</Select.Option>
+                    </Select>
                 </Col>
                 <Col span={24}>
-                    <Text type='secondary'>
-                        Click to pick up a box or resize handle, then click again to place it.
-                        When disabled (default), hold the mouse button to drag.
-                    </Text>
+                    <Text type='secondary'>Border magnification</Text>
+                    <Select
+                        className='cvat-workspace-settings-magnifier-scale'
+                        aria-label='Border magnification'
+                        disabled={!cursorMagnifier && !cursorMagnifierHover}
+                        value={cursorMagnifierScale}
+                        onChange={(value: number) => onChangeBorderMagnifier('cursorMagnifierScale', value)}
+                    >
+                        <Select.Option value={2}>Low (2×)</Select.Option>
+                        <Select.Option value={4}>Medium (default, 4×)</Select.Option>
+                        <Select.Option value={8}>High (8×)</Select.Option>
+                    </Select>
                 </Col>
             </Row>
             <Row className='cvat-player-setting'>
@@ -250,24 +266,6 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
                     <Row>
                         <Text type='secondary'> Show hidden interpolated objects in the side panel</Text>
                     </Row>
-                </Col>
-            </Row>
-            <Row className='cvat-workspace-settings-show-text-always cvat-player-setting'>
-                <Col span={24}>
-                    <Checkbox
-                        className='cvat-text-color'
-                        checked={showObjectsTextAlways}
-                        onChange={(event: CheckboxChangeEvent): void => {
-                            onSwitchShowingObjectsTextAlways(event.target.checked);
-                        }}
-                    >
-                        Always show object details
-                    </Checkbox>
-                </Col>
-                <Col span={24}>
-                    <Text type='secondary'>
-                        Show text for an object on the canvas not only when the object is activated
-                    </Text>
                 </Col>
             </Row>
             <Row className='cvat-workspace-settings-text-settings cvat-player-setting'>

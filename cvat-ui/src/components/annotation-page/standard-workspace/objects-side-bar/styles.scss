@@ -775,6 +775,16 @@
     }
 }
 
+.cvat-annotation-settings-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    > .ant-checkbox-wrapper {
+        align-items: flex-start;
+    }
+}
+
 .cvat-context-menu-item.ant-menu-item {
     &:hover {
         background: $hover-menu-color;

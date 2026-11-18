@@ -22,15 +22,11 @@ context('Settings "Player step"', () => {
 
     describe(`Testing case "${caseId}"`, () => {
         it('Change player step ', () => {
-            cy.openSettings();
-            cy.get('.cvat-settings-modal').within(() => {
-                cy.contains('Player').click();
-                cy.get('.cvat-player-settings-step').within(() => {
-                    cy.get('[role="spinbutton"]').clear();
-                    cy.get('[role="spinbutton"]').type(countJumpStep);
-                });
+            cy.openSidebarSettings();
+            cy.get('.cvat-player-settings-step').within(() => {
+                cy.get('[role="spinbutton"]').clear();
+                cy.get('[role="spinbutton"]').type(countJumpStep);
             });
-            cy.closeSettings();
 
             // get and save start frame
             cy.get('.cvat-player-frame-selector').within(() => {

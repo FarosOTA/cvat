@@ -56,7 +56,7 @@ context('Correct behaviour of fit when navigating between frames with different 
         cy.get('#cvat_canvas_background').then(([el]) => {
             rectBefore = el.getBoundingClientRect();
         });
-        cy.openSettings();
+        cy.openSidebarSettings();
         if (resetZoom) {
             cy.get('.cvat-player-settings-reset-zoom-checkbox').within(() => {
                 cy.get('[type="checkbox"]').check();
@@ -68,7 +68,6 @@ context('Correct behaviour of fit when navigating between frames with different 
                 cy.get('[type="checkbox"]').should('not.be.checked');
             });
         }
-        cy.closeSettings();
         cy.goCheckFrameNumber(1);
         cy.get('#cvat_canvas_background').then(([el]) => {
             const rectAfter = el.getBoundingClientRect();

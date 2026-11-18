@@ -5,7 +5,7 @@
 
 import React, { Dispatch } from 'react';
 import { AnyAction } from 'redux';
-import { connect } from 'react-redux';
+import { connect, useDispatch, useSelector } from 'react-redux';
 import Text from 'antd/lib/typography/Text';
 import Radio, { RadioChangeEvent } from 'antd/lib/radio';
 import Slider from 'antd/lib/slider';
@@ -13,10 +13,13 @@ import Checkbox, { CheckboxChangeEvent } from 'antd/lib/checkbox';
 import Collapse from 'antd/lib/collapse';
 import Button from 'antd/lib/button';
 import Select from 'antd/lib/select';
+import InputNumber from 'antd/lib/input-number';
 
 import ColorPicker from 'components/annotation-page/standard-workspace/objects-side-bar/color-picker';
 import { ColorizeIcon } from 'icons';
-import { ColorBy, CombinedState, Workspace } from 'reducers';
+import {
+    ColorBy, CombinedState, FrameSpeed, Workspace,
+} from 'reducers';
 import { DimensionType, Job } from 'cvat-core-wrapper';
 import { OrientationVisibility } from 'cvat-canvas3d-wrapper';
 import { collapseAppearance as collapseAppearanceAction } from 'actions/annotation-actions';
@@ -29,13 +32,19 @@ import {
     changeShowProjections as changeShowProjectionsAction,
     changeOrientationVisibility as changeOrientationVisibilityAction,
     switchRectanglePrecision,
-    changeBorderMagnifier,
     switchNextFrameAfterPlacing,
+    changeFrameStep,
+    changeFrameSpeed,
+    switchResetZoom,
+    switchSmoothImage,
+    switchShowingDeletedFrames,
+    switchShowingObjectsTextAlways,
 } from 'actions/settings-actions';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
 import { ShortcutScope } from 'utils/enums';
 import { subKeyMap } from 'utils/component-subkeymap';
+import { clamp } from 'utils/math';
 
 const componentShortcuts = {
     SWITCH_COLOR_BY_APPEARANCE: {
@@ -64,8 +73,6 @@ interface StateToProps {
     editingCrosshair: boolean;
     cursorMagnifier: boolean;
     cursorMagnifierHover: boolean;
-    cursorMagnifierSize: number;
-    cursorMagnifierScale: number;
     nextFrameAfterPlacing: boolean;
     showBitmap: boolean;
     showProjections: boolean;
@@ -85,9 +92,8 @@ interface DispatchToProps {
     changeShowProjections(event: CheckboxChangeEvent): void;
     changeOrientationVisibility(orientationVisibility: Partial<OrientationVisibility>): void;
     onSwitchRectanglePrecision(
-        tool: 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover', enabled: boolean,
+        tool: 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover' | 'clickToGrab', enabled: boolean,
     ): void;
-    onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
     onSwitchNextFrameAfterPlacing(enabled: boolean): void;
 }
 
@@ -104,7 +110,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 orientationVisibility,
             },
             workspace: {
-                editingCrosshair, cursorMagnifier, cursorMagnifierHover, cursorMagnifierSize, cursorMagnifierScale,
+                editingCrosshair, cursorMagnifier, cursorMagnifierHover,
                 nextFrameAfterPlacing,
             },
         },
@@ -121,8 +127,6 @@ function mapStateToProps(state: CombinedState): StateToProps {
         editingCrosshair,
         cursorMagnifier,
         cursorMagnifierHover,
-        cursorMagnifierSize,
-        cursorMagnifierScale,
         nextFrameAfterPlacing,
         showBitmap,
         showProjections,
@@ -136,7 +140,6 @@ function mapStateToProps(state: CombinedState): StateToProps {
 function mapDispatchToProps(dispatch: Dispatch<AnyAction>): DispatchToProps {
     return {
         onSwitchRectanglePrecision: (tool, enabled) => dispatch(switchRectanglePrecision(tool, enabled)),
-        onChangeBorderMagnifier: (setting, value) => dispatch(changeBorderMagnifier(setting, value)),
         onSwitchNextFrameAfterPlacing: (enabled) => dispatch(switchNextFrameAfterPlacing(enabled)),
         collapseAppearance(): void {
             dispatch(collapseAppearanceAction());
@@ -178,10 +181,7 @@ function AppearanceBlock(props: Props): JSX.Element {
         editingCrosshair,
         cursorMagnifier,
         cursorMagnifierHover,
-        cursorMagnifierSize,
-        cursorMagnifierScale,
         onSwitchRectanglePrecision,
-        onChangeBorderMagnifier,
         nextFrameAfterPlacing,
         onSwitchNextFrameAfterPlacing,
         workspace,
@@ -199,6 +199,14 @@ function AppearanceBlock(props: Props): JSX.Element {
         jobInstance,
         keyMap,
     } = props;
+
+    const dispatch = useDispatch();
+    const {
+        frameStep, frameSpeed, resetZoom, smoothImage, showDeletedFrames,
+    } = useSelector(
+        (state: CombinedState) => state.settings.player,
+    );
+    const { clickToGrab, showObjectsTextAlways } = useSelector((state: CombinedState) => state.settings.workspace);
 
     const is2D = jobInstance.dimension === DimensionType.DIMENSION_2D;
     const is3D = jobInstance.dimension === DimensionType.DIMENSION_3D;
@@ -229,12 +237,12 @@ function AppearanceBlock(props: Props): JSX.Element {
             items={[{
                 label: (
                     <Text strong className='cvat-objects-appearance-collapse-header'>
-                        Appearance
+                        Settings
                     </Text>
                 ),
                 key: 'appearance',
                 children: (
-                    <div className='cvat-objects-appearance-content cvat-appearance-block'>
+                    <div className='cvat-objects-appearance-content cvat-appearance-block cvat-annotation-settings-block'>
                         <GlobalHotKeys keyMap={subKeyMap(componentShortcuts, keyMap)} handlers={handlers} />
                         <Text type='secondary'>Color by</Text>
                         <Radio.Group
@@ -289,7 +297,7 @@ function AppearanceBlock(props: Props): JSX.Element {
                                     onSwitchNextFrameAfterPlacing(event.target.checked);
                                 }}
                             >
-                                Next frame after placing an annotation
+                                Advance to next frame after drawing
                             </Checkbox>
                         )}
                         {is2D && (
@@ -301,7 +309,7 @@ function AppearanceBlock(props: Props): JSX.Element {
                                         onSwitchRectanglePrecision('cursorMagnifierHover', event.target.checked);
                                     }}
                                 >
-                                    Magnified borders on hover
+                                    Magnify box borders on hover
                                 </Checkbox>
                                 <Checkbox
                                     className='cvat-appearance-magnifier-editing-checkbox'
@@ -310,7 +318,7 @@ function AppearanceBlock(props: Props): JSX.Element {
                                         onSwitchRectanglePrecision('cursorMagnifier', event.target.checked);
                                     }}
                                 >
-                                    Magnified borders while drawing/editing
+                                    Magnify box borders while drawing or editing
                                 </Checkbox>
                                 <Checkbox
                                     className='cvat-appearance-editing-crosshair-checkbox'
@@ -319,34 +327,79 @@ function AppearanceBlock(props: Props): JSX.Element {
                                         onSwitchRectanglePrecision('editingCrosshair', event.target.checked);
                                     }}
                                 >
-                                    Crosshairs while editing bounding boxes
+                                    Show box-edge guides while editing
                                 </Checkbox>
-                                <Text type='secondary'>Border magnifier size</Text>
-                                <Select
-                                    className='cvat-appearance-magnifier-size'
-                                    aria-label='Border magnifier size'
-                                    disabled={!cursorMagnifier && !cursorMagnifierHover}
-                                    value={cursorMagnifierSize}
-                                    onChange={(value: number) => onChangeBorderMagnifier('cursorMagnifierSize', value)}
+                                <Checkbox
+                                    className='cvat-workspace-settings-click-to-grab'
+                                    title='Click to pick up a box or resize handle, then click again to place it.'
+                                    checked={clickToGrab}
+                                    onChange={(event: CheckboxChangeEvent) => {
+                                        onSwitchRectanglePrecision('clickToGrab', event.target.checked);
+                                    }}
                                 >
-                                    <Select.Option value={16}>Low (16 px)</Select.Option>
-                                    <Select.Option value={32}>Medium (default, 32 px)</Select.Option>
-                                    <Select.Option value={48}>High (48 px)</Select.Option>
-                                </Select>
-                                <Text type='secondary'>Border magnification</Text>
-                                <Select
-                                    className='cvat-appearance-magnifier-scale'
-                                    aria-label='Border magnification'
-                                    disabled={!cursorMagnifier && !cursorMagnifierHover}
-                                    value={cursorMagnifierScale}
-                                    onChange={(value: number) => onChangeBorderMagnifier('cursorMagnifierScale', value)}
-                                >
-                                    <Select.Option value={2}>Low (2×)</Select.Option>
-                                    <Select.Option value={4}>Medium (default, 4×)</Select.Option>
-                                    <Select.Option value={8}>High (8×)</Select.Option>
-                                </Select>
+                                    Click to grab bounding boxes
+                                </Checkbox>
                             </>
                         )}
+                        <Text type='secondary'>Player step</Text>
+                        <InputNumber
+                            className='cvat-player-settings-step'
+                            aria-label='Player step'
+                            title='Number of frames skipped by the backward and forward jump controls'
+                            min={2}
+                            max={1000}
+                            value={frameStep}
+                            onChange={(value: number | null) => {
+                                if (value !== null) dispatch(changeFrameStep(Math.floor(clamp(value, 2, 1000))));
+                            }}
+                        />
+                        <Text type='secondary'>Player speed</Text>
+                        <Select
+                            className='cvat-player-settings-speed-select'
+                            aria-label='Player speed'
+                            value={frameSpeed}
+                            onChange={(value: FrameSpeed) => dispatch(changeFrameSpeed(value))}
+                            options={[
+                                { value: FrameSpeed.Fastest, label: 'Fastest' },
+                                { value: FrameSpeed.Fast, label: 'Fast' },
+                                { value: FrameSpeed.Usual, label: 'Usual' },
+                                { value: FrameSpeed.Slow, label: 'Slow' },
+                                { value: FrameSpeed.Slower, label: 'Slower' },
+                                { value: FrameSpeed.Slowest, label: 'Slowest' },
+                            ]}
+                        />
+                        <Checkbox
+                            className='cvat-player-settings-reset-zoom-checkbox'
+                            title='Fit the image after changing frames'
+                            checked={resetZoom}
+                            onChange={(event) => dispatch(switchResetZoom(event.target.checked))}
+                        >
+                            Reset zoom
+                        </Checkbox>
+                        <Checkbox
+                            className='cvat-player-settings-smooth-image-checkbox'
+                            title='Smooth image pixels when zoomed in'
+                            checked={smoothImage}
+                            onChange={(event) => dispatch(switchSmoothImage(event.target.checked))}
+                        >
+                            Smooth image
+                        </Checkbox>
+                        <Checkbox
+                            className='cvat-workspace-settings-show-deleted'
+                            title='Allow navigation to deleted frames so they can be restored'
+                            checked={showDeletedFrames}
+                            onChange={(event) => dispatch(switchShowingDeletedFrames(event.target.checked))}
+                        >
+                            Show deleted frames
+                        </Checkbox>
+                        <Checkbox
+                            className='cvat-workspace-settings-show-text-always'
+                            title='Show object details on the canvas even when the object is inactive'
+                            checked={showObjectsTextAlways}
+                            onChange={(event) => dispatch(switchShowingObjectsTextAlways(event.target.checked))}
+                        >
+                            Always show object details
+                        </Checkbox>
                         {is3D && (
                             <div className='cvat-appearance-cuboid-orientation-checkboxes'>
                                 <Checkbox

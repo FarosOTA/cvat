@@ -18,7 +18,7 @@ context('Settings. "Smooth image" option.', () => {
     describe(`Testing case "${caseId}"`, () => {
         it('Check "Smooth image" option.', () => {
             cy.get('#cvat_canvas_background').should('not.have.class', 'cvat_canvas_pixelized');
-            cy.openSettings();
+            cy.openSidebarSettings();
             cy.get('.cvat-player-settings-smooth-image-checkbox').find('[type="checkbox"]').should('be.checked');
             cy.get('.cvat-player-settings-smooth-image-checkbox').find('[type="checkbox"]').click();
             cy.get('.cvat-player-settings-smooth-image-checkbox').find('[type="checkbox"]').should('not.be.checked');

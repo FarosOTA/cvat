@@ -11,7 +11,7 @@ import {
     changeFocusedObjectPadding,
     changeFrameFitMargin,
     switchShowingInterpolatedTracks,
-    switchShowingObjectsTextAlways,
+    changeBorderMagnifier,
     switchIntelligentPolygonCrop,
     changeDefaultApproxPolyAccuracy,
     switchTextFontSize,
@@ -34,10 +34,12 @@ interface StateToProps {
     focusedObjectPadding: number;
     frameFitMargin: number;
     showAllInterpolationTracks: boolean;
-    showObjectsTextAlways: boolean;
+    cursorMagnifier: boolean;
+    cursorMagnifierHover: boolean;
+    cursorMagnifierSize: number;
+    cursorMagnifierScale: number;
     defaultApproxPolyAccuracy: number;
     adaptiveZoom: boolean;
-    clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
     flashAnnotations: boolean;
@@ -55,10 +57,10 @@ interface DispatchToProps {
     onChangeFocusedObjectPadding(margin: number): void;
     onChangeFrameFitMargin(margin: number): void;
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
-    onSwitchShowingObjectsTextAlways(enabled: boolean): void;
+    onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
     onSwitchFlashAnnotations(enabled: boolean): void;
-    onSwitchRectanglePrecision(tool: 'clickToGrab' | 'clearFocusOnCanvasLeave' | 'resizeFromSides', enabled: boolean): void;
+    onSwitchRectanglePrecision(tool: 'clearFocusOnCanvasLeave' | 'resizeFromSides', enabled: boolean): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeDefaultApproxPolyAccuracy(approxPolyAccuracy: number): void;
     onChangeTextFontSize(fontSize: number): void;
@@ -76,9 +78,11 @@ function mapStateToProps(state: CombinedState): StateToProps {
         focusedObjectPadding,
         frameFitMargin,
         showAllInterpolationTracks,
-        showObjectsTextAlways,
+        cursorMagnifier,
+        cursorMagnifierHover,
+        cursorMagnifierSize,
+        cursorMagnifierScale,
         adaptiveZoom,
-        clickToGrab,
         clearFocusOnCanvasLeave,
         resizeFromSides,
         flashAnnotations,
@@ -97,9 +101,11 @@ function mapStateToProps(state: CombinedState): StateToProps {
         focusedObjectPadding,
         frameFitMargin,
         showAllInterpolationTracks,
-        showObjectsTextAlways,
+        cursorMagnifier,
+        cursorMagnifierHover,
+        cursorMagnifierSize,
+        cursorMagnifierScale,
         adaptiveZoom,
-        clickToGrab,
         clearFocusOnCanvasLeave,
         resizeFromSides,
         flashAnnotations,
@@ -119,7 +125,7 @@ const mapDispatchToProps: DispatchToProps = {
     onChangeFocusedObjectPadding: changeFocusedObjectPadding,
     onChangeFrameFitMargin: changeFrameFitMargin,
     onSwitchShowingInterpolatedTracks: switchShowingInterpolatedTracks,
-    onSwitchShowingObjectsTextAlways: switchShowingObjectsTextAlways,
+    onChangeBorderMagnifier: changeBorderMagnifier,
     onSwitchAdaptiveZoom: switchAdaptiveZoom,
     onSwitchFlashAnnotations: switchFlashAnnotations,
     onSwitchRectanglePrecision: switchRectanglePrecision,

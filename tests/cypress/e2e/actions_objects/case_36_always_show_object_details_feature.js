@@ -66,14 +66,10 @@ context('Always show object details feature', () => {
             checkShowDetails('not.exist', 'not.exist');
 
             // set checkbox show text always
-            cy.openSettings();
-            cy.get('.cvat-settings-modal').within(() => {
-                cy.contains('Workspace').click();
-                cy.get('.cvat-workspace-settings-show-text-always').within(() => {
-                    cy.get('[type="checkbox"]').check();
-                });
+            cy.openSidebarSettings();
+            cy.get('.cvat-workspace-settings-show-text-always').within(() => {
+                cy.get('[type="checkbox"]').check();
             });
-            cy.closeSettings();
             checkShowDetails('be.visible', 'be.visible');
         });
     });

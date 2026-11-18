@@ -17,18 +17,14 @@ context('Settings. "Player speed" option.', () => {
     let durationFast = 0;
 
     function changePlayerSpeed(speed) {
-        cy.openSettings();
-        cy.get('.cvat-player-settings-speed').within(() => {
-            cy.get('.cvat-player-settings-speed-select').click();
-            // eslint-disable-next-line cypress/no-unnecessary-waiting
-            cy.wait(300); // Wait for the dropdown menu transition.
-        });
-        cy.get(`.cvat-player-settings-speed-${speed}`).click();
+        cy.openSidebarSettings();
+        cy.get('.cvat-player-settings-speed-select').click();
+        const title = speed.charAt(0).toUpperCase() + speed.slice(1);
+        cy.get(`.ant-select-dropdown:visible .ant-select-item-option[title="${title}"]`).click();
         cy.get('.cvat-player-settings-speed-select').should(
             'contain.text',
-            speed.charAt(0).toUpperCase() + speed.slice(1),
+            title,
         );
-        cy.closeSettings();
     }
 
     before(() => {

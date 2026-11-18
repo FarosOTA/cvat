@@ -190,14 +190,10 @@ context('Settings. Text size/position. Text labels content.', () => {
             });
 
             // Always show object details
-            cy.openSettings();
-            cy.get('.cvat-settings-modal').within(() => {
-                cy.contains('Workspace').click();
-                cy.get('.cvat-workspace-settings-show-text-always').within(() => {
-                    cy.get('[type="checkbox"]').check();
-                });
+            cy.openSidebarSettings();
+            cy.get('.cvat-workspace-settings-show-text-always').within(() => {
+                cy.get('[type="checkbox"]').check();
             });
-            cy.closeSettings();
         });
     });
 
@@ -205,6 +201,7 @@ context('Settings. Text size/position. Text labels content.', () => {
         it('Text font size.', () => {
             cy.get('.cvat_canvas_text').should('have.attr', 'style', 'font-size: 14px;');
             cy.openSettings();
+            cy.get('.cvat-settings-modal').contains('Workspace').click();
 
             // Change the text size to 16
             cy.get('.cvat-workspace-settings-text-size').find('input').should('have.attr', 'value', '14');

@@ -32,14 +32,14 @@ context('Saving setting to local storage.', () => {
     }
 
     function setupAndSaveSettings(check) {
-        cy.openSettings();
         const method = check ? 'check' : 'uncheck';
-        cy.contains('[role="tab"]', 'Player').click();
-        cy.get('.cvat-player-settings-reset-zoom').find('[type="checkbox"]')[method]();
-        cy.contains('[role="tab"]', 'Workspace').click();
-        cy.get('.cvat-workspace-settings-show-interpolated').find('[type="checkbox"]')[method]();
+        cy.openSidebarSettings();
+        cy.get('.cvat-player-settings-reset-zoom-checkbox').find('[type="checkbox"]')[method]();
         cy.get('.cvat-workspace-settings-show-text-always').find('[type="checkbox"]')[method]();
         cy.get('.cvat-workspace-settings-click-to-grab').find('[type="checkbox"]')[method]();
+        cy.openSettings();
+        cy.contains('[role="tab"]', 'Workspace').click();
+        cy.get('.cvat-workspace-settings-show-interpolated').find('[type="checkbox"]')[method]();
         cy.get('.cvat-workspace-settings-clear-focus-on-canvas-leave').find('[type="checkbox"]')[method]();
         cy.get('.cvat-workspace-settings-resize-from-sides').find('[type="checkbox"]')[method]();
         cy.closeSettings();
@@ -50,10 +50,11 @@ context('Saving setting to local storage.', () => {
     }
 
     function testCheckedSettings(checked = false) {
-        cy.openSettings();
-        cy.contains('[role="tab"]', 'Player').click();
+        cy.openSidebarSettings();
         for (const ws of [
-            '.cvat-player-settings-reset-zoom',
+            '.cvat-player-settings-reset-zoom-checkbox',
+            '.cvat-workspace-settings-show-text-always',
+            '.cvat-workspace-settings-click-to-grab',
         ]) {
             if (checked) {
                 cy.get(ws).find('[type="checkbox"]').should('be.checked');
@@ -62,11 +63,10 @@ context('Saving setting to local storage.', () => {
             }
         }
 
+        cy.openSettings();
         cy.contains('[role="tab"]', 'Workspace').click();
         for (const ws of [
             '.cvat-workspace-settings-show-interpolated',
-            '.cvat-workspace-settings-show-text-always',
-            '.cvat-workspace-settings-click-to-grab',
             '.cvat-workspace-settings-clear-focus-on-canvas-leave',
             '.cvat-workspace-settings-resize-from-sides',
         ]) {

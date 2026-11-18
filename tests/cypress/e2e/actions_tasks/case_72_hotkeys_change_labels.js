@@ -33,20 +33,16 @@ context('Hotkeys to change labels feature.', () => {
     let secondLabelCurrentVal = '';
 
     function testCheckingAlwaysShowObjectDetails(check) {
-        cy.openSettings();
-        cy.get('.cvat-settings-modal').within(() => {
-            cy.contains('Workspace').click();
-            cy.get('.cvat-workspace-settings-show-text-always').within(() => {
-                if (check) {
-                    cy.get('[type="checkbox"]').check();
-                    cy.get('[type="checkbox"]').should('be.checked');
-                } else {
-                    cy.get('[type="checkbox"]').uncheck();
-                    cy.get('[type="checkbox"]').should('not.be.checked');
-                }
-            });
+        cy.openSidebarSettings();
+        cy.get('.cvat-workspace-settings-show-text-always').within(() => {
+            if (check) {
+                cy.get('[type="checkbox"]').check();
+                cy.get('[type="checkbox"]').should('be.checked');
+            } else {
+                cy.get('[type="checkbox"]').uncheck();
+                cy.get('[type="checkbox"]').should('not.be.checked');
+            }
         });
-        cy.closeSettings();
     }
 
     before(() => {
