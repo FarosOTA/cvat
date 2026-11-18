@@ -185,6 +185,10 @@ const defaultState: AnnotationState = {
     propagate: {
         visible: false,
     },
+    labelReplacement: {
+        sourceLabelID: null,
+        targetLabelID: null,
+    },
     rectangleTrack: {
         propagation: {
             mode: 'off',
@@ -334,6 +338,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.canvas,
                     instance: canvas,
                 },
+                labelReplacement: { ...defaultState.labelReplacement },
                 rectangleTrack: {
                     propagation: {
                         ...defaultState.rectangleTrack.propagation,
@@ -686,6 +691,12 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         ...defaultState.canvas.contextMenu,
                     },
                 },
+            };
+        }
+        case AnnotationActionTypes.SET_LABEL_REPLACEMENT: {
+            return {
+                ...state,
+                labelReplacement: { ...state.labelReplacement, ...action.payload },
             };
         }
         case AnnotationActionTypes.SET_RECTANGLE_TRACK_PROPAGATION: {

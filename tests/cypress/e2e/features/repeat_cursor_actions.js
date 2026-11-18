@@ -41,7 +41,7 @@ context('Repeat cursor actions', () => {
                         points,
                         type: 'rectangle',
                         label_id: body.results.find((label) => (
-                            label.name === (frame === 3 && index === 1 ? 'other' : 'object')
+                            label.name === ([0, 3].includes(frame) && index === 1 ? 'other' : 'object')
                         )).id,
                         occluded: frame === 3 && index === 1,
                         outside: false,
@@ -87,6 +87,13 @@ context('Repeat cursor actions', () => {
         });
     }
 
+    function selectReplacement(source, target) {
+        cy.contains('[role="tab"]', 'Label Replacement').click();
+        cy.get('#cvat-label-replacement-current').type(`${source}{enter}`);
+        cy.get('#cvat-label-replacement-new').type(`${target}{enter}`);
+        cy.contains('[role="tab"]', 'Objects').click();
+    }
+
     it('uses the sidebar brush diameter only while a repeat mode is active', () => {
         cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
         cy.get('.cvat_canvas_shape').should('have.length', 3);
@@ -124,23 +131,32 @@ context('Repeat cursor actions', () => {
         cy.get('.cvat_canvas_shape').first().should('not.have.class', 'cvat_canvas_shape_occluded');
     });
 
-    it('applies the top bar label to overlaps, follows label changes and stops with Escape', () => {
+    it('replaces only the source label in the brush, independently of the top bar, and stops with Escape', () => {
         cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
         cy.get('.cvat_canvas_shape').should('have.length', 3);
-        cy.get('.cvat-rectangle-label-button[aria-label="Draw replacement"]').click();
-        cy.get('.cvat-rectangle-label-button[aria-label="Draw replacement"]')
+        selectReplacement('object', 'replacement');
+        cy.get('.cvat-rectangle-label-button[aria-label="Draw other"]').click();
+        cy.get('.cvat-rectangle-label-button[aria-label="Draw other"]')
             .should('have.attr', 'aria-pressed', 'true');
         pointAtOverlap();
         shortcut('L', { keyCode: 76, which: 76, shiftKey: true });
         cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
-            .filter('[title="replacement"]').should('have.length', 2);
+            .filter('[title="replacement"]').should('have.length', 1);
+        cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
+            .filter('[title="other"]').should('have.length', 1);
+        cy.get('.cvat-repeat-action-feedback').should('not.exist');
         shortcut('f', { keyCode: 70, which: 70 });
         cy.get('.cvat-player-frame-selector input').should('have.value', '1');
         cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
             .filter('[title="replacement"]').should('have.length', 2);
 
-        // Selecting another class must affect already visited objects without restarting repeat mode.
+        // Top-bar selection must not change the replacement pair.
         shortcut('1', { keyCode: 49, which: 49 });
+        cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
+            .filter('[title="replacement"]').should('have.length', 2);
+        // Changing the sidebar pair affects already visited objects without restarting repeat mode.
+        selectReplacement('replacement', 'object');
+        pointAtOverlap();
         cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
             .filter('[title="object"]').should('have.length', 3);
         shortcut('Escape', { keyCode: 27, which: 27 });
@@ -151,7 +167,7 @@ context('Repeat cursor actions', () => {
             cy.request(`/api/labels?task_id=${taskId}`).then(({ body: labels }) => {
                 const replacement = labels.results.find((label) => label.name === 'replacement').id;
                 expect(body.shapes.filter((shape) => shape.label_id === replacement && shape.frame === 0))
-                    .to.have.length(2);
+                    .to.have.length(1);
                 expect(body.shapes.filter((shape) => shape.label_id === replacement && shape.frame > 0))
                     .to.have.length(0);
             });
@@ -164,13 +180,12 @@ context('Repeat cursor actions', () => {
         pointAtOverlap();
         shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
         cy.get('.cvat_canvas_shape_occluded').should('have.length', 2);
-        cy.get('.cvat-repeat-action-feedback').should('contain.text', 'Applied')
-            .and('contain.text', 'Marked occluded · object #').and('contain.text', 'Frame 0');
+        cy.get('.cvat-repeat-action-feedback').should('not.exist');
         shortcut('Q', {
             keyCode: 81, which: 81, shiftKey: true, altKey: true,
         });
         cy.get('.cvat_canvas_shape_occluded').should('not.exist');
-        cy.get('.cvat-repeat-action-feedback').should('contain.text', 'Marked not occluded · object #');
+        cy.get('.cvat-repeat-action-feedback').should('not.exist');
         shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
         cy.get('.cvat_canvas_shape_occluded').should('have.length', 2);
         shortcut('f', { keyCode: 70, which: 70 });
@@ -188,8 +203,7 @@ context('Repeat cursor actions', () => {
         pointAtOverlap();
         shortcut('Backspace', { keyCode: 8, which: 8, shiftKey: true });
         cy.get('.cvat_canvas_shape').should('have.length', 1);
-        cy.get('.cvat-repeat-action-feedback').should('contain.text', 'Deleted · object #')
-            .and('contain.text', 'Frame 1');
+        cy.get('.cvat-repeat-action-feedback').should('not.exist');
         shortcut('f', { keyCode: 70, which: 70 });
         cy.get('.cvat-player-frame-selector input').should('have.value', '2');
         cy.get('.cvat_canvas_shape').should('have.length', 1);

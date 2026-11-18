@@ -6,7 +6,7 @@
 import { AnyAction, Store } from 'redux';
 import { ThunkAction, ThunkDispatch } from 'utils/redux';
 import isAbleToChangeFrame from 'utils/is-able-to-change-frame';
-import { waitForRepeatActionFeedback } from 'utils/repeat-action-feedback';
+import { waitForRepeatAction } from 'utils/repeat-action';
 import { CanvasMode as Canvas3DMode } from 'cvat-canvas3d-wrapper';
 import {
     RectDrawingMethod, CuboidDrawingMethod, Canvas, CanvasMode as Canvas2DMode, CanvasHistorySource,
@@ -174,6 +174,7 @@ export enum AnnotationActionTypes {
     UPDATE_BRUSH_TOOLS_CONFIG = 'UPDATE_BRUSH_TOOLS_CONFIG',
     HIGHLIGHT_CONFLICT = 'HIGHLIGHT_CONFCLICT',
     HOVERED_CHAPTER = 'HOVERED_CHAPTER',
+    SET_LABEL_REPLACEMENT = 'SET_LABEL_REPLACEMENT',
     SET_RECTANGLE_TRACK_PROPAGATION = 'SET_RECTANGLE_TRACK_PROPAGATION',
     SET_RECTANGLE_TRACK_PENDING_ACTIVATION = 'SET_RECTANGLE_TRACK_PENDING_ACTIVATION',
     SET_CONTINUED_TRACK = 'SET_CONTINUED_TRACK',
@@ -555,6 +556,15 @@ export function switchPropagateVisibility(visible: boolean): AnyAction {
     };
 }
 
+export function setLabelReplacement(
+    labels: Partial<CombinedState['annotation']['labelReplacement']>,
+): AnyAction {
+    return {
+        type: AnnotationActionTypes.SET_LABEL_REPLACEMENT,
+        payload: labels,
+    };
+}
+
 export function setRectangleTrackPropagation(
     settings: Partial<CombinedState['annotation']['rectangleTrack']['propagation']>,
 ): AnyAction {
@@ -865,9 +875,8 @@ export function changeFrameAsync(
                 Math.round(1000 / frameSpeed) - currentTime + (state.annotation.player.frame.changeTime as number),
             );
 
-            // Keep the source frame visible through an in-flight repeat edit and its confirmation.
-            // Fetch afterwards so track states include the completed edit.
-            await waitForRepeatActionFeedback();
+            // Fetch after any in-flight repeat edit so track states include the completed edit.
+            await waitForRepeatAction();
             if (receiveAnnotationsParameters().jobInstance !== job) return;
             const { states, previousFrameBoxes, history } = await fetchAnnotations(toFrame);
 

@@ -222,13 +222,17 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 - **Repeat cursor actions (2D standard workspace):** `Shift+Backspace` toggles **Repeat delete**,
   `Shift+Q` toggles **Repeat mark occluded**, and `Alt+Shift+Q` (Option on macOS) toggles
   **Repeat mark not occluded**. `Shift+L` toggles **Repeat apply label**, which uses the currently
-  selected top-bar class, including changes to that selection while the mode is active. It respects
-  object locks and skips objects already using the label, incompatible shape types, and skeletons.
+  configured **Current label → New label** pair in the sidebar's **Label Replacement** pane.
+  Select both labels before starting; only annotations with **Current label** that intersect the
+  brush are changed to **New label**. Other labels are untouched, regardless of the top-bar class.
+  Changing either selection while the mode is active updates the replacement pair. The selections
+  reset when opening another job. It respects object locks and skips incompatible shape types,
+  skeletons, and tags; choosing the same source and destination does not edit anything.
   These shortcuts are configurable in **Settings → Shortcuts**.
   Only one repeat mode is active at a time; press its shortcut again, press `Esc`, or close its
   persistent notice to stop. With a class selected in the top label bar, repeat deletion and occlusion
   target only annotations of that class; with no class selected, they target all classes.
-  Repeat apply label uses the selected class as the destination, not as a filter on existing labels.
+  Repeat apply label uses its own source and destination selections, not the top-bar class.
   Only these repeat modes use a circular brush. Set **Repeat brush diameter (px)** in the right
   sidebar's **Settings** section (1–500 px, default 50 px, remembered with your workspace settings).
   Its visible footprint stays the same size on screen when zooming; ordinary selection, drawing,
@@ -240,11 +244,9 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   the flag explicitly rather than toggling it and respect object locks. Hidden objects/layers,
   outside objects, tags, and ground-truth overlays are excluded. Actions pause outside the canvas,
   while the window is unfocused, and while an edit is in progress. Repeat actions do not trigger
-  auto advance on modification. A pointer-side **Applied** badge confirms successful edits with the
-  action, class, object ID, and source frame. It remains visible for 1.2 seconds after the latest edit,
-  including across frame changes. Navigation waits for any in-flight repeat edit and holds its
-  confirmation on the source frame for 350 ms; playback remains engaged but briefly slows on edited
-  frames. Leaving the annotation workspace ends the mode.
+  auto advance on modification. Repeat edits do not show an **Applied** confirmation badge or add a
+  confirmation delay. Navigation still waits for any in-flight repeat edit before changing frames.
+  Leaving the annotation workspace ends the mode.
 - **Outlined borders:** With **Outlined borders** on, the translucent fill inside shapes (controlled by
   the opacity sliders) uses the outline color.
 - **Optional handles and dimensions:** Sidebar **Settings → Show corner control points** (on by default)

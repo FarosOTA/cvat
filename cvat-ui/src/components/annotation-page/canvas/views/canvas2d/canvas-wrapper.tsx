@@ -76,7 +76,7 @@ import { ImageFilter } from 'utils/image-processing';
 import { ShortcutScope } from 'utils/enums';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import { subKeyMap } from 'utils/component-subkeymap';
-import { beginRepeatActionFeedback } from 'utils/repeat-action-feedback';
+import { beginRepeatAction } from 'utils/repeat-action';
 import repeatBrushHits from 'utils/repeat-brush';
 import ImageSetupsContent from './image-setups-content';
 import CanvasTipsComponent from './canvas-hints';
@@ -147,6 +147,7 @@ interface StateToProps {
     cursorMagnifierScale: number;
     cursorMagnifierGap: number;
     repeatBrushSize: number;
+    labelReplacement: CombinedState['annotation']['labelReplacement'];
     intelligentPolygonCrop: boolean;
     switchableAutomaticBordering: boolean;
     keyMap: KeyMap;
@@ -221,6 +222,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
             sidebarCollapsed,
             workspace,
             rectangleTrack: { propagation: rectangleTrackPropagation },
+            labelReplacement,
         },
         settings: {
             player: {
@@ -354,13 +356,14 @@ function mapStateToProps(state: CombinedState): StateToProps {
         imageFilters,
         activeObjectHidden,
         rectangleTrackPropagation,
+        labelReplacement,
     };
 }
 
 const componentShortcuts = {
     REPEAT_APPLY_LABEL: {
         name: 'Repeat apply label',
-        description: 'Toggle applying the top bar label to compatible annotations under the pointer',
+        description: 'Toggle brush replacement from Current label to New label in the Label Replacement sidebar pane',
         sequences: ['shift+l'],
         scope: ShortcutScope.STANDARD_WORKSPACE,
     },
@@ -532,7 +535,6 @@ type Props = StateToProps & DispatchToProps;
 
 class CanvasWrapperComponent extends React.PureComponent<Props> {
     public state = {
-        repeatFeedback: null as { text: string; x: number; y: number } | null,
         repeatBrush: null as { x: number; y: number } | null,
     };
 
@@ -545,7 +547,6 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     private repeatTimer: number | null = null;
     private repeatNotice = 0;
     private repeatBusy = false;
-    private repeatFeedbackTimer: number | null = null;
     private pointer: { x: number; y: number } | null = null;
     private repeatAttempted = new WeakSet<ObjectState>();
     private repeatBrushContext = document.createElement('canvas').getContext('2d');
@@ -574,6 +575,19 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const previous = this.repeatAction;
         this.stopRepeatAction();
         if (previous === action) return;
+        if (action === 'label') {
+            const { labelReplacement, jobInstance } = this.props;
+            const { sourceLabelID, targetLabelID } = labelReplacement;
+            if (sourceLabelID === targetLabelID ||
+                !jobInstance.labels.some((label: Label) => label.id === sourceLabelID) ||
+                !jobInstance.labels.some((label: Label) => label.id === targetLabelID)) {
+                notification.warning({
+                    message: 'Set up Label Replacement',
+                    description: 'Select different Current label and New label values in the Label Replacement sidebar pane.',
+                });
+                return;
+            }
+        }
         this.repeatAction = action;
         const attempted = this.repeatAttempted;
         this.repeatNotice++;
@@ -602,10 +616,10 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const attempted = this.repeatAttempted;
         const {
             annotations, frame, frameData, canvasIsReady, workspace, hiddenZLayers, jobInstance, onRepeatAction,
-            activeLabelID, selectedRectangleLabelID, repeatBrushSize,
+            selectedRectangleLabelID, repeatBrushSize, labelReplacement,
         } = this.props;
         const label: Label | undefined = action === 'label' ?
-            jobInstance.labels.find((candidate: Label) => candidate.id === activeLabelID) : undefined;
+            jobInstance.labels.find((candidate: Label) => candidate.id === labelReplacement.targetLabelID) : undefined;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
         if (this.unmounted) return;
         const brushVisible = action && pointer && canvasIsReady && !frameData?.deleted &&
@@ -615,7 +629,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const repeatBrush = brushVisible ? pointer : null;
         if (this.state.repeatBrush !== repeatBrush) this.setState({ repeatBrush });
         if (!brushVisible || this.repeatBusy ||
-            (action === 'label' && !label) ||
+            (action === 'label' && (!label || labelReplacement.sourceLabelID === null ||
+                labelReplacement.sourceLabelID === labelReplacement.targetLabelID)) ||
             !this.repeatBrushContext) return;
 
         this.repeatBusy = true;
@@ -627,8 +642,9 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             const radius = repeatBrushSize / (2 * scale);
             const candidates = annotations.filter((state) => (
                 !state.isGroundTruth && !state.hidden && !state.outside && state.objectType !== ObjectType.TAG &&
-                (action === 'label' || selectedRectangleLabelID === null ||
-                    state.label.id === selectedRectangleLabelID) &&
+                (action === 'label' ? state.label.id === labelReplacement.sourceLabelID : (
+                    selectedRectangleLabelID === null || state.label.id === selectedRectangleLabelID
+                )) &&
                 !hiddenZLayers.has(state.zOrder) && (action === 'label' || !this.repeatAttempted.has(state)) &&
                 (action === 'delete' || (!state.lock && (action === 'label' ? (
                     state.label.id !== label.id && state.shapeType !== ShapeType.SKELETON &&
@@ -639,7 +655,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             // Apply to every intersecting annotation, including overlaps.
             while (candidates.length) {
                 if (this.unmounted || this.repeatAction !== action || this.pointer !== pointer ||
-                    (action === 'label' && this.props.activeLabelID !== activeLabelID) ||
+                    (action === 'label' && this.props.labelReplacement !== labelReplacement) ||
                     this.repeatAttempted !== attempted || !document.hasFocus() ||
                     this.props.frame !== frame || this.props.annotations !== annotations ||
                     this.props.selectedRectangleLabelID !== selectedRectangleLabelID ||
@@ -648,36 +664,14 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                     ![CanvasMode.IDLE, CanvasMode.DRAW].includes(canvasInstance.mode())) break;
                 const state = candidates.shift();
                 this.repeatAttempted.add(state);
-                const finishFeedback = beginRepeatActionFeedback();
-                let applied = false;
+                const finishRepeatAction = beginRepeatAction();
                 try {
                     if (!await onRepeatAction(state, action, label)) {
                         if (this.repeatAttempted === attempted) this.stopRepeatAction();
                         break;
                     }
-                    if (!this.unmounted) {
-                        const verb = {
-                            delete: 'Deleted',
-                            occluded: 'Marked occluded',
-                            visible: 'Marked not occluded',
-                            label: 'Applied label',
-                        }[action];
-                        this.setState({
-                            repeatFeedback: {
-                                text: `${verb} · ${state.label.name} #${state.clientID} · Frame ${frame}`,
-                                x: pointer.x,
-                                y: pointer.y,
-                            },
-                        });
-                        applied = true;
-                        if (this.repeatFeedbackTimer !== null) window.clearTimeout(this.repeatFeedbackTimer);
-                        this.repeatFeedbackTimer = window.setTimeout(() => {
-                            this.setState({ repeatFeedback: null });
-                            this.repeatFeedbackTimer = null;
-                        }, 1200);
-                    }
                 } finally {
-                    finishFeedback(applied);
+                    finishRepeatAction();
                 }
             }
         } catch (error) {
@@ -1008,7 +1002,6 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     public componentWillUnmount(): void {
         this.unmounted = true;
         this.stopRepeatAction();
-        if (this.repeatFeedbackTimer !== null) window.clearTimeout(this.repeatFeedbackTimer);
         document.removeEventListener('mousemove', this.trackPointer);
         document.removeEventListener('keydown', this.onRepeatEscape, true);
         this.props.frameData?.cancelRefinement();
@@ -1639,7 +1632,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     }
 
     public render(): JSX.Element {
-        const { repeatFeedback, repeatBrush } = this.state;
+        const { repeatBrush } = this.state;
         const {
             currentZLayer,
             hiddenZLayers,
@@ -1728,20 +1721,6 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                             height: this.props.repeatBrushSize,
                         }}
                     />,
-                    document.body,
-                )}
-                {repeatFeedback && ReactDOM.createPortal(
-                    <div
-                        className='cvat-repeat-action-feedback'
-                        role='status'
-                        style={{
-                            left: Math.max(8, Math.min(repeatFeedback.x + 16, window.innerWidth - 328)),
-                            top: Math.max(8, Math.min(repeatFeedback.y + 20, window.innerHeight - 88)),
-                        }}
-                    >
-                        <strong>✓ Applied</strong>
-                        <span>{repeatFeedback.text}</span>
-                    </div>,
                     document.body,
                 )}
                 {

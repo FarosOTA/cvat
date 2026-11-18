@@ -1016,6 +1016,10 @@ export interface AnnotationState {
     propagate: {
         visible: boolean;
     };
+    labelReplacement: {
+        sourceLabelID: number | null;
+        targetLabelID: number | null;
+    };
     rectangleTrack: {
         propagation: RectangleTrackPropagationSettings;
         pendingActivationID: number | null;

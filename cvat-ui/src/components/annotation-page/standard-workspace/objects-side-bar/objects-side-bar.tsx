@@ -21,6 +21,7 @@ import AppearanceBlock from 'components/annotation-page/appearance-block';
 import IssuesListComponent from 'components/annotation-page/standard-workspace/objects-side-bar/issues-list';
 import { OBJECTS_SIDEBAR_OPEN_Z_LAYER_EVENT } from 'utils/objects-sidebar';
 import RectangleTrackTools from './rectangle-track-tools';
+import LabelReplacement from './label-replacement';
 
 interface OwnProps {
     objectsList: JSX.Element;
@@ -128,6 +129,10 @@ function ObjectsSideBar(props: StateToProps & DispatchToProps & OwnProps): JSX.E
                     forceRender: true,
                     children: <LabelsList />,
                 }, ...(is2D && workspace === Workspace.STANDARD ? [{
+                    key: 'label-replacement',
+                    label: 'Label Replacement',
+                    children: <LabelReplacement />,
+                }, {
                     key: 'track',
                     label: 'Track',
                     forceRender: true,
