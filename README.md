@@ -131,7 +131,11 @@ start a scissors rectangle regardless of the default. The dropdown also makes sc
 without a right mouse button. An already selected annotation is not relabeled.
 
 All rectangle modes support **Shape** or **Track**, including right-click scissors. Use the class
-strip's toggle: **on = Track**, **off = Shape**. Selecting a dropdown option or changing the toggle
+strip's toggle: **on = Track**, **off = Shape**. Clicking the currently selected class again
+deselects it and cancels drawing, like `Esc`. While a class is selected, `Left` / `Right` search
+backward / forward for annotations of that class, also respecting the active annotation filters
+and deleted-frame visibility. With no class selected, the shortcuts search all classes as before.
+Selecting a dropdown option or changing the toggle
 immediately releases keyboard focus so annotation shortcuts work without an extra canvas click. The selected
 default action also applies to **Replace box** and the redraw shortcut for existing rectangle shapes
 and tracks. Redraw preserves the object's identity, label, attributes, and other track keyframes; it

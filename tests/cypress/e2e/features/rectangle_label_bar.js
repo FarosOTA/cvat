@@ -297,4 +297,40 @@ context('Quick rectangle classes', () => {
             }
         }
     });
+
+    it('searches both directions for the selected class and restores all-class search after Escape', () => {
+        cy.headlessCreateObjects([
+            { labelName: 'car', frame: 1 },
+            { labelName: 'person', frame: 2 },
+            { labelName: 'car', frame: 4 },
+            { labelName: 'person', frame: 6 },
+        ].map((object) => ({
+            ...object,
+            objectType: 'shape',
+            type: 'rectangle',
+            points: [20, 30, 80, 90],
+        })), jobId);
+        cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
+        cy.get('.cvat-canvas-container').should('be.visible');
+        cy.get('input[aria-label="Default rectangle action"]').closest('.ant-select').click();
+        cy.get('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option')
+            .contains('Manual rectangle').click();
+        cy.goCheckFrameNumber(0);
+        cy.get(classButton('car')).click();
+        cy.get('body').type('{rightarrow}');
+        cy.checkFrameNum(1);
+        cy.get('body').type('{rightarrow}');
+        cy.checkFrameNum(4);
+        cy.get('body').type('{leftarrow}');
+        cy.checkFrameNum(1);
+        cy.get(classButton('person')).click();
+        cy.get('body').type('{rightarrow}');
+        cy.checkFrameNum(2);
+        cy.get('body').type('{rightarrow}');
+        cy.checkFrameNum(6);
+        cy.get('body').type('{leftarrow}');
+        cy.checkFrameNum(2);
+        cy.get('body').type('{esc}{leftarrow}');
+        cy.checkFrameNum(1);
+    });
 });

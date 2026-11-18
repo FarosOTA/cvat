@@ -1633,8 +1633,22 @@ export function searchAnnotationsAsync(
                 },
                 annotation: {
                     annotations: { filters },
+                    drawing,
+                    canvas: { activeControl },
+                    job: { labels },
                 },
             } = getState();
+
+            const selectedLabel = (
+                activeControl === ActiveControl.DRAW_RECTANGLE ||
+                (activeControl === ActiveControl.OPENCV_TOOLS &&
+                    drawing.activeInteractor?.kind === 'opencv_scissors_rectangle') ||
+                (activeControl === ActiveControl.AI_TOOLS &&
+                    drawing.activeInteractorShapeType === ShapeType.RECTANGLE)
+            ) ? labels.find((label) => label.id === drawing.activeLabelID) : undefined;
+            const annotationsFilters = selectedLabel ? [{
+                and: [filters[0] ?? {}, { '==': [{ var: 'label' }, selectedLabel.name] }],
+            }, filters[1]] : filters;
 
             const frame = await sessionInstance.annotations
                 .search(
@@ -1643,7 +1657,7 @@ export function searchAnnotationsAsync(
                     {
                         allowDeletedFrames: showDeletedFrames,
                         ...(
-                            generalFilters ? { generalFilters } : { annotationsFilters: filters }
+                            generalFilters ? { generalFilters } : { annotationsFilters }
                         ),
                     },
                 );

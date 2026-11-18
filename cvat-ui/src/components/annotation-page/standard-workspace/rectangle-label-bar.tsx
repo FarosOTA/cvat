@@ -19,7 +19,7 @@ import {
 import { ActiveControl, CombinedState } from 'reducers';
 import {
     startRectangleInteractionAsync, rememberObject, switchPlay, updateAnnotationsAsync,
-    setDrawingOccluded,
+    setDrawingOccluded, setContinuedTrack,
 } from 'actions/annotation-actions';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
@@ -293,7 +293,15 @@ export default function RectangleLabelBar(): JSX.Element {
                             title={`Draw ${label.name}${shortcut ? ` (${shortcut})` : ''}; right-click: scissors rectangle; drag: relabel`}
                             disabled={disabled}
                             draggable={!disabled}
-                            onClick={() => startDrawing(label)}
+                            onClick={() => {
+                                if (!active) {
+                                    startDrawing(label);
+                                    return;
+                                }
+                                // Clicking the selected class deselects it, as Esc does.
+                                dispatch(setContinuedTrack(null));
+                                canvas.cancel();
+                            }}
                             onContextMenu={(event) => {
                                 event.preventDefault();
                                 startDrawing(label, 'scissors');
