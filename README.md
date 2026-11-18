@@ -228,7 +228,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 - **Outlined borders:** With **Outlined borders** on, the translucent fill inside shapes (controlled by
   the opacity sliders) uses the outline color.
 - **Optional handles and dimensions:** Sidebar **Settings → Show corner control points** (on by default)
-  hides the corner resize handles of active boxes when off. **Show dimensions while drawing** (on by
+  hides the corner resize handles of active boxes when off, but keeps an invisible grab area centered
+  on each corner for resizing. **Show dimensions while drawing** (on by
   default) hides the width × height label of a box, ellipse, or cuboid while it is being drawn.
 - **Magnified borders:** Hover over a box or its resize handles to inspect magnified image strips
   along **all four edges**, without clicking or dragging. The strips disappear when the pointer

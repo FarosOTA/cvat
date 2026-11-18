@@ -1439,7 +1439,6 @@ export class CanvasViewImpl implements CanvasView, Listener {
             pointsExclude = ['lt', 'rt', 'rb', 'lb', 't', 'r', 'b', 'l'];
         } else if (shape.type === 'rect' && !isSkeletonRect) {
             if (this.configuration.resizeFromSides) pointsExclude.push('t', 'r', 'b', 'l');
-            if (this.configuration.cornerHandles === false) pointsExclude.push('lt', 'rt', 'rb', 'lb');
         }
         const mousedownHandler = (e: MouseEvent): void => {
             if (e.button !== 0) return;
@@ -1609,6 +1608,14 @@ export class CanvasViewImpl implements CanvasView, Listener {
         const handler = shape.remember('_selectHandler');
         if (handler && handler.nested) {
             handler.nested.fill(shape.attr('fill'));
+            if (value && shape.type === 'rect' && !isSkeletonRect && this.configuration.cornerHandles === false) {
+                for (const corner of ['lt', 'rt', 'rb', 'lb']) {
+                    handler.nested.select(`.svg_select_points_${corner}`).attr({
+                        opacity: 0,
+                        'pointer-events': 'all',
+                    });
+                }
+            }
             if (value && shape.type === 'rect' && !isSkeletonRect && this.configuration.resizeFromSides) {
                 const border = handler.rectSelection.set.get(0);
                 border.addClass('cvat_canvas_side_grab').attr({
