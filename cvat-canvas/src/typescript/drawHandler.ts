@@ -39,6 +39,8 @@ export interface DrawHandler {
     draw(drawData: DrawData, geometry: Geometry): void;
     transform(geometry: Geometry): void;
     cancel(): void;
+    // True once the user has placed the first point of the current drawing.
+    readonly started: boolean;
 }
 
 interface FinalCoordinates {
@@ -1305,6 +1307,10 @@ export class DrawHandlerImpl implements DrawHandler {
 
         this.startTimestamp = Date.now();
         this.initialized = true;
+    }
+
+    public get started(): boolean {
+        return !!this.drawInstance?.remember('_paintHandler');
     }
 
     private createShapeSizeElement(): ShapeSizeElement | null {

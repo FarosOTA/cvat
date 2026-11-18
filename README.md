@@ -195,6 +195,16 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 - **Editing crosshairs:** Guides extend all four box borders while moving or resizing, anchored to
   the box edges rather than the mouse pointer. While they are enabled, the mouse pointer is hidden
   while drawing, moving, or resizing a box.
+- **Drawing with an annotation in the chamber:** While a box tool is engaged (for example after `N`),
+  a click places a corner, and pressing and dragging on empty image pans it. Before the first corner
+  is placed, pressing and dragging an existing unlocked, unrotated box moves it, or resizes it from
+  an edge or corner, without leaving the tool. **Delete object** and other object shortcuts target
+  the annotation under the pointer while a tool is engaged.
+- **Occluded in the chamber:** The class strip has an **Occluded** switch next to **Shape/Track**.
+  Press `Q` (the **Switch occluded** shortcut) while a drawing tool is engaged to toggle it; the next
+  placed annotation is created occluded, and the switch resets to not occluded after each placement.
+  Redraw starts with the switch set to the redrawn object's occluded flag and keeps it (or applies a
+  `Q` toggle) when the new geometry is placed.
 - **Outlined borders:** With **Outlined borders** on, the translucent fill inside shapes (controlled by
   the opacity sliders) uses the outline color.
 - **Optional handles and dimensions:** Sidebar **Settings → Show corner control points** (on by default)
@@ -228,7 +238,7 @@ moved from the global Player/Workspace tabs. Existing values and browser persist
 Player step sets the jump distance (2–1000 frames); reset zoom fits the image after changing frames.
 Smooth image interpolates pixels when zoomed in; object details can remain visible for inactive objects.
 
-**Advance to next frame after drawing** (off by default, 2D Standard workspace) is also in the sidebar
+**Auto advance** (off by default, 2D Standard workspace) is also in the sidebar
 section. When enabled, finishing a new shape moves to the next frame and restarts the same tool
 with the same label, shape type, and Shape/Track choice, as the `N` shortcut would. This covers
 manual drawing, class-strip boxes, scissors, and assisted/interactor results. Deleted frames are
@@ -243,6 +253,10 @@ first placement creates a track and each following placement adds a keyframe to 
 navigate to another frame yourself, or draw with a different label or shape type to start a new
 track with the next placement. As with any CVAT track, the track remains visible after its last
 keyframe until you mark it outside.
+
+**Auto advance on modification** (off by default, 2D Standard workspace) moves to the next frame after
+an existing annotation is moved, resized, or edited on the canvas. If a drawing tool was engaged during
+the edit, it is restarted on the next frame. Deleted frames are skipped unless **Show deleted frames** is on.
 
 ## Assisted bounding boxes
 

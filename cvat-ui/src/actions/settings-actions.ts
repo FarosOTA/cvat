@@ -390,7 +390,7 @@ export function switchFlashAnnotations(flashAnnotations: boolean): AnyAction {
 
 export function switchRectanglePrecision(
     tool: 'clickToGrab' | 'resizeFromSides' | 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover' |
-    'clearFocusOnCanvasLeave' | 'cornerHandles' | 'drawingDimensions',
+    'clearFocusOnCanvasLeave' | 'cornerHandles' | 'drawingDimensions' | 'autoAdvanceOnModify',
     enabled: boolean,
 ): AnyAction {
     return {

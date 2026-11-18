@@ -39,6 +39,7 @@ import {
     updateAnnotationsAsync,
     createAnnotationsAsync,
     placeAnnotationsAsync,
+    modifyAnnotationsAsync,
     mergeAnnotationsAsync,
     groupAnnotationsAsync,
     joinAnnotationsAsync,
@@ -155,6 +156,7 @@ interface DispatchToProps {
     onResetCanvas: () => void;
     updateActiveControl: (activeControl: ActiveControl) => void;
     onUpdateAnnotations(states: ObjectState[]): void;
+    onModifyAnnotations(states: ObjectState[], redraw?: boolean): void;
     onCreateAnnotations(states: ObjectState[], source?: AnnotationSource): void;
     onPlaceAnnotations(states: ObjectState[], source?: AnnotationSource): void;
     onMergeAnnotations(states: ObjectState[]): void;
@@ -374,6 +376,9 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         },
         onUpdateAnnotations(states: ObjectState[]): void {
             dispatch(updateAnnotationsAsync(states));
+        },
+        onModifyAnnotations(states: ObjectState[], redraw?: boolean): void {
+            dispatch(modifyAnnotationsAsync(states, redraw));
         },
         onTransformRectangleTrack(state: ObjectState, request: RectangleTrackTransformRequest): void {
             dispatch(transformRectangleTrackAsync(state, request));
@@ -783,6 +788,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         canvasInstance.html().removeEventListener('mouseleave', this.onCanvasMouseLeave);
         canvasInstance.html().removeEventListener('canvas.editstart', this.onCanvasEditStart);
         canvasInstance.html().removeEventListener('canvas.edited', this.onCanvasEditDone);
+        canvasInstance.html().removeEventListener('canvas.drawingedited', this.onCanvasDrawingEdited as EventListener);
         canvasInstance.html().removeEventListener('canvas.sliced', this.onCanvasSliceDone);
         canvasInstance.html().removeEventListener('canvas.dragstart', this.onCanvasDragStart);
         canvasInstance.html().removeEventListener('canvas.dragstop', this.onCanvasDragDone);
@@ -1060,7 +1066,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
 
         const result = await jobInstance.annotations.select(event.detail.states, event.detail.x, event.detail.y);
         if (this.unmounted || request !== this.hoverRequest || frame !== this.props.frame ||
-            annotations !== this.props.annotations || canvasInstance.mode() !== CanvasMode.IDLE) {
+            annotations !== this.props.annotations ||
+            ![CanvasMode.IDLE, CanvasMode.DRAW].includes(canvasInstance.mode())) {
             return;
         }
 
@@ -1084,7 +1091,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
 
     private onCanvasEditDone = (event: any): void => {
         const {
-            activeControl, onUpdateAnnotations, onTransformRectangleTrack,
+            activeControl, onModifyAnnotations, onTransformRectangleTrack,
             rectangleTrackPropagation, updateActiveControl, onUpdateEditedObject, workspace,
         } = this.props;
         const { state, points, rotation } = event.detail;
@@ -1116,14 +1123,24 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             state.points = points;
         }
 
+        // Redraw finishes as an edit while its drawing control is active.
+        const redraw = activeControl !== ActiveControl.CURSOR && activeControl !== ActiveControl.EDIT;
         if (activeControl !== ActiveControl.CURSOR) {
             // do not need to reset and deactivate if it was just resizing/dragging and other simple actions
             updateActiveControl(ActiveControl.CURSOR);
         }
-        if (state.updateFlags.rotation || state.updateFlags.points) {
-            onUpdateAnnotations([state]);
+        if (state.updateFlags.rotation || state.updateFlags.points || redraw) {
+            onModifyAnnotations([state], redraw);
         }
         onUpdateEditedObject(null);
+    };
+
+    // A rectangle moved or resized by press-and-drag while a drawing tool stays engaged.
+    private onCanvasDrawingEdited = (event: CustomEvent<{ state: ObjectState; points: number[] }>): void => {
+        const { onModifyAnnotations } = this.props;
+        const { state, points } = event.detail;
+        state.points = points;
+        onModifyAnnotations([state]);
     };
 
     private onCanvasSliceDone = (event: any): void => {
@@ -1205,7 +1222,9 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                     canvasInstance.fit();
                 }
             }
-            if (activatedState && activatedState.objectType !== ObjectType.TAG) {
+            // While a drawing tool is engaged, the hovered object is only targeted for shortcuts.
+            if (activatedState && activatedState.objectType !== ObjectType.TAG &&
+                canvasInstance.mode() !== CanvasMode.DRAW) {
                 canvasInstance.activate(activatedStateID, activatedAttributeID);
             }
         } else if (workspace === Workspace.ATTRIBUTES) {
@@ -1344,7 +1363,9 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             'canvas.setup',
             () => {
                 const { activatedStateID, activatedAttributeID } = this.props;
-                canvasInstance.activate(activatedStateID, activatedAttributeID);
+                if (canvasInstance.mode() !== CanvasMode.DRAW) {
+                    canvasInstance.activate(activatedStateID, activatedAttributeID);
+                }
             },
             { once: true },
         );
@@ -1354,6 +1375,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         canvasInstance.html().addEventListener('mouseleave', this.onCanvasMouseLeave);
         canvasInstance.html().addEventListener('canvas.editstart', this.onCanvasEditStart);
         canvasInstance.html().addEventListener('canvas.edited', this.onCanvasEditDone);
+        canvasInstance.html().addEventListener('canvas.drawingedited', this.onCanvasDrawingEdited as EventListener);
         canvasInstance.html().addEventListener('canvas.sliced', this.onCanvasSliceDone);
         canvasInstance.html().addEventListener('canvas.dragstart', this.onCanvasDragStart);
         canvasInstance.html().addEventListener('canvas.dragstop', this.onCanvasDragDone);

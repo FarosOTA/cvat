@@ -650,6 +650,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 drawing: {
                     ...defaultState.drawing,
                     rectangleMode: state.drawing.rectangleMode,
+                    activeOccluded: state.drawing.activeOccluded,
                     ...payload,
                 },
             };
@@ -775,8 +776,10 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
 
             const objectDoesNotExist = activatedStateID !== null &&
                 !states.some((_state) => _state.clientID === activatedStateID);
-            const canvasIsNotReady = (instance as Canvas | Canvas3d)
-                .mode() !== CanvasMode.IDLE || activeControl !== ActiveControl.CURSOR;
+            const canvasMode = (instance as Canvas | Canvas3d).mode();
+            // While a drawing tool is engaged, the hovered object is targeted for shortcuts such as Delete.
+            const canvasIsNotReady = canvasMode !== CanvasMode.DRAW &&
+                (canvasMode !== CanvasMode.IDLE || activeControl !== ActiveControl.CURSOR);
 
             if (objectDoesNotExist || canvasIsNotReady || highlightedConflict) {
                 return state;
@@ -1286,6 +1289,15 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 canvas: {
                     ...state.canvas,
                     activeControl: ActiveControl.CURSOR,
+                },
+            };
+        }
+        case AnnotationActionTypes.SET_DRAWING_OCCLUDED: {
+            return {
+                ...state,
+                drawing: {
+                    ...state.drawing,
+                    activeOccluded: action.payload.activeOccluded,
                 },
             };
         }

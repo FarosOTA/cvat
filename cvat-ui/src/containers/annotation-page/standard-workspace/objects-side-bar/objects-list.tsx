@@ -24,6 +24,7 @@ import {
     compactLayersAsync,
     switchZLayer,
     toggleZLayersVisibility,
+    toggleDrawingOccluded,
 } from 'actions/annotation-actions';
 import {
     changeShowGroundTruth as changeShowGroundTruthAction,
@@ -79,6 +80,8 @@ interface DispatchToProps {
     updateAnnotations(...args: Parameters<typeof updateAnnotationsAsync>): void;
     collapseStates(...args: Parameters<typeof collapseObjectItems>): void;
     removeObject(...args: Parameters<typeof removeObjectAction>): void;
+    // Toggles the occluded flag of the annotation in the chamber; false when no drawing tool is engaged.
+    switchDrawingOccluded(): boolean;
     copyShape(...args: Parameters<typeof copyShapeAction>): void;
     switchPropagateVisibility(...args: Parameters<typeof switchPropagateVisibilityAction>): void;
     switchSimplifyVisibility(...args: Parameters<typeof switchSimplifyVisibilityAction>): void;
@@ -306,6 +309,9 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         },
         removeObject(...args: Parameters<typeof removeObjectAction>): void {
             dispatch(removeObjectAction(...args));
+        },
+        switchDrawingOccluded(): boolean {
+            return dispatch(toggleDrawingOccluded());
         },
         copyShape(...args: Parameters<typeof copyShapeAction>): void {
             dispatch(copyShapeAction(...args));
@@ -571,6 +577,7 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             changeFrame,
             workspace,
             renderData,
+            switchDrawingOccluded,
         } = this.props;
         const {
             objectStates, sortedStatesID, statesOrdering, filteredStates,
@@ -633,6 +640,8 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             },
             SWITCH_OCCLUDED: (event?: KeyboardEvent) => {
                 preventDefault(event);
+                // With an annotation in the chamber, toggle whether it will be placed as occluded.
+                if (switchDrawingOccluded()) return;
                 const state = activatedState();
                 if (state && isLayerState(state)) {
                     state.occluded = !state.occluded;

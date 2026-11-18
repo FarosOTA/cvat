@@ -41,6 +41,7 @@ const defaultState: SettingsState = {
         resizeFromSides: false,
         cornerHandles: true,
         drawingDimensions: true,
+        autoAdvanceOnModify: false,
         flashAnnotations: true,
         editingCrosshair: true,
         cursorMagnifier: true,

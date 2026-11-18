@@ -176,6 +176,7 @@ export enum AnnotationActionTypes {
     SET_RECTANGLE_TRACK_PROPAGATION = 'SET_RECTANGLE_TRACK_PROPAGATION',
     SET_RECTANGLE_TRACK_PENDING_ACTIVATION = 'SET_RECTANGLE_TRACK_PENDING_ACTIVATION',
     SET_CONTINUED_TRACK = 'SET_CONTINUED_TRACK',
+    SET_DRAWING_OCCLUDED = 'SET_DRAWING_OCCLUDED',
 }
 
 export enum AnnotationSource {
@@ -1947,7 +1948,61 @@ export function setContinuedTrack(
     };
 }
 
-// Places annotations drawn with a drawing or interaction tool. With "Next frame after placing" enabled,
+// Sets whether the next annotation placed from the drawing tools is created as occluded.
+export function setDrawingOccluded(activeOccluded: boolean): AnyAction {
+    return {
+        type: AnnotationActionTypes.SET_DRAWING_OCCLUDED,
+        payload: { activeOccluded },
+    };
+}
+
+export function toggleDrawingOccluded(): ThunkAction<boolean> {
+    return (dispatch: ThunkDispatch, getState: () => CombinedState): boolean => {
+        const { canvas: { instance }, drawing } = getState().annotation;
+        if (!(instance instanceof Canvas) || instance.mode() !== Canvas2DMode.DRAW || drawing.activeInteractor) {
+            return false;
+        }
+        dispatch(setDrawingOccluded(!drawing.activeOccluded));
+        return true;
+    };
+}
+
+// Moves to the next frame for the Auto advance settings. Returns the new frame number or null.
+async function autoAdvance(dispatch: ThunkDispatch, getState: () => CombinedState): Promise<number | null> {
+    const {
+        annotation: { job: { instance: job }, player: { frame: { number: frame } } },
+        settings: { player: { showDeletedFrames } },
+    } = getState();
+    if (!job || frame >= job.stopFrame) return null;
+    const nextFrame = await job.frames.search({ notDeleted: !showDeletedFrames }, frame + 1, job.stopFrame);
+    if (nextFrame === null || nextFrame === frame) return null;
+    await dispatch(changeFrameAsync(nextFrame));
+    return getState().annotation.player.frame.number === nextFrame ? nextFrame : null;
+}
+
+// Saves edits to existing annotations. With "Auto advance on modification" enabled, it then moves to the
+// next frame; a drawing tool that was engaged during the edit is restarted there.
+// A redraw applies the chamber's occluded toggle, which redraw seeds from the redrawn object.
+export function modifyAnnotationsAsync(statesToUpdate: ObjectState[], redraw = false): ThunkAction {
+    return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<void> => {
+        const { annotation: { workspace, canvas: { activeControl }, drawing }, settings } = getState();
+        if (redraw) {
+            for (const state of statesToUpdate) {
+                if (state.objectType !== ObjectType.TAG && state.shapeType !== ShapeType.SKELETON &&
+                    state.occluded !== !!drawing.activeOccluded) state.occluded = !!drawing.activeOccluded;
+            }
+        }
+        await dispatch(updateAnnotationsAsync(statesToUpdate));
+        if (!settings.workspace.autoAdvanceOnModify || workspace !== Workspace.STANDARD) return;
+        const wasDrawing = !redraw && activeControl !== ActiveControl.CURSOR && activeControl !== ActiveControl.EDIT;
+        const nextFrame = await autoAdvance(dispatch, getState);
+        if (nextFrame !== null && wasDrawing && getState().annotation.canvas.activeControl === ActiveControl.CURSOR) {
+            await dispatch(repeatDrawShapeAsync());
+        }
+    };
+}
+
+// Places annotations drawn with a drawing or interaction tool. With "Auto advance" enabled,
 // it then moves to the next frame and restarts the same tool there, as the repeat-draw shortcut does.
 // A track drawn on that frame adds a keyframe to the track placed before it instead of starting a new track.
 export function placeAnnotationsAsync(
@@ -1957,12 +2012,20 @@ export function placeAnnotationsAsync(
     return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<void> => {
         const {
             annotation: {
-                job: { instance: job }, player: { frame: { number: frame } }, workspace, drawing: { continuedTrack },
+                job: { instance: job }, player: { frame: { number: frame } }, workspace,
+                drawing: { continuedTrack, activeOccluded },
             },
             settings: {
-                workspace: { nextFrameAfterPlacing, showAllInterpolationTracks }, player: { showDeletedFrames },
+                workspace: { nextFrameAfterPlacing, showAllInterpolationTracks },
             },
         } = getState();
+        if (activeOccluded) {
+            for (const state of statesToCreate) {
+                if (state.objectType !== ObjectType.TAG) state.occluded = true;
+            }
+            // The occluded toggle applies to one placement only.
+            dispatch(setDrawingOccluded(false));
+        }
         const enabled = nextFrameAfterPlacing && workspace === Workspace.STANDARD && !!job;
         const [drawn] = statesToCreate;
         const drawnTrack = statesToCreate.length === 1 && drawn.objectType === ObjectType.TRACK;
@@ -1988,14 +2051,10 @@ export function placeAnnotationsAsync(
             if (drawnTrack) [trackID] = clientIDs;
         }
 
-        if (!enabled || frame >= job.stopFrame) return;
-        const nextFrame = await job.frames.search({ notDeleted: !showDeletedFrames }, frame + 1, job.stopFrame);
-        if (nextFrame === null || nextFrame === frame) return;
-
-        await dispatch(changeFrameAsync(nextFrame));
-        const { player, canvas } = getState().annotation;
+        if (!enabled) return;
+        const nextFrame = await autoAdvance(dispatch, getState);
         // Do not restart the tool if navigation was refused or the user has already started something else.
-        if (player.frame.number === nextFrame && canvas.activeControl === ActiveControl.CURSOR) {
+        if (nextFrame !== null && getState().annotation.canvas.activeControl === ActiveControl.CURSOR) {
             await dispatch(repeatDrawShapeAsync());
             dispatch(setContinuedTrack(trackID === null ? null : { clientID: trackID, frame: nextFrame }));
         }
@@ -2015,7 +2074,7 @@ export function placeRectangleInteractionAsync(
                 state.frame === objects[0].frame) {
                 state.points = objects[0].points;
                 state.rotation = 0;
-                await dispatch(updateAnnotationsAsync([state]));
+                await dispatch(modifyAnnotationsAsync([state], true));
             } else if (objects.length > 1) {
                 notification.warning({ message: 'Redraw requires exactly one bounding box' });
             }
@@ -2040,6 +2099,13 @@ export function redrawShapeAsync(clientID?: number): ThunkAction {
                 const activeControl = ShapeTypeToControl[state.shapeType as ShapeType] || ActiveControl.CURSOR;
                 if (canvasInstance instanceof Canvas) {
                     canvasInstance.cancel();
+                    // The chamber shows the redrawn object's occluded flag (Q toggles it) until the redraw ends.
+                    if (state.shapeType !== ShapeType.SKELETON) {
+                        dispatch(setDrawingOccluded(!!state.occluded));
+                        canvasInstance.html().addEventListener('canvas.canceled', () => {
+                            dispatch(setDrawingOccluded(false));
+                        }, { once: true });
+                    }
                     if (state.shapeType === ShapeType.RECTANGLE && rectangleMode && rectangleMode !== 'manual') {
                         await dispatch(startRectangleInteractionAsync(
                             rectangleMode, state.label.id, state.objectType, targetID,

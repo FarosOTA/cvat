@@ -7,6 +7,8 @@ const BASE_STROKE_WIDTH = 0.75;
 const BASE_GRID_WIDTH = 2;
 const BASE_POINT_SIZE = 3;
 const RECTANGLE_SIDE_GRAB_RADIUS = 6;
+// Screen pixels a press must travel before it pans or edits instead of placing a drawing point.
+const DRAW_DRAG_THRESHOLD = 4;
 const TEXT_MARGIN = 10;
 const SIZE_THRESHOLD = 1;
 const POINTS_STROKE_WIDTH = 1;
@@ -37,6 +39,7 @@ export default {
     BASE_GRID_WIDTH,
     BASE_POINT_SIZE,
     RECTANGLE_SIDE_GRAB_RADIUS,
+    DRAW_DRAG_THRESHOLD,
     TEXT_MARGIN,
     SIZE_THRESHOLD,
     POINTS_STROKE_WIDTH,

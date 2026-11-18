@@ -19,6 +19,7 @@ import {
 import { ActiveControl, CombinedState } from 'reducers';
 import {
     startRectangleInteractionAsync, rememberObject, switchPlay, updateAnnotationsAsync,
+    setDrawingOccluded,
 } from 'actions/annotation-actions';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
@@ -249,6 +250,21 @@ export default function RectangleLabelBar(): JSX.Element {
                         dispatch(rememberObject({
                             activeObjectType: checked ? ObjectType.TRACK : ObjectType.SHAPE,
                         }, false));
+                    }}
+                />
+                <Switch
+                    aria-label='New annotation occluded'
+                    className='cvat-rectangle-label-bar-occluded'
+                    size='small'
+                    checked={!!drawing.activeOccluded}
+                    checkedChildren='Occluded'
+                    unCheckedChildren='Not occluded'
+                    disabled={disabled}
+                    title='Place the next annotation as occluded (Q). Resets after each placement.'
+                    onChange={(checked: boolean, event) => {
+                        // Keep the engaged drawing tool; only the next placement's flag changes.
+                        event.currentTarget.blur();
+                        dispatch(setDrawingOccluded(checked));
                     }}
                 />
                 <span>

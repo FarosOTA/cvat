@@ -52,7 +52,7 @@ function CursorControl(props: Props): JSX.Element {
     const dispatch = useDispatch();
 
     const handler = (): void => {
-        // Canceling explicitly ends "Next frame after placing" track continuation.
+        // Canceling explicitly ends "Auto advance" track continuation.
         dispatch(setContinuedTrack(null));
         // Also cancel pending tool initialization while the canvas is still idle.
         canvasInstance.cancel();

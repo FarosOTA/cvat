@@ -93,7 +93,7 @@ interface DispatchToProps {
     changeOrientationVisibility(orientationVisibility: Partial<OrientationVisibility>): void;
     onSwitchRectanglePrecision(
         tool: 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover' | 'clickToGrab' |
-        'cornerHandles' | 'drawingDimensions', enabled: boolean,
+        'cornerHandles' | 'drawingDimensions' | 'autoAdvanceOnModify', enabled: boolean,
     ): void;
     onSwitchNextFrameAfterPlacing(enabled: boolean): void;
 }
@@ -208,7 +208,7 @@ function AppearanceBlock(props: Props): JSX.Element {
         (state: CombinedState) => state.settings.player,
     );
     const {
-        clickToGrab, showObjectsTextAlways, cornerHandles, drawingDimensions,
+        clickToGrab, showObjectsTextAlways, cornerHandles, drawingDimensions, autoAdvanceOnModify,
     } = useSelector((state: CombinedState) => state.settings.workspace);
 
     const is2D = jobInstance.dimension === DimensionType.DIMENSION_2D;
@@ -300,7 +300,19 @@ function AppearanceBlock(props: Props): JSX.Element {
                                     onSwitchNextFrameAfterPlacing(event.target.checked);
                                 }}
                             >
-                                Advance to next frame after drawing
+                                Auto advance
+                            </Checkbox>
+                        )}
+                        {is2D && workspace === Workspace.STANDARD && (
+                            <Checkbox
+                                className='cvat-appearance-auto-advance-on-modify-checkbox'
+                                title='Move to the next frame after moving, resizing, or editing an existing annotation'
+                                checked={autoAdvanceOnModify}
+                                onChange={(event: CheckboxChangeEvent) => {
+                                    onSwitchRectanglePrecision('autoAdvanceOnModify', event.target.checked);
+                                }}
+                            >
+                                Auto advance on modification
                             </Checkbox>
                         )}
                         {is2D && (

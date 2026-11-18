@@ -101,6 +101,16 @@ export class CanvasViewImpl implements CanvasView, Listener {
     private precisionToolsRequest: number | null = null;
     private middleMousePosition: { clientX: number; clientY: number } | null = null;
     private hoverPosition: { clientX: number; clientY: number } | null = null;
+    // A left-button press while a rectangle tool is engaged. A click places a point; a drag either pans
+    // the image or, before the first point, moves/resizes the unlocked rectangle under the pointer.
+    private drawPress: {
+        event: MouseEvent;
+        dragging: boolean;
+        edit: {
+            shape: SVG.Rect; state: any; start: number[]; box: number[]; edges: string[];
+        } | null;
+    } | null = null;
+    private replayingDrawPress = false;
     private wheelAccumulator = 0;
     private wheelTimestamp = -Infinity;
     private innerObjectsFlags: {
@@ -2106,7 +2116,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
     };
 
     private updateHover(): void {
-        if (!this.hoverPosition || this.mode !== Mode.IDLE || this.isImageLoading) return;
+        if (!this.hoverPosition || ![Mode.IDLE, Mode.DRAW].includes(this.mode) || this.isImageLoading) return;
 
         const { clientX, clientY } = this.hoverPosition;
         // Handles and the side-grab band extend outside the active shape; keep it active over them
@@ -2164,7 +2174,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
 
         // Box-edge guides replace the pointer while rectangles are drawn or edited.
         this.canvas.classList.toggle('cvat_canvas_hide_cursor',
-            !!(editingRectangle || drawingRectangle) && !!this.configuration.editingCrosshair);
+            !!(editingRectangle || drawingRectangle || this.drawPress?.edit) && !!this.configuration.editingCrosshair);
         if (editingRectangle && this.configuration.editingCrosshair) {
             const {
                 x, y, x2, y2,
@@ -2368,6 +2378,136 @@ export class CanvasViewImpl implements CanvasView, Listener {
             this.wheelAccumulator -= sign * NOTCH;
         }
         return steps;
+    }
+
+    private findEditableRectangle(event: MouseEvent): NonNullable<CanvasViewImpl['drawPress']>['edit'] {
+        const tolerance = Math.max(6, this.configuration.controlPointsSize * 2);
+        const shapes = Array.from(this.content.querySelectorAll('rect.cvat_canvas_shape')).reverse();
+        for (const node of shapes) {
+            const clientID = +node.getAttribute('clientID');
+            const state = this.controller.objects.find((_state: any) => _state.clientID === clientID);
+            if (!state || state.shapeType !== 'rectangle' || state.hidden || state.outside ||
+                this.stateIsLocked(state) || state.rotation || node.classList.contains('cvat_canvas_hidden')) continue;
+            const rect = node.getBoundingClientRect();
+            const { clientX: x, clientY: y } = event;
+            if (x < rect.left - tolerance || x > rect.right + tolerance ||
+                y < rect.top - tolerance || y > rect.bottom + tolerance) continue;
+            const edges = [
+                Math.abs(x - rect.left) <= tolerance ? 'l' : '', Math.abs(x - rect.right) <= tolerance ? 'r' : '',
+                Math.abs(y - rect.top) <= tolerance ? 't' : '', Math.abs(y - rect.bottom) <= tolerance ? 'b' : '',
+            ].filter(Boolean);
+            const inside = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+            if (!inside && !edges.length) continue;
+            const shape = (node as any).instance as SVG.Rect;
+            return {
+                shape,
+                state,
+                start: translateToSVG(this.content, [x, y]),
+                box: ['x', 'y', 'width', 'height'].map((attr) => +shape.attr(attr)),
+                edges,
+            };
+        }
+        return null;
+    }
+
+    private onDrawPressDown = (event: MouseEvent): void => {
+        const { drawData } = this.controller;
+        if (this.replayingDrawPress || event.button !== 0 || event.altKey || this.mode !== Mode.DRAW ||
+            drawData.shapeType !== 'rectangle' || drawData.initialState ||
+            this.attachmentBoard.contains(event.target as Node)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.drawPress = {
+            event,
+            dragging: false,
+            edit: this.drawHandler.started ? null : this.findEditableRectangle(event),
+        };
+    };
+
+    private onDrawPressMove = (event: MouseEvent): void => {
+        const press = this.drawPress;
+        if (!press) return;
+        if (event.buttons % 2 === 0 || this.mode !== Mode.DRAW) {
+            this.cancelDrawPress();
+            return;
+        }
+        if (!press.dragging) {
+            const { clientX, clientY } = press.event;
+            if (Math.hypot(event.clientX - clientX, event.clientY - clientY) < consts.DRAW_DRAG_THRESHOLD) return;
+            press.dragging = true;
+            if (!press.edit) this.controller.enableDrag(clientX, clientY);
+        }
+        if (!press.edit) {
+            this.controller.drag(event.clientX, event.clientY);
+            return;
+        }
+
+        event.stopImmediatePropagation();
+        const [x, y] = translateToSVG(this.content, [event.clientX, event.clientY]);
+        const dx = x - press.edit.start[0];
+        const dy = y - press.edit.start[1];
+        let [left, top] = press.edit.box;
+        let right = left + press.edit.box[2];
+        let bottom = top + press.edit.box[3];
+        const { edges } = press.edit;
+        if (!edges.length) {
+            left += dx; right += dx; top += dy; bottom += dy;
+        }
+        if (edges.includes('l')) left += dx;
+        if (edges.includes('r')) right += dx;
+        if (edges.includes('t')) top += dy;
+        if (edges.includes('b')) bottom += dy;
+        [left, right] = [Math.min(left, right), Math.max(left, right)];
+        [top, bottom] = [Math.min(top, bottom), Math.max(top, bottom)];
+        press.edit.shape.attr({
+            x: left, y: top, width: right - left, height: bottom - top,
+        });
+        this.updatePrecisionTools(event);
+    };
+
+    private onDrawPressUp = (event: MouseEvent): void => {
+        const press = this.drawPress;
+        if (!press || event.button !== 0) return;
+        this.drawPress = null;
+        if (this.mode !== Mode.DRAW) {
+            this.drawPress = press;
+            this.cancelDrawPress();
+            return;
+        }
+
+        if (!press.dragging) {
+            // A click: forward the original press to the drawing tool to place a point there.
+            this.replayingDrawPress = true;
+            try {
+                press.event.target.dispatchEvent(new MouseEvent('mousedown', press.event));
+            } finally {
+                this.replayingDrawPress = false;
+            }
+        } else if (press.edit) {
+            event.stopImmediatePropagation();
+            const { shape, state } = press.edit;
+            const [x, y, width, height] = ['x', 'y', 'width', 'height'].map((attr) => +shape.attr(attr));
+            const points = this.translateFromCanvas([x, y, x + width, y + height]);
+            this.canvas.dispatchEvent(new CustomEvent('canvas.drawingedited', {
+                bubbles: false,
+                cancelable: true,
+                detail: { state, points },
+            }));
+            this.hidePrecisionTools();
+        } else {
+            this.controller.disableDrag();
+        }
+    };
+
+    private cancelDrawPress(): void {
+        const press = this.drawPress;
+        this.drawPress = null;
+        if (press?.edit) {
+            press.edit.shape.attr(Object.fromEntries(['x', 'y', 'width', 'height']
+                .map((attr, idx) => [attr, press.edit.box[idx]])));
+        } else if (press?.dragging) {
+            this.controller.disableDrag();
+        }
     }
 
     private onMouseUp = (event: MouseEvent): void => {
@@ -2592,6 +2732,10 @@ export class CanvasViewImpl implements CanvasView, Listener {
             }
         }, true);
 
+        this.canvas.addEventListener('mousedown', this.onDrawPressDown, true);
+        window.addEventListener('mousemove', this.onDrawPressMove, true);
+        window.addEventListener('mouseup', this.onDrawPressUp, true);
+
         this.canvas.addEventListener('auxclick', (event): void => {
             if (event.button === 1 && !this.attachmentBoard.contains(event.target as Node)) {
                 event.preventDefault();
@@ -2662,7 +2806,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
         this.canvas.addEventListener('mousemove', (e): void => {
             this.controller.drag(e.clientX, e.clientY);
 
-            if (this.mode !== Mode.IDLE) return;
+            if (![Mode.IDLE, Mode.DRAW].includes(this.mode)) return;
             if (e.ctrlKey || e.altKey) return;
 
             this.updateHover();
@@ -3139,6 +3283,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
             window.document.removeEventListener('mouseup', this.onMouseUp);
             window.removeEventListener('mousemove', this.onMiddleMouseMove, true);
             window.removeEventListener('mouseup', this.onMiddleMouseUp, true);
+            window.removeEventListener('mousemove', this.onDrawPressMove, true);
+            window.removeEventListener('mouseup', this.onDrawPressUp, true);
             window.removeEventListener('mousemove', this.updatePrecisionTools);
             this.hidePrecisionTools();
             this.interactionHandler.destroy();

@@ -968,7 +968,9 @@ export interface AnnotationState {
         activeObjectType: ObjectType;
         activeInitialState?: any;
         activeSimplifyPoly?: boolean;
-        // The track that the next track drawn on this frame extends ("Next frame after placing").
+        // Whether the next annotation placed from the drawing tools is created as occluded.
+        activeOccluded?: boolean;
+        // The track that the next track drawn on this frame extends ("Auto advance").
         continuedTrack?: { clientID: number; frame: number } | null;
     };
     editing: EditingState;
@@ -1095,6 +1097,7 @@ export interface WorkspaceSettingsState {
     resizeFromSides: boolean;
     cornerHandles: boolean;
     drawingDimensions: boolean;
+    autoAdvanceOnModify: boolean;
     flashAnnotations: boolean;
     editingCrosshair: boolean;
     cursorMagnifier: boolean;
