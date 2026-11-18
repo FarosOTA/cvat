@@ -91,6 +91,7 @@ export interface Configuration {
     adaptiveZoom?: boolean;
     clickToGrab?: boolean;
     resizeFromSides?: boolean;
+    hideRotationControl?: boolean;
     cornerHandles?: boolean;
     drawingDimensions?: boolean;
     flashAnnotations?: boolean;
@@ -457,6 +458,7 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
                 frameFitMargin: 8,
                 clickToGrab: false,
                 resizeFromSides: false,
+                hideRotationControl: false,
                 cornerHandles: true,
                 drawingDimensions: true,
                 flashAnnotations: true,
@@ -1042,6 +1044,9 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
         }
         if (typeof configuration.resizeFromSides === 'boolean') {
             this.data.configuration.resizeFromSides = configuration.resizeFromSides;
+        }
+        if (typeof configuration.hideRotationControl === 'boolean') {
+            this.data.configuration.hideRotationControl = configuration.hideRotationControl;
         }
         if (typeof configuration.cornerHandles === 'boolean') {
             this.data.configuration.cornerHandles = configuration.cornerHandles;

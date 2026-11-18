@@ -39,6 +39,7 @@ const defaultState: SettingsState = {
         clickToGrab: false,
         clearFocusOnCanvasLeave: false,
         resizeFromSides: false,
+        hideRotationControl: false,
         cornerHandles: true,
         drawingDimensions: true,
         autoAdvanceOnModify: false,

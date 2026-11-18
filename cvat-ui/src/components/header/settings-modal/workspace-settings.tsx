@@ -29,6 +29,7 @@ interface Props {
     adaptiveZoom: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
+    hideRotationControl: boolean;
     flashAnnotations: boolean;
     intelligentPolygonCrop: boolean;
     defaultApproxPolyAccuracy: number;
@@ -46,7 +47,9 @@ interface Props {
     onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
     onSwitchFlashAnnotations(enabled: boolean): void;
-    onSwitchRectanglePrecision(tool: 'clearFocusOnCanvasLeave' | 'resizeFromSides', enabled: boolean): void;
+    onSwitchRectanglePrecision(
+        tool: 'clearFocusOnCanvasLeave' | 'resizeFromSides' | 'hideRotationControl', enabled: boolean,
+    ): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeTextFontSize(fontSize: number): void;
     onChangeControlPointsSize(pointsSize: number): void;
@@ -69,6 +72,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         adaptiveZoom,
         clearFocusOnCanvasLeave,
         resizeFromSides,
+        hideRotationControl,
         flashAnnotations,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
@@ -141,6 +145,25 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
                         A directional resize cursor marks the grab area, independently of outline thickness or zoom.
                         Disabled by default. When enabled, only corner handles are shown.
                         Dragging the box body is unchanged.
+                    </Text>
+                </Col>
+            </Row>
+            <Row className='cvat-player-setting'>
+                <Col span={24}>
+                    <Checkbox
+                        className='cvat-workspace-settings-hide-rotation-control'
+                        checked={hideRotationControl}
+                        onChange={(event: CheckboxChangeEvent): void => {
+                            onSwitchRectanglePrecision('hideRotationControl', event.target.checked);
+                        }}
+                    >
+                        Hide rotation control point
+                    </Checkbox>
+                </Col>
+                <Col span={24}>
+                    <Text type='secondary'>
+                        Hide the rotation handle on 2D annotations. Resize handles and existing angles are unchanged.
+                        Off by default.
                     </Text>
                 </Col>
             </Row>

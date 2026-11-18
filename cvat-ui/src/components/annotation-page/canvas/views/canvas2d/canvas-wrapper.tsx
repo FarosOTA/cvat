@@ -133,6 +133,7 @@ interface StateToProps {
     clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
+    hideRotationControl: boolean;
     cornerHandles: boolean;
     drawingDimensions: boolean;
     editingCrosshair: boolean;
@@ -239,6 +240,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 clickToGrab,
                 clearFocusOnCanvasLeave,
                 resizeFromSides,
+                hideRotationControl,
                 cornerHandles,
                 drawingDimensions,
                 editingCrosshair,
@@ -312,6 +314,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         clickToGrab,
         clearFocusOnCanvasLeave,
         resizeFromSides,
+        hideRotationControl,
         cornerHandles,
         drawingDimensions,
         editingCrosshair,
@@ -618,6 +621,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             adaptiveZoom,
             clickToGrab,
             resizeFromSides,
+            hideRotationControl,
             cornerHandles,
             drawingDimensions,
             editingCrosshair,
@@ -659,6 +663,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             adaptiveZoom,
             clickToGrab,
             resizeFromSides,
+            hideRotationControl,
             cornerHandles,
             drawingDimensions,
             editingCrosshair,
@@ -721,6 +726,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             adaptiveZoom,
             clickToGrab,
             resizeFromSides,
+            hideRotationControl,
             cornerHandles,
             drawingDimensions,
             editingCrosshair,
@@ -757,6 +763,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             prevProps.adaptiveZoom !== adaptiveZoom ||
             prevProps.clickToGrab !== clickToGrab ||
             prevProps.resizeFromSides !== resizeFromSides ||
+            prevProps.hideRotationControl !== hideRotationControl ||
             prevProps.cornerHandles !== cornerHandles ||
             prevProps.drawingDimensions !== drawingDimensions ||
             prevProps.editingCrosshair !== editingCrosshair ||
@@ -790,6 +797,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 adaptiveZoom,
                 clickToGrab,
                 resizeFromSides,
+                hideRotationControl,
                 cornerHandles,
                 drawingDimensions,
                 editingCrosshair,

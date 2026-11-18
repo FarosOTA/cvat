@@ -42,6 +42,7 @@ context('Saving setting to local storage.', () => {
         cy.get('.cvat-workspace-settings-show-interpolated').find('[type="checkbox"]')[method]();
         cy.get('.cvat-workspace-settings-clear-focus-on-canvas-leave').find('[type="checkbox"]')[method]();
         cy.get('.cvat-workspace-settings-resize-from-sides').find('[type="checkbox"]')[method]();
+        cy.get('.cvat-workspace-settings-hide-rotation-control').find('[type="checkbox"]')[method]();
         cy.closeSettings();
         cy.window().then((window) => {
             const { localStorage } = window;
@@ -69,6 +70,7 @@ context('Saving setting to local storage.', () => {
             '.cvat-workspace-settings-show-interpolated',
             '.cvat-workspace-settings-clear-focus-on-canvas-leave',
             '.cvat-workspace-settings-resize-from-sides',
+            '.cvat-workspace-settings-hide-rotation-control',
         ]) {
             if (checked) {
                 cy.get(ws).find('[type="checkbox"]').should('be.checked');

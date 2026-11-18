@@ -1095,6 +1095,7 @@ export interface WorkspaceSettingsState {
     clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
+    hideRotationControl: boolean;
     cornerHandles: boolean;
     drawingDimensions: boolean;
     autoAdvanceOnModify: boolean;

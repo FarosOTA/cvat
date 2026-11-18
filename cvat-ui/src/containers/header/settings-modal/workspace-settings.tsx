@@ -42,6 +42,7 @@ interface StateToProps {
     adaptiveZoom: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
+    hideRotationControl: boolean;
     flashAnnotations: boolean;
     intelligentPolygonCrop: boolean;
     textFontSize: number;
@@ -60,7 +61,9 @@ interface DispatchToProps {
     onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
     onSwitchFlashAnnotations(enabled: boolean): void;
-    onSwitchRectanglePrecision(tool: 'clearFocusOnCanvasLeave' | 'resizeFromSides', enabled: boolean): void;
+    onSwitchRectanglePrecision(
+        tool: 'clearFocusOnCanvasLeave' | 'resizeFromSides' | 'hideRotationControl', enabled: boolean,
+    ): void;
     onSwitchIntelligentPolygonCrop(enabled: boolean): void;
     onChangeDefaultApproxPolyAccuracy(approxPolyAccuracy: number): void;
     onChangeTextFontSize(fontSize: number): void;
@@ -85,6 +88,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         adaptiveZoom,
         clearFocusOnCanvasLeave,
         resizeFromSides,
+        hideRotationControl,
         flashAnnotations,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,
@@ -108,6 +112,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         adaptiveZoom,
         clearFocusOnCanvasLeave,
         resizeFromSides,
+        hideRotationControl,
         flashAnnotations,
         intelligentPolygonCrop,
         defaultApproxPolyAccuracy,

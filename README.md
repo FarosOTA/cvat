@@ -181,6 +181,10 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   It is off by default and saved in the browser. When enabled, midpoint handles are hidden and only
   corner resize handles remain. Moving the box body is unchanged;
   side resizing also supports click-to-grab and `Esc` cancellation.
+- **Hide rotation control point:** Enable **Settings → Workspace → Hide rotation control point**
+  to hide the rotation handle on 2D annotations, including rectangles, ellipses, and skeletons.
+  Resize handles and existing annotation angles are unchanged. It is off by default, applies
+  immediately to the active annotation, and is saved in the browser.
 - **Finer annotation controls:** 2D annotation outlines are 0.75 screen pixels wide, with a default
   control-point radius of 3 pixels. Adjust **Settings → Workspace → Control points size** to taste;
   existing saved control-point sizes are retained.
