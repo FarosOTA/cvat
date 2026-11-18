@@ -1093,6 +1093,8 @@ export interface WorkspaceSettingsState {
     clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
+    cornerHandles: boolean;
+    drawingDimensions: boolean;
     flashAnnotations: boolean;
     editingCrosshair: boolean;
     cursorMagnifier: boolean;

@@ -92,7 +92,8 @@ interface DispatchToProps {
     changeShowProjections(event: CheckboxChangeEvent): void;
     changeOrientationVisibility(orientationVisibility: Partial<OrientationVisibility>): void;
     onSwitchRectanglePrecision(
-        tool: 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover' | 'clickToGrab', enabled: boolean,
+        tool: 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover' | 'clickToGrab' |
+        'cornerHandles' | 'drawingDimensions', enabled: boolean,
     ): void;
     onSwitchNextFrameAfterPlacing(enabled: boolean): void;
 }
@@ -206,7 +207,9 @@ function AppearanceBlock(props: Props): JSX.Element {
     } = useSelector(
         (state: CombinedState) => state.settings.player,
     );
-    const { clickToGrab, showObjectsTextAlways } = useSelector((state: CombinedState) => state.settings.workspace);
+    const {
+        clickToGrab, showObjectsTextAlways, cornerHandles, drawingDimensions,
+    } = useSelector((state: CombinedState) => state.settings.workspace);
 
     const is2D = jobInstance.dimension === DimensionType.DIMENSION_2D;
     const is3D = jobInstance.dimension === DimensionType.DIMENSION_3D;
@@ -338,6 +341,26 @@ function AppearanceBlock(props: Props): JSX.Element {
                                     }}
                                 >
                                     Click to grab bounding boxes
+                                </Checkbox>
+                                <Checkbox
+                                    className='cvat-appearance-corner-handles-checkbox'
+                                    title='Show resize handles at the corners of the active bounding box'
+                                    checked={cornerHandles}
+                                    onChange={(event: CheckboxChangeEvent) => {
+                                        onSwitchRectanglePrecision('cornerHandles', event.target.checked);
+                                    }}
+                                >
+                                    Show corner control points
+                                </Checkbox>
+                                <Checkbox
+                                    className='cvat-appearance-drawing-dimensions-checkbox'
+                                    title='Show the width and height of a box or ellipse while it is being drawn'
+                                    checked={drawingDimensions}
+                                    onChange={(event: CheckboxChangeEvent) => {
+                                        onSwitchRectanglePrecision('drawingDimensions', event.target.checked);
+                                    }}
+                                >
+                                    Show dimensions while drawing
                                 </Checkbox>
                             </>
                         )}

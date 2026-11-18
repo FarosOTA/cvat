@@ -39,6 +39,8 @@ const defaultState: SettingsState = {
         clickToGrab: false,
         clearFocusOnCanvasLeave: false,
         resizeFromSides: false,
+        cornerHandles: true,
+        drawingDimensions: true,
         flashAnnotations: true,
         editingCrosshair: true,
         cursorMagnifier: true,

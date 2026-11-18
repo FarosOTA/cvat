@@ -1424,8 +1424,9 @@ export class CanvasViewImpl implements CanvasView, Listener {
         let pointsExclude: string[] = [];
         if (shape.type === 'image') {
             pointsExclude = ['lt', 'rt', 'rb', 'lb', 't', 'r', 'b', 'l'];
-        } else if (shape.type === 'rect' && !isSkeletonRect && this.configuration.resizeFromSides) {
-            pointsExclude = ['t', 'r', 'b', 'l'];
+        } else if (shape.type === 'rect' && !isSkeletonRect) {
+            if (this.configuration.resizeFromSides) pointsExclude.push('t', 'r', 'b', 'l');
+            if (this.configuration.cornerHandles === false) pointsExclude.push('lt', 'rt', 'rb', 'lb');
         }
         const mousedownHandler = (e: MouseEvent): void => {
             if (e.button !== 0) return;
@@ -2106,6 +2107,10 @@ export class CanvasViewImpl implements CanvasView, Listener {
         if (!this.hoverPosition || this.mode !== Mode.IDLE || this.isImageLoading) return;
 
         const { clientX, clientY } = this.hoverPosition;
+        // Handles and the side-grab band extend outside the active shape; keep it active over them
+        // instead of retargeting by the shape's own geometry.
+        if (this.activeElement.clientID !== null &&
+            document.elementFromPoint(clientX, clientY)?.closest('.svg_select_points')) return;
         const { offset } = this.controller.geometry;
         const [x, y] = translateToSVG(this.content, [clientX, clientY]);
         this.canvas.dispatchEvent(new CustomEvent('canvas.moved', {
@@ -2126,6 +2131,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
         }
         this.editingCrosshairs.forEach((crosshair) => crosshair.hide());
         if (this.cursorMagnifier) this.cursorMagnifier.hidden = true;
+        this.canvas?.classList.remove('cvat_canvas_hide_cursor');
     }
 
     private updatePrecisionTools = (event: MouseEvent): void => {
@@ -2154,6 +2160,9 @@ export class CanvasViewImpl implements CanvasView, Listener {
             return;
         }
 
+        // Box-edge guides replace the pointer while rectangles are drawn or edited.
+        this.canvas.classList.toggle('cvat_canvas_hide_cursor',
+            !!(editingRectangle || drawingRectangle) && !!this.configuration.editingCrosshair);
         if (editingRectangle && this.configuration.editingCrosshair) {
             const {
                 x, y, x2, y2,
@@ -3315,7 +3324,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
         const outlinedColor = parentShapeType === 'skeleton' ? 'black' : outlinedBorders || shapeColor;
 
         return {
-            fill: shapeColor,
+            // With outlined borders, the translucent interior matches the outline (masks keep their pixel color).
+            fill: outlinedBorders && shapeType !== 'mask' && parentShapeType !== 'skeleton' ? outlinedColor : shapeColor,
             stroke: outlinedColor,
             'fill-opacity': !['polyline', 'points', 'skeleton'].includes(shapeType) || parentShapeType === 'skeleton' ? shapeOpacity : 0,
         };

@@ -172,7 +172,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   resize an active 2D rectangle by dragging anywhere along a side, not only its midpoint handle.
   Each side has an invisible grab area extending **6 screen pixels inside and outside** its border,
   independent of outline thickness and zoom. Hovering there shows a directional resize cursor,
-  including on rotated boxes and images.
+  including on rotated boxes and images. The box stays active while the pointer is in the outer half
+  of the band, so the outside grab area works the same as the inside.
   It is off by default and saved in the browser. When enabled, midpoint handles are hidden and only
   corner resize handles remain. Moving the box body is unchanged;
   side resizing also supports click-to-grab and `Esc` cancellation.
@@ -190,7 +191,13 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 - **Cancel safely:** Press `Esc` during a move or resize to restore the box's geometry from before
   the interaction instead of keeping the unfinished edit.
 - **Editing crosshairs:** Guides extend all four box borders while moving or resizing, anchored to
-  the box edges rather than the mouse pointer.
+  the box edges rather than the mouse pointer. While they are enabled, the mouse pointer is hidden
+  while drawing, moving, or resizing a box.
+- **Outlined borders:** With **Outlined borders** on, the translucent fill inside shapes (controlled by
+  the opacity sliders) uses the outline color.
+- **Optional handles and dimensions:** Sidebar **Settings → Show corner control points** (on by default)
+  hides the corner resize handles of active boxes when off. **Show dimensions while drawing** (on by
+  default) hides the width × height label of a box, ellipse, or cuboid while it is being drawn.
 - **Magnified borders:** Hover over a box or its resize handles to inspect magnified image strips
   along **all four edges**, without clicking or dragging. The strips disappear when the pointer
   leaves the box and remain available while drawing, moving, or resizing it. This is a border

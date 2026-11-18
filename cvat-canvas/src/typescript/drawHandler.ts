@@ -457,7 +457,7 @@ export class DrawHandlerImpl implements DrawHandler {
                 }
             })
             .on('drawupdate', (): void => {
-                this.shapeSizeElement.update(this.drawInstance);
+                this.shapeSizeElement?.update(this.drawInstance);
             })
             .addClass('cvat_canvas_shape_drawing')
             .attr({
@@ -504,7 +504,7 @@ export class DrawHandlerImpl implements DrawHandler {
                 const cy = initialPoint.y + ry * Math.sign(translated[1] - initialPoint.y);
                 this.drawInstance.center(cx, cy);
                 this.drawInstance.radius(rx, ry);
-                this.shapeSizeElement.update(this.drawInstance);
+                this.shapeSizeElement?.update(this.drawInstance);
             }
         });
 
@@ -781,7 +781,7 @@ export class DrawHandlerImpl implements DrawHandler {
                 }
             })
             .on('drawupdate', (): void => {
-                this.shapeSizeElement.update(this.drawInstance);
+                this.shapeSizeElement?.update(this.drawInstance);
             })
             .addClass('cvat_canvas_shape_drawing')
             .attr({
@@ -1276,7 +1276,7 @@ export class DrawHandlerImpl implements DrawHandler {
                 } else {
                     this.drawBox(); // default box drawing
                     // draw instance was initialized after drawBox();
-                    this.shapeSizeElement = displayShapeSize(this.canvas, this.text);
+                    this.shapeSizeElement = this.createShapeSizeElement();
                 }
             } else if (this.drawData.shapeType === 'polygon') {
                 this.drawPolygon();
@@ -1286,13 +1286,13 @@ export class DrawHandlerImpl implements DrawHandler {
                 this.drawPoints();
             } else if (this.drawData.shapeType === 'ellipse') {
                 this.drawEllipse();
-                this.shapeSizeElement = displayShapeSize(this.canvas, this.text);
+                this.shapeSizeElement = this.createShapeSizeElement();
             } else if (this.drawData.shapeType === 'cuboid') {
                 if (this.drawData.cuboidDrawingMethod === CuboidDrawingMethod.CORNER_POINTS) {
                     this.drawCuboidBy4Points();
                 } else {
                     this.drawCuboid();
-                    this.shapeSizeElement = displayShapeSize(this.canvas, this.text);
+                    this.shapeSizeElement = this.createShapeSizeElement();
                 }
             } else if (this.drawData.shapeType === 'skeleton') {
                 this.drawSkeleton();
@@ -1305,6 +1305,10 @@ export class DrawHandlerImpl implements DrawHandler {
 
         this.startTimestamp = Date.now();
         this.initialized = true;
+    }
+
+    private createShapeSizeElement(): ShapeSizeElement | null {
+        return this.configuration.drawingDimensions === false ? null : displayShapeSize(this.canvas, this.text);
     }
 
     public constructor(
@@ -1371,6 +1375,10 @@ export class DrawHandlerImpl implements DrawHandler {
         this.controlPointsSize = configuration.controlPointsSize;
         this.selectedShapeOpacity = configuration.selectedShapeOpacity;
         this.outlinedBorders = configuration.outlinedBorders || 'black';
+        if (configuration.drawingDimensions === false && this.shapeSizeElement) {
+            this.shapeSizeElement.rm();
+            this.shapeSizeElement = null;
+        }
         if (this.isHidden !== configuration.hideEditedObject) {
             this.updateHidden(configuration.hideEditedObject);
         }
@@ -1420,7 +1428,7 @@ export class DrawHandlerImpl implements DrawHandler {
         this.geometry = geometry;
 
         if (this.shapeSizeElement && this.drawInstance && ['rectangle', 'ellipse'].includes(this.drawData.shapeType)) {
-            this.shapeSizeElement.update(this.drawInstance);
+            this.shapeSizeElement?.update(this.drawInstance);
         }
 
         if (this.crosshair) {
