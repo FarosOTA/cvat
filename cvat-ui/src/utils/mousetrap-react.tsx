@@ -88,8 +88,8 @@ Mousetrap.prototype.stopCallback = function (_e: KeyboardEvent, element: Element
         applicationKeyMap[key]?.sequences.includes('esc')
     ));
     if (!cancelEscape && (element.tagName === 'INPUT' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA' ||
-        (element as HTMLElement).isContentEditable)) {
-        // Leave typing alone, but cancellation must also work while an editor has focus.
+        element.getAttribute('role') === 'slider' || (element as HTMLElement).isContentEditable)) {
+        // Leave focused editors and sliders alone, but cancellation must still work.
         return true;
     }
 

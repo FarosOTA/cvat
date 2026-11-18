@@ -4,12 +4,14 @@
 
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import Button from 'antd/lib/button';
 import Select from 'antd/lib/select';
 import Text from 'antd/lib/typography/Text';
 
 import { setLabelReplacement } from 'actions/annotation-actions';
 import { Label, LabelType } from 'cvat-core-wrapper';
 import { CombinedState } from 'reducers';
+import { TOGGLE_LABEL_REPLACEMENT_EVENT } from 'utils/repeat-action';
 
 export default function LabelReplacement(): JSX.Element {
     const dispatch = useDispatch();
@@ -48,8 +50,16 @@ export default function LabelReplacement(): JSX.Element {
             {sourceLabelID !== null && sourceLabelID === targetLabelID && (
                 <Text type='warning'>Choose different current and new labels.</Text>
             )}
+            <Button
+                type='primary'
+                disabled={sourceLabelID === null || targetLabelID === null || sourceLabelID === targetLabelID}
+                onClick={() => document.dispatchEvent(new CustomEvent(TOGGLE_LABEL_REPLACEMENT_EVENT))}
+            >
+                Start / stop replacement brush
+            </Button>
             <Text type='secondary'>
-                Repeat apply label (Shift+L by default) replaces only the current label inside the brush.
+                Use the button or Repeat apply label (Shift+L by default) to replace only the current label
+                inside the brush.
                 Other labels and locked annotations are unchanged. Press Escape to stop.
             </Text>
         </div>

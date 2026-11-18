@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import Button from 'antd/lib/button';
 import Select from 'antd/lib/select';
+import Tabs from 'antd/lib/tabs';
 
 import {
     FramesMetaData, getCore, ObjectType, RectangleMetadata,
@@ -24,6 +25,7 @@ import GlobalHotKeys from 'utils/mousetrap-react';
 import { subKeyMap } from 'utils/component-subkeymap';
 import { ShortcutScope } from 'utils/enums';
 import { shallowEqual } from 'utils/redux';
+import FrameTimeline from './frame-timeline';
 
 const componentShortcuts = {
     PREVIOUS_ANNOTATION_FRAME: {
@@ -77,7 +79,7 @@ export default function RectangleTrackTimeline(): JSX.Element {
         keyMap: state.shortcuts.keyMap,
         metadataRevision: state.annotation.rectangleTrack.metadataRevision,
     }), shallowEqual);
-    const [expanded, setExpanded] = useState(false);
+    const [expanded, setExpanded] = useState(true);
     const [labelID, setLabelID] = useState<number | null>(null);
     const [rectangles, setRectangles] = useState<RectangleMetadata[]>([]);
     const [deletedFrames, setDeletedFrames] = useState<FramesMetaData['deletedFrames'] | null>(null);
@@ -215,18 +217,9 @@ export default function RectangleTrackTimeline(): JSX.Element {
         },
     };
 
-    return (
-        <div className={`cvat-rectangle-track-timeline ${expanded ? 'cvat-rectangle-track-timeline-expanded' : ''}`}>
-            <GlobalHotKeys keyMap={subKeyMap(componentShortcuts, keyMap)} handlers={handlers} />
+    const tracks = (
+        <>
             <div className='cvat-rectangle-track-timeline-header'>
-                <Button
-                    type='text'
-                    size='small'
-                    icon={expanded ? <CaretDownOutlined /> : <CaretUpOutlined />}
-                    onClick={() => setExpanded(!expanded)}
-                >
-                    Track timeline
-                </Button>
                 <Select
                     size='small'
                     value={labelID === null ? 'any' : `${labelID}`}
@@ -328,6 +321,38 @@ export default function RectangleTrackTimeline(): JSX.Element {
                     )}
                 </div>
             )}
+        </>
+    );
+
+    return (
+        <div className={`cvat-rectangle-track-timeline ${expanded ? 'cvat-rectangle-track-timeline-expanded' : ''}`}>
+            <GlobalHotKeys keyMap={subKeyMap(componentShortcuts, keyMap)} handlers={handlers} />
+            <Button
+                className='cvat-timeline-collapse'
+                type='text'
+                size='small'
+                aria-label={expanded ? 'Collapse timeline' : 'Expand timeline'}
+                aria-expanded={expanded}
+                icon={expanded ? <CaretDownOutlined /> : <CaretUpOutlined />}
+                onClick={() => setExpanded(!expanded)}
+            >
+                {expanded ? null : 'Timeline'}
+            </Button>
+            <div hidden={!expanded}>
+                <Tabs
+                    defaultActiveKey='frames'
+                    size='small'
+                    destroyInactiveTabPane
+                    items={[
+                        {
+                            key: 'frames',
+                            label: 'Frames',
+                            children: expanded ? <FrameTimeline frames={navigableFrameNumbers} /> : null,
+                        },
+                        { key: 'tracks', label: 'Tracks', children: tracks },
+                    ]}
+                />
+            </div>
         </div>
     );
 }

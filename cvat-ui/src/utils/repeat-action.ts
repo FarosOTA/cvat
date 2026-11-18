@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
+export const TOGGLE_LABEL_REPLACEMENT_EVENT = 'cvat.repeat-action.toggle-label-replacement';
+
 const pendingActions = new Set<Promise<void>>();
 
 // Register before saving so an already-loading frame cannot replace the source frame.

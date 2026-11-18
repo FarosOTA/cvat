@@ -2152,6 +2152,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
         }
         this.editingCrosshairs.forEach((crosshair) => crosshair.hide());
         if (this.cursorMagnifier) this.cursorMagnifier.hidden = true;
+        this.canvas?.classList.remove('cvat_canvas_hide_cursor');
     }
 
     private updatePrecisionTools = (event: MouseEvent): void => {
@@ -2179,6 +2180,11 @@ export class CanvasViewImpl implements CanvasView, Listener {
             this.hidePrecisionTools();
             return;
         }
+
+        // Only crosshair-guided drawing and editing replace the native pointer.
+        this.canvas.classList.toggle('cvat_canvas_hide_cursor',
+            (!!editingRectangle && !!this.configuration.editingCrosshair) ||
+            (drawingRectangle && !!this.controller.drawData.crosshair));
 
         if (editingRectangle && this.configuration.editingCrosshair) {
             const {
@@ -2995,6 +3001,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 this.transformCanvas();
             } else {
                 this.isImageLoading = true;
+                this.hidePrecisionTools();
             }
         } else if (reason === UpdateReasons.FITTED_CANVAS) {
             // Canvas geometry is going to be changed. Old object positions aren't valid any more

@@ -42,9 +42,17 @@ In the **Standard workspace**, select an unlocked, non-ground-truth rectangle tr
 
 ## Track timeline and navigation
 
-A collapsible **Track timeline** is docked below the canvas in the 2D Standard workspace, rather than
-covering the image. Expand it to see both rectangle **tracks** and standalone rectangle **shapes**,
-their visible segments, keyframe markers, outside/deleted-frame markers, and the current playhead.
+A collapsible timeline dock sits below the canvas in the 2D Standard workspace, rather than
+covering the image. Its **Frames** tab opens by default with a Photos-style thumbnail filmstrip.
+Click a thumbnail to seek, or drag the scrubber and release to load an exact frame. The focused
+scrubber also supports arrow keys and Home/End. **Whole job** samples up to 12 thumbnails across
+the job; **Nearby** shows up to 11 consecutive available frames around the current frame. During
+playback, that window stays fixed until playback pauses to avoid fetching thumbnails every frame.
+Deleted frames are skipped. Thumbnails use compressed server frames; closing the dock or switching to Tracks
+cancels pending thumbnail requests and releases their image URLs. This does not copy source files.
+
+The **Tracks** tab shows rectangle **tracks** and standalone rectangle **shapes**, their visible
+segments, keyframe markers, outside/deleted-frame markers, and the current playhead.
 There is one row per label, combining all of that label's tracks and shapes with an annotation count.
 Standalone shapes retain their one-frame segments; shapes on consecutive frames are not implicitly
 joined into a track. The header reports track and shape counts separately. Filter by label, click a
@@ -209,8 +217,10 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 - **Cancel safely:** Press `Esc` during a move or resize to restore the box's geometry from before
   the interaction instead of keeping the unfinished edit.
 - **Editing crosshairs:** Guides extend all four box borders while moving or resizing, anchored to
-  the box edges rather than the mouse pointer. The mouse pointer remains visible, including while
-  drawing, moving, resizing, playing, seeking, or using keyboard shortcuts and slash commands.
+  the box edges rather than the mouse pointer. The mouse pointer is hidden while drawing a box with
+  crosshairs or moving/resizing one with editing crosshairs enabled. It returns when the interaction
+  ends or is cancelled, the pointer leaves the canvas, or a frame starts loading; ordinary playback,
+  seeking, keyboard shortcuts, and slash commands do not hide it.
 - **Drawing with an annotation in the chamber:** While a box tool is engaged (for example after `N`),
   a click places a corner, and pressing and dragging on empty image pans it. Before the first corner
   is placed, pressing and dragging an existing unlocked, unrotated box moves it, or resizes it from
@@ -225,6 +235,7 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   `Shift+Q` toggles **Repeat mark occluded**, and `Alt+Shift+Q` (Option on macOS) toggles
   **Repeat mark not occluded**. `Shift+L` toggles **Repeat apply label**, which uses the currently
   configured **Current label → New label** pair in the sidebar's **Label Replacement** pane.
+  The pane's **Start / stop replacement brush** button toggles the same mode without a shortcut.
   Select both labels before starting; only annotations with **Current label** that intersect the
   brush are changed to **New label**. Other labels are untouched, regardless of the top-bar class.
   Changing either selection while the mode is active updates the replacement pair. The selections
@@ -235,8 +246,9 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   persistent notice to stop. With a class selected in the top label bar, repeat deletion and occlusion
   target only annotations of that class; with no class selected, they target all classes.
   Repeat apply label uses its own source and destination selections, not the top-bar class.
-  Only these repeat modes use a circular brush. Set **Repeat brush diameter (px)** in the right
+  Only these repeat modes use a circular brush. Use the **Repeat brush diameter (px)** slider in the right
   sidebar's **Settings** section (1–500 px, default 50 px, remembered with your workspace settings).
+  Arrow keys adjust the focused slider without navigating frames; Escape still stops repeat mode.
   Its visible footprint stays the same size on screen when zooming; ordinary selection, drawing,
   and one-shot actions are unchanged. The mode applies to all annotations intersecting the brush,
   including overlaps and when the pointer is stationary, and stays

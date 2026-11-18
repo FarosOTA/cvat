@@ -102,8 +102,7 @@ context('Repeat cursor actions', () => {
                 cy.contains('.cvat-objects-appearance-collapse-header', 'Settings').click();
             }
         });
-        cy.get('.cvat-repeat-brush-size input').clear();
-        cy.get('.cvat-repeat-brush-size input').type('1{enter}');
+        cy.get('.cvat-repeat-brush-size [role="slider"]').type('{home}');
         cy.get('.cvat_canvas_shape').first().then(([shape]) => {
             const rect = shape.getBoundingClientRect();
             const point = { clientX: rect.left - 15, clientY: rect.top + 10, bubbles: true };
@@ -112,8 +111,8 @@ context('Repeat cursor actions', () => {
             shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
             cy.get('.cvat-repeat-action-brush').should('have.css', 'width', '1px');
             cy.get('.cvat_canvas_shape').first().should('not.have.class', 'cvat_canvas_shape_occluded');
-            cy.get('.cvat-repeat-brush-size input').clear();
-            cy.get('.cvat-repeat-brush-size input').type('50{enter}');
+            cy.get('.cvat-repeat-brush-size [role="slider"]').type(`{home}${'{rightarrow}'.repeat(49)}`);
+            cy.get('.cvat-player-frame-selector input').should('have.value', '0');
             cy.get('.cvat-canvas-container').trigger('mousemove', { ...point, scrollBehavior: false });
             cy.get('.cvat-repeat-action-brush').should('have.css', 'width', '50px');
             cy.get('.cvat-repeat-action-brush').should(($brush) => {
@@ -138,13 +137,22 @@ context('Repeat cursor actions', () => {
         cy.get('.cvat-rectangle-label-button[aria-label="Draw other"]').click();
         cy.get('.cvat-rectangle-label-button[aria-label="Draw other"]')
             .should('have.attr', 'aria-pressed', 'true');
+        cy.contains('[role="tab"]', 'Label Replacement').click();
+        cy.contains('button', 'Start / stop replacement brush').click();
+        cy.contains('[role="tab"]', 'Objects').click();
         pointAtOverlap();
-        shortcut('L', { keyCode: 76, which: 76, shiftKey: true });
         cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
             .filter('[title="replacement"]').should('have.length', 1);
         cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
             .filter('[title="other"]').should('have.length', 1);
         cy.get('.cvat-repeat-action-feedback').should('not.exist');
+        cy.contains('[role="tab"]', 'Label Replacement').click();
+        cy.contains('button', 'Start / stop replacement brush').click();
+        pointAtOverlap();
+        cy.get('.cvat-repeat-action-brush').should('not.exist');
+        cy.contains('[role="tab"]', 'Objects').click();
+        pointAtOverlap();
+        shortcut('L', { keyCode: 76, which: 76, shiftKey: true });
         shortcut('f', { keyCode: 70, which: 70 });
         cy.get('.cvat-player-frame-selector input').should('have.value', '1');
         cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')

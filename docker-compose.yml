@@ -91,6 +91,8 @@ services:
       # Expiry must also be reclaimed while idle, outside the overnight window.
       "--compaction-checker-cron", "* * * * *",
       "--log-retention-days", "7",
+      # RocksDB block cache in MB; the kvrocks default (4096) exhausts RAM on small hosts.
+      "--rocksdb.block_cache_size", "${CVAT_MEDIA_CACHE_BLOCK_CACHE_MB:-512}",
       ]
 
   cvat_server:

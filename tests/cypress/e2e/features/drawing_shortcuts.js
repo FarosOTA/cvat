@@ -46,15 +46,30 @@ context('Drawing object type and cancellation shortcuts', () => {
         cy.get('.cvat-canvas-container').should('be.visible');
     });
 
-    it('keeps the pointer visible with rectangle precision guides and after cancelling by keyboard', () => {
+    it('hides the pointer only with rectangle crosshairs and restores it after leaving or cancelling', () => {
         cy.openSidebarSettings();
         cy.get('.cvat-appearance-editing-crosshair-checkbox input').check();
         startDrawing('rectangle', 'Shape', 'By 2 Points');
         cy.get('.cvat-canvas-container').click(230, 170);
         cy.get('.cvat-canvas-container').trigger('mousemove', 410, 290);
         cy.get('.cvat_canvas_crosshair').should('be.visible');
+        cy.get('#cvat_canvas_wrapper').should('have.css', 'cursor', 'none');
+        cy.get('.cvat_canvas_shape_drawing').should('have.css', 'cursor', 'none');
+        cy.get('#cvat_canvas_wrapper').trigger('mouseleave');
         cy.get('#cvat_canvas_wrapper').should('not.have.css', 'cursor', 'none');
-        cy.get('.cvat_canvas_shape_drawing').should('not.have.css', 'cursor', 'none');
+        cy.get('.cvat-canvas-container').trigger('mousemove', 410, 290);
+        cy.get('#cvat_canvas_wrapper').should('have.css', 'cursor', 'none');
+        cy.get('body').type('{esc}');
+        cy.get('#cvat_canvas_wrapper').should('not.have.css', 'cursor', 'none');
+
+        cy.get('.cvat-appearance-editing-crosshair-checkbox input').uncheck();
+        startDrawing('rectangle', 'Shape', 'By 2 Points');
+        cy.get('.cvat-canvas-container').click(230, 170);
+        cy.get('.cvat-canvas-container').trigger('mousemove', 410, 290);
+        // Drawing guides are independent of the editing-crosshair preference.
+        cy.get('.cvat_canvas_crosshair').should('be.visible');
+        cy.get('#cvat_canvas_wrapper').should('have.css', 'cursor', 'none');
+        cy.get('.cvat_canvas_shape_drawing').should('have.css', 'cursor', 'none');
         cy.get('body').type('{esc}');
         cy.get('#cvat_canvas_wrapper').should('not.have.css', 'cursor', 'none');
     });

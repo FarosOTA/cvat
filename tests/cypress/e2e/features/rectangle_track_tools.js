@@ -101,6 +101,18 @@ context('Rectangle track batch tools and edit propagation', () => {
             mainPageTrackId = Number($tracks[0].id.split('-').at(-1));
             removablePageTrackId = Number($tracks[1].id.split('-').at(-1));
         });
+        cy.get('.cvat-frame-timeline-strip img').should('have.length.at.most', 12);
+        cy.get('.cvat-frame-timeline-strip button').last().click();
+        cy.window().then(async (win) => {
+            const [job] = await win.cvat.jobs.get({ jobID: jobId });
+            return job.stopFrame;
+        }).then((lastFrame) => {
+            cy.checkFrameNum(lastFrame);
+        });
+        cy.get('input[aria-label="Frame timeline scrubber"]').focus();
+        cy.get('input[aria-label="Frame timeline scrubber"]').type('{home}');
+        cy.checkFrameNum(0);
+        cy.contains('.cvat-rectangle-track-timeline [role="tab"]', 'Tracks').click();
         cy.get('.cvat-rectangle-track-timeline-header').should('be.visible');
         cy.get('.cvat-rectangle-track-timeline-header button[title^="Next annotation frame"]').click();
         cy.checkFrameNum(1);
@@ -128,7 +140,6 @@ context('Rectangle track batch tools and edit propagation', () => {
         cy.checkFrameNum(1);
         cy.get('.cvat-rectangle-track-timeline-header button[title^="Next annotation frame"]').click();
         cy.checkFrameNum(3);
-        cy.contains('.cvat-rectangle-track-timeline-header button', 'Track timeline').click();
         cy.get('.cvat-rectangle-track-timeline-row').should('have.length', 1);
         cy.get('.cvat-rectangle-track-timeline-label').should('contain.text', 'car').find('small')
             .should('have.text', '2');
@@ -324,7 +335,7 @@ context('Rectangle track batch tools and edit propagation', () => {
             })), jobId);
         });
         cy.reload();
-        cy.contains('.cvat-rectangle-track-timeline-header button', 'Track timeline').click();
+        cy.contains('.cvat-rectangle-track-timeline [role="tab"]', 'Tracks').click();
         cy.get('.cvat-rectangle-track-timeline-row').should('have.length', 2);
         cy.get(shapeSegments).should('have.length', 3);
         cy.get('.cvat-rectangle-track-timeline-segment[data-object-type="track"]').should('exist');

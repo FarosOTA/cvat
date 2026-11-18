@@ -34,3 +34,17 @@ For research into additions, changes, and removals in `cvat-ai/cvat`, follow
 
 Research produces a change list for the user, not merge or integration automation.
 Persist research checkpoints only; decisions stay in the research thread.
+
+# Amp runner identity
+
+The `elitebook` runner is managed by `amp-runner.service` and runs as the Linux
+user `markos`, even when a thread starts in `/home/cvat/cvat`. Serving this
+directory does not switch the thread's operating-system user.
+
+Use `sudo -u cvat -- <command>` for commands that should create files owned by
+`cvat`; use `sudo -H -u cvat -- <command>` when the command also needs CVAT's home
+directory and user-specific credentials or configuration. Do not print credentials.
+Preserve existing ownership rather than recursively changing it to `markos`.
+
+A separate runner running as `cvat` is only needed if every command should use
+that identity automatically; do not create one unless requested.

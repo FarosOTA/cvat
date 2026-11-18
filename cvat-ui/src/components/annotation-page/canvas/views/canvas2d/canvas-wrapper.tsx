@@ -76,7 +76,7 @@ import { ImageFilter } from 'utils/image-processing';
 import { ShortcutScope } from 'utils/enums';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import { subKeyMap } from 'utils/component-subkeymap';
-import { beginRepeatAction } from 'utils/repeat-action';
+import { beginRepeatAction, TOGGLE_LABEL_REPLACEMENT_EVENT } from 'utils/repeat-action';
 import repeatBrushHits from 'utils/repeat-brush';
 import ImageSetupsContent from './image-setups-content';
 import CanvasTipsComponent from './canvas-hints';
@@ -569,6 +569,10 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         if (event.key === 'Escape') this.stopRepeatAction();
     };
 
+    private onToggleLabelReplacement = (): void => {
+        this.toggleRepeatAction('label');
+    };
+
     private toggleRepeatAction = (action: RepeatAction, event?: KeyboardEvent): void => {
         event?.preventDefault();
         if (event?.repeat || this.props.workspace !== Workspace.STANDARD) return;
@@ -688,6 +692,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     public componentDidMount(): void {
         document.addEventListener('mousemove', this.trackPointer);
         document.addEventListener('keydown', this.onRepeatEscape, true);
+        document.addEventListener(TOGGLE_LABEL_REPLACEMENT_EVENT, this.onToggleLabelReplacement);
         const {
             automaticBordering,
             snapToPoint,
@@ -1004,6 +1009,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         this.stopRepeatAction();
         document.removeEventListener('mousemove', this.trackPointer);
         document.removeEventListener('keydown', this.onRepeatEscape, true);
+        document.removeEventListener(TOGGLE_LABEL_REPLACEMENT_EVENT, this.onToggleLabelReplacement);
         this.props.frameData?.cancelRefinement();
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
 

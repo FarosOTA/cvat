@@ -76,6 +76,11 @@ polyline.cvat_shape_drawing_opacity {
     pointer-events: none;
 }
 
+.cvat_canvas_hide_cursor,
+.cvat_canvas_hide_cursor * {
+    cursor: none !important;
+}
+
 .cvat_canvas_shape_selection {
     @extend .cvat_shape_action_dasharray;
     @extend .cvat_shape_action_opacity;

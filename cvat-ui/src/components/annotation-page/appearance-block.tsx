@@ -295,18 +295,16 @@ function AppearanceBlock(props: Props): JSX.Element {
                         </Checkbox>
                         {is2D && workspace === Workspace.STANDARD && (
                             <>
-                                <Text type='secondary'>Repeat brush diameter (px)</Text>
-                                <InputNumber
+                                <Text type='secondary'>Repeat brush diameter (px): {repeatBrushSize}</Text>
+                                <Slider
                                     className='cvat-repeat-brush-size'
-                                    aria-label='Repeat brush diameter (px)'
-                                    title='Only affects repeat delete, occlusion, and apply label modes'
+                                    {...{ ariaLabelForHandle: 'Repeat brush diameter (px)' }}
                                     min={1}
                                     max={500}
-                                    precision={0}
+                                    step={1}
                                     value={repeatBrushSize}
-                                    onChange={(value: number | null) => {
-                                        if (value !== null) dispatch(changeRepeatBrushSize(clamp(value, 1, 500)));
-                                    }}
+                                    tooltip={{ formatter: (value) => `${value} px` }}
+                                    onChange={(value: number) => dispatch(changeRepeatBrushSize(value))}
                                 />
                             </>
                         )}

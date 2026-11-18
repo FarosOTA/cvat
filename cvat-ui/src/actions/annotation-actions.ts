@@ -19,7 +19,6 @@ import {
 } from 'cvat-core-wrapper';
 import logger, { EventScope } from 'cvat-logger';
 import { getCVATStore } from 'cvat-store';
-import openCVWrapper from 'utils/opencv-wrapper/opencv-wrapper';
 import notification from 'antd/lib/notification';
 
 import {
@@ -1819,6 +1818,9 @@ export function startRectangleInteractionAsync(
         const onCancel = (): void => { canceled = true; };
         canvas.html().addEventListener('canvas.canceled', onCancel);
         try {
+            // OpenCV has top-level await; keep it out of the synchronous store initialization cycle.
+            const { default: openCVWrapper } = await import('utils/opencv-wrapper/opencv-wrapper');
+
             await openCVWrapper.initialize(() => {});
             const current = getState().annotation;
             if (canceled || current.player.frame.number !== frame || current.job.instance !== job ||
