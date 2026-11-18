@@ -234,6 +234,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   is placed, pressing and dragging an existing unlocked, unrotated box moves it, or resizes it from
   an edge or corner, without leaving the tool. **Delete object** and other object shortcuts target
   the annotation under the pointer while a tool is engaged.
+  The box being drawn stays transparent, including when **Smooth image** or other appearance
+  settings change during placement; selected-object opacity does not fill the unfinished box.
 - **Occluded in the chamber:** The class strip has an **Occluded** switch next to **Shape/Track**.
   Press `Q` (the **Switch occluded** shortcut) while a drawing tool is engaged to toggle it; the next
   placed annotation is created occluded, and the switch resets to not occluded after each placement.
