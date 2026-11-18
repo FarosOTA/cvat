@@ -217,8 +217,10 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   `Shift+Q` toggles **Repeat mark occluded**, and `Alt+Shift+Q` (Option on macOS) toggles
   **Repeat mark not occluded**. These shortcuts are configurable in **Settings → Shortcuts**.
   Only one repeat mode is active at a time; press its shortcut again, press `Esc`, or close its
-  persistent notice to stop. The mode applies to all overlapping annotations under the pointer,
-  including when the pointer is stationary, and stays engaged through frame seeking (`F`, `D`, `C`,
+  persistent notice to stop. With a class selected in the top label bar, repeat actions target only
+  annotations of that class; with no class selected, they target all classes. The mode applies to
+  overlapping annotations under the pointer, including when the pointer is stationary, and stays
+  engaged through frame seeking (`F`, `D`, `C`,
   `V`, Left/Right), playback, and pauses. Repeat deletion bypasses confirmation and object locks;
   deleting a track removes the whole track, just like ordinary object deletion. Occlusion modes set
   the flag explicitly rather than toggling it and respect object locks. Hidden objects/layers,

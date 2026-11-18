@@ -12,7 +12,10 @@ context('Repeat cursor actions', () => {
         cy.prepareUserSession();
         cy.headlessCreateTask({
             name: 'Repeat cursor actions',
-            labels: [{ name: 'object', type: 'rectangle', attributes: [] }],
+            labels: [
+                { name: 'object', type: 'rectangle', attributes: [] },
+                { name: 'other', type: 'rectangle', attributes: [] },
+            ],
             project_id: null,
             source_storage: { location: 'local' },
             target_storage: { location: 'local' },
@@ -30,14 +33,16 @@ context('Repeat cursor actions', () => {
                     version: 0,
                     tags: [],
                     tracks: [],
-                    shapes: [0, 1, 2].flatMap((frame) => [
+                    shapes: [0, 1, 2, 3].flatMap((frame) => [
                         [100, 100, 250, 250], [140, 140, 290, 290], [350, 100, 450, 250],
-                    ].map((points) => ({
+                    ].map((points, index) => ({
                         frame,
                         points,
                         type: 'rectangle',
-                        label_id: body.results[0].id,
-                        occluded: false,
+                        label_id: body.results.find((label) => (
+                            label.name === (frame === 3 && index === 1 ? 'other' : 'object')
+                        )).id,
+                        occluded: frame === 3 && index === 1,
                         outside: false,
                         rotation: 0,
                         z_order: 0,
@@ -113,5 +118,29 @@ context('Repeat cursor actions', () => {
         cy.get('.cvat_canvas_shape').should('have.length', 1);
         cy.get('.ant-modal-confirm').should('not.exist');
         checkSaved(2, 1, 0);
+    });
+
+    it('limits both occlusion modes and deletion to the selected class, until deselected', () => {
+        cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
+        cy.get('.cvat-player-frame-selector input').clear();
+        cy.get('.cvat-player-frame-selector input').type('3{enter}');
+        cy.get('.cvat_canvas_shape').should('have.length', 3);
+        const selectedClass = '.cvat-rectangle-label-button[aria-label="Draw object"]';
+        cy.get(selectedClass).click();
+        cy.get(selectedClass).should('have.attr', 'aria-pressed', 'true');
+        pointAtOverlap();
+        shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
+        cy.get('.cvat_canvas_shape_occluded').should('have.length', 2);
+        shortcut('Q', {
+            keyCode: 81, which: 81, shiftKey: true, altKey: true,
+        });
+        cy.get('.cvat_canvas_shape_occluded').should('have.length', 1);
+        shortcut('Backspace', { keyCode: 8, which: 8, shiftKey: true });
+        cy.get('.cvat_canvas_shape').should('have.length', 2);
+        cy.get(selectedClass).should('have.attr', 'aria-pressed', 'true').click();
+        cy.get(selectedClass).should('have.attr', 'aria-pressed', 'false');
+        pointAtOverlap();
+        cy.get('.cvat_canvas_shape').should('have.length', 1);
+        checkSaved(3, 1, 0);
     });
 });

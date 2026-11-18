@@ -107,6 +107,7 @@ interface StateToProps {
     gridColor: GridColor;
     gridOpacity: number;
     activeLabelID: number;
+    selectedRectangleLabelID: number | null;
     activeObjectType: ObjectType;
     brightnessLevel: number;
     contrastLevel: number;
@@ -194,7 +195,9 @@ function mapStateToProps(state: CombinedState): StateToProps {
             canvas: {
                 activeControl, instance: canvasInstance, ready: canvasIsReady, activeObjectHidden,
             },
-            drawing: { activeLabelID, activeObjectType },
+            drawing: {
+                activeLabelID, activeObjectType, activeInteractor, activeInteractorShapeType,
+            },
             job: { instance: jobInstance },
             player: {
                 frame: { data: frameData, number: frame },
@@ -288,6 +291,11 @@ function mapStateToProps(state: CombinedState): StateToProps {
         gridColor,
         gridOpacity: gridOpacity / 100,
         activeLabelID,
+        selectedRectangleLabelID: (
+            activeControl === ActiveControl.DRAW_RECTANGLE ||
+            (activeControl === ActiveControl.OPENCV_TOOLS && activeInteractor?.kind === 'opencv_scissors_rectangle') ||
+            (activeControl === ActiveControl.AI_TOOLS && activeInteractorShapeType === ShapeType.RECTANGLE)
+        ) ? activeLabelID : null,
         activeObjectType,
         brightnessLevel: brightnessLevel / 100,
         contrastLevel: contrastLevel / 100,
@@ -564,6 +572,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const attempted = this.repeatAttempted;
         const {
             annotations, frame, frameData, canvasIsReady, workspace, hiddenZLayers, jobInstance, onRepeatAction,
+            selectedRectangleLabelID,
         } = this.props;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
         if (!action || !pointer || this.repeatBusy || this.unmounted || !canvasIsReady || frameData?.deleted ||
@@ -579,6 +588,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             const { offset } = canvasInstance.geometry;
             const candidates = annotations.filter((state) => (
                 !state.isGroundTruth && !state.hidden && !state.outside && state.objectType !== ObjectType.TAG &&
+                (selectedRectangleLabelID === null || state.label.id === selectedRectangleLabelID) &&
                 !hiddenZLayers.has(state.zOrder) && !this.repeatAttempted.has(state) &&
                 (action === 'delete' || (!state.lock && state.occluded !== (action === 'occluded')))
             ));
@@ -588,6 +598,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 if (this.unmounted || this.repeatAction !== action || this.pointer !== pointer ||
                     this.repeatAttempted !== attempted || !document.hasFocus() ||
                     this.props.frame !== frame || this.props.annotations !== annotations ||
+                    this.props.selectedRectangleLabelID !== selectedRectangleLabelID ||
                     this.props.hiddenZLayers !== hiddenZLayers || !this.props.canvasIsReady ||
                     ![CanvasMode.IDLE, CanvasMode.DRAW].includes(canvasInstance.mode())) break;
                 const state = result?.state;
