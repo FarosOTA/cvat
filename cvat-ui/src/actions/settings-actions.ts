@@ -548,7 +548,7 @@ export function restoreSettingsAsync(): ThunkAction {
             Object.keys(section).forEach((key) => {
                 const setValue = loadedSettings[sectionKey]?.[key];
                 if (key === 'frameBufferMultiplier' &&
-                    (!Number.isInteger(setValue) || setValue < 1 || setValue > 10)) {
+                    (!Number.isInteger(setValue) || setValue < 1 || setValue > 100)) {
                     return;
                 }
                 if (key === 'frameFitMargin' &&

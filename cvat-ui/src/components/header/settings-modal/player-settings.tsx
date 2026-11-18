@@ -73,13 +73,13 @@ export default function PlayerSettingsComponent(props: Props): JSX.Element {
                     id='cvat-player-buffer-multiplier'
                     aria-label='Lookaround buffer multiplier'
                     min={1}
-                    max={10}
+                    max={100}
                     step={1}
                     precision={0}
                     value={frameBufferMultiplier}
                     onChange={(value: number | null): void => {
                         if (value !== null && Number.isFinite(value)) {
-                            onChangeFrameBufferMultiplier(Math.floor(clamp(value, 1, 10)));
+                            onChangeFrameBufferMultiplier(Math.floor(clamp(value, 1, 100)));
                         }
                     }}
                 />

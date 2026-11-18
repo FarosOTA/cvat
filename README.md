@@ -354,9 +354,9 @@ as an empty model catalog; other failures are reported rather than hidden.
   compressed representation, not necessarily the original upload's full detail.
   Image refinement also preserves an in-progress drag or resize instead of cancelling the edit.
 - **Bounded, bidirectional image buffering:** **Settings → Player → Lookaround buffer multiplier**
-  accepts integers from 1 to 10 (default **10**). Each step permits **16 MiB of compressed chunks**
+  accepts integers from 1 to 100 (default **10**). Each step permits **16 MiB of compressed chunks**
   and **10 chunks**, shared between frames ahead and behind. The default ceiling is **160 MiB /
-  100 chunks**, not 20 GiB of decoded pixels. The window fills nearest-first even while paused,
+  100 chunks**; the maximum is **1,600 MiB / 1,000 chunks**. The window fills nearest-first even while paused,
   favors the navigation direction, and shifts at job boundaries. Seeking cancels obsolete downloads.
   Selected images and one adjacent image are decoded in a worker, with a separate **128 MiB / six-image** retention
   limit (at least the selected image is kept). A chunk exceeding the compressed budget falls back
@@ -589,7 +589,8 @@ throughout playback. JPEG compression still loses detail; refinement does not re
 already discarded by the task's normal compressed representation.
 
 **Settings → Player → Lookaround buffer multiplier** expands a shared ahead/behind compressed-byte
-buffer: 16 MiB and ten chunks per step, from 1 to 10 (default **160 MiB / 100 chunks**). A separate
+buffer: 16 MiB and ten chunks per step, from 1 to 100 (default **160 MiB / 100 chunks**,
+maximum **1,600 MiB / 1,000 chunks**). A separate
 128 MiB/six-image decoded retention window keeps at least the selected image. These limits exclude
 canvas/GPU storage and temporary decoding or transfer allocations. The multiplier is browser-local
 and applies after reopening or reloading the job. Video/3D paths and video buffering are unchanged.

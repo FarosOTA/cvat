@@ -349,8 +349,8 @@ function build(): CVATCore {
                 return config.frameBufferMultiplier;
             },
             set frameBufferMultiplier(value: number) {
-                if (!Number.isInteger(value) || value < 1 || value > 10) {
-                    throw new ArgumentError('Frame buffer multiplier must be an integer from 1 to 10');
+                if (!Number.isInteger(value) || value < 1 || value > 100) {
+                    throw new ArgumentError('Frame buffer multiplier must be an integer from 1 to 100');
                 }
                 config.frameBufferMultiplier = value;
             },
