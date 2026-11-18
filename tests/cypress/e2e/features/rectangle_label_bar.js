@@ -69,6 +69,32 @@ context('Quick rectangle classes', () => {
         if (taskId) cy.headlessDeleteTask(taskId);
     });
 
+    it('opens the action dropdown and switches Shape/Track with and without a selected class', () => {
+        cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
+        cy.get('.cvat-canvas-container').should('be.visible');
+        for (const selected of [false, true]) {
+            if (selected) cy.get(classButton('car')).click();
+            cy.get(classButton('car')).should('have.attr', 'aria-pressed', String(selected));
+            cy.get('body').type('{alt}s');
+            cy.get('input[aria-label="Default rectangle action"]')
+                .should('be.focused').and('have.attr', 'aria-expanded', 'true');
+            cy.get('body').type('{downarrow}{enter}');
+            cy.get('.cvat-rectangle-label-mode').should('contain.text', 'Scissors rectangle');
+            cy.get('input[aria-label="Default rectangle action"]').should('not.be.focused');
+            cy.get('body').type('{alt}s');
+            cy.get('body').type('{uparrow}{enter}');
+            cy.get('.cvat-rectangle-label-mode').should('contain.text', 'Manual rectangle');
+            if (selected) cy.get(classButton('car')).click();
+            cy.get(classButton('car')).should('have.attr', 'aria-pressed', String(selected));
+            cy.get('body').type('{alt}t');
+            cy.get('[aria-label="New rectangle track mode"]').should('have.attr', 'aria-checked', 'true');
+            cy.get('body').type('{alt}t');
+            cy.get('[aria-label="New rectangle track mode"]').should('have.attr', 'aria-checked', 'false');
+        }
+        cy.get('body').type('{esc}');
+        checkObjects([]);
+    });
+
     it('creates boxes by click and two-key code without relabeling the selected box', () => {
         cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
         cy.get('.cvat-canvas-container').should('be.visible');

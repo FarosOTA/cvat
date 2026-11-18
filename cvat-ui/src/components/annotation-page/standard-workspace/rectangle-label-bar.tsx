@@ -30,6 +30,17 @@ const labelDragType = 'application/x-cvat-rectangle-label';
 const digits = '12345';
 const suffixes = `${digits}qwertasdfgzxcvb`;
 
+const componentShortcuts: KeyMap = {
+    OPEN_RECTANGLE_ACTION: {
+        name: 'Choose rectangle action',
+        description: 'Open the default rectangle action dropdown, with or without a selected class',
+        sequences: ['alt+s'],
+        scope: ShortcutScope.ANNOTATION_PAGE,
+    },
+};
+
+registerComponentShortcuts(componentShortcuts);
+
 export default function RectangleLabelBar(): JSX.Element {
     const dispatch = useDispatch<any>();
     const {
@@ -50,6 +61,7 @@ export default function RectangleLabelBar(): JSX.Element {
     }), shallowEqual);
     const defaultMode = drawing.rectangleMode ?? 'manual';
     const [initializing, setInitializing] = useState(false);
+    const [modeSelectOpen, setModeSelectOpen] = useState(false);
     const modeSelect = useRef<RefSelectProps>(null);
     const startRequest = useRef(0);
     const draggedLabel = useRef<number | null>(null);
@@ -202,10 +214,21 @@ export default function RectangleLabelBar(): JSX.Element {
     return (
         <section className='cvat-rectangle-label-bar' aria-label='Rectangle classes' hidden={!rectangleLabels.length}>
             <GlobalHotKeys
-                keyMap={effectiveShortcuts}
-                handlers={Object.fromEntries(shortcutKeys.map((key, index) => [key, (event: KeyboardEvent) => {
-                    if (!event.repeat) startDrawing(rectangleLabels[index]);
-                }]))}
+                keyMap={{
+                    ...effectiveShortcuts,
+                    OPEN_RECTANGLE_ACTION: keyMap.OPEN_RECTANGLE_ACTION ?? componentShortcuts.OPEN_RECTANGLE_ACTION,
+                }}
+                handlers={{
+                    ...Object.fromEntries(shortcutKeys.map((key, index) => [key, (event: KeyboardEvent) => {
+                        if (!event.repeat) startDrawing(rectangleLabels[index]);
+                    }])),
+                    OPEN_RECTANGLE_ACTION: (event: KeyboardEvent) => {
+                        if (!event.repeat && !disabled && rectangleLabels.length) {
+                            modeSelect.current?.focus();
+                            setModeSelectOpen(true);
+                        }
+                    },
+                }}
             />
             <div className='cvat-rectangle-label-bar-heading'>
                 <strong>New rectangle</strong>
@@ -217,6 +240,8 @@ export default function RectangleLabelBar(): JSX.Element {
                     popupMatchSelectWidth={false}
                     value={mode}
                     disabled={disabled}
+                    open={modeSelectOpen}
+                    onDropdownVisibleChange={setModeSelectOpen}
                     options={[
                         { value: 'manual', label: 'Manual rectangle' },
                         { value: 'scissors', label: 'Scissors rectangle' },

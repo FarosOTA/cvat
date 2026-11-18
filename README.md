@@ -130,6 +130,12 @@ or type its displayed code to start that action with the chosen label. **Right-c
 start a scissors rectangle regardless of the default. The dropdown also makes scissors accessible
 without a right mouse button. An already selected annotation is not relabeled.
 
+Press **Alt + S** to open the default-action dropdown, then use the arrow keys and **Enter** to
+choose an action. **Alt + T** switches manual drawing between Shape and Track. Both shortcuts work
+with or without a selected class; neither changes an existing annotation. Customize them as
+**Choose rectangle action** and **Switch shape / track** in **Settings → Shortcuts**.
+Typing in editors and open modal dialogs retain priority over these shortcuts.
+
 All rectangle modes support **Shape** or **Track**, including right-click scissors. Use the class
 strip's toggle: **on = Track**, **off = Shape**. Clicking the currently selected class again
 deselects it and cancels drawing, like `Esc`. While a class is selected, `Left` / `Right` search
