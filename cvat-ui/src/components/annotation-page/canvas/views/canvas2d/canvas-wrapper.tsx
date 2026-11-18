@@ -143,6 +143,7 @@ interface StateToProps {
     cursorMagnifierHover: boolean;
     cursorMagnifierSize: number;
     cursorMagnifierScale: number;
+    cursorMagnifierGap: number;
     intelligentPolygonCrop: boolean;
     switchableAutomaticBordering: boolean;
     keyMap: KeyMap;
@@ -252,6 +253,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 cursorMagnifierHover,
                 cursorMagnifierSize,
                 cursorMagnifierScale,
+                cursorMagnifierGap,
                 intelligentPolygonCrop,
                 textFontSize,
                 controlPointsSize,
@@ -331,6 +333,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         cursorMagnifierHover,
         cursorMagnifierSize,
         cursorMagnifierScale,
+        cursorMagnifierGap,
         intelligentPolygonCrop,
         workspace,
         keyMap,
@@ -670,6 +673,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             cursorMagnifierHover,
             cursorMagnifierSize,
             cursorMagnifierScale,
+            cursorMagnifierGap,
             intelligentPolygonCrop,
             showObjectsTextAlways,
             showProjections,
@@ -712,6 +716,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             cursorMagnifierHover,
             cursorMagnifierSize,
             cursorMagnifierScale,
+            cursorMagnifierGap,
             showProjections,
             showConflicts: showGroundTruth,
             intelligentPolygonCrop,
@@ -775,6 +780,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             cursorMagnifierHover,
             cursorMagnifierSize,
             cursorMagnifierScale,
+            cursorMagnifierGap,
             intelligentPolygonCrop,
             showProjections,
             colorBy,
@@ -812,6 +818,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             prevProps.cursorMagnifierHover !== cursorMagnifierHover ||
             prevProps.cursorMagnifierSize !== cursorMagnifierSize ||
             prevProps.cursorMagnifierScale !== cursorMagnifierScale ||
+            prevProps.cursorMagnifierGap !== cursorMagnifierGap ||
             prevProps.showProjections !== showProjections ||
             prevProps.intelligentPolygonCrop !== intelligentPolygonCrop ||
             prevProps.opacity !== opacity ||
@@ -846,6 +853,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 cursorMagnifierHover,
                 cursorMagnifierSize,
                 cursorMagnifierScale,
+                cursorMagnifierGap,
                 showProjections,
                 intelligentPolygonCrop,
                 selectedShapeOpacity: selectedOpacity,

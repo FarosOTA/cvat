@@ -1105,6 +1105,7 @@ export interface WorkspaceSettingsState {
     cursorMagnifierHover: boolean;
     cursorMagnifierSize: number;
     cursorMagnifierScale: number;
+    cursorMagnifierGap: number;
     nextFrameAfterPlacing: boolean;
     showObjectsTextAlways: boolean;
     showAllInterpolationTracks: boolean;

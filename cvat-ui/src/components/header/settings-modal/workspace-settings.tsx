@@ -26,6 +26,7 @@ interface Props {
     cursorMagnifierHover: boolean;
     cursorMagnifierSize: number;
     cursorMagnifierScale: number;
+    cursorMagnifierGap: number;
     adaptiveZoom: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
@@ -44,7 +45,9 @@ interface Props {
     onChangeFrameFitMargin(margin: number): void;
     onChangeDefaultApproxPolyAccuracy(approxPolyAccuracy: number): void;
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
-    onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
+    onChangeBorderMagnifier(
+        setting: 'cursorMagnifierSize' | 'cursorMagnifierScale' | 'cursorMagnifierGap', value: number,
+    ): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
     onSwitchFlashAnnotations(enabled: boolean): void;
     onSwitchRectanglePrecision(
@@ -69,6 +72,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         cursorMagnifierHover,
         cursorMagnifierSize,
         cursorMagnifierScale,
+        cursorMagnifierGap,
         adaptiveZoom,
         clearFocusOnCanvasLeave,
         resizeFromSides,
@@ -195,6 +199,25 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
                         <Select.Option value={4}>Medium (default, 4×)</Select.Option>
                         <Select.Option value={8}>High (8×)</Select.Option>
                     </Select>
+                </Col>
+                <Col span={24}>
+                    <Text type='secondary'>Border magnifier gap </Text>
+                    <InputNumber
+                        className='cvat-workspace-settings-magnifier-gap'
+                        aria-label='Border magnifier gap'
+                        min={0}
+                        max={200}
+                        step={1}
+                        precision={0}
+                        disabled={!cursorMagnifier && !cursorMagnifierHover}
+                        value={cursorMagnifierGap}
+                        onChange={(value: number | null): void => {
+                            if (typeof value === 'number') {
+                                onChangeBorderMagnifier('cursorMagnifierGap', Math.floor(clamp(value, 0, 200)));
+                            }
+                        }}
+                    />
+                    <Text type='secondary'> screen pixels (default: 36)</Text>
                 </Col>
             </Row>
             <Row className='cvat-player-setting'>

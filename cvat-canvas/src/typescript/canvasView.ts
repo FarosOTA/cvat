@@ -2207,7 +2207,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
         const matrix = this.content.getScreenCTM();
         const thickness = this.configuration.cursorMagnifierSize;
         const magnification = this.configuration.cursorMagnifierScale;
-        const gap = 8;
+        const gap = this.configuration.cursorMagnifierGap;
         ctx.setTransform(2, 0, 0, 2, 0, 0);
         ctx.clearRect(0, 0, width, height);
         ctx.translate(-bounds.left, -bounds.top);

@@ -49,6 +49,7 @@ const defaultState: SettingsState = {
         cursorMagnifierHover: true,
         cursorMagnifierSize: 32,
         cursorMagnifierScale: 4,
+        cursorMagnifierGap: 36,
         nextFrameAfterPlacing: false,
         showObjectsTextAlways: false,
         showAllInterpolationTracks: false,

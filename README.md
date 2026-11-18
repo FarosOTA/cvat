@@ -244,8 +244,9 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   on each corner for resizing. **Show dimensions while drawing** (on by
   default) hides the width × height label of a box, ellipse, or cuboid while it is being drawn.
 - **Magnified borders:** Hover over a box or its resize handles to inspect magnified image strips
-  along **all four edges**, without clicking or dragging. The strips disappear when the pointer
-  leaves the box and remain available while drawing, moving, or resizing it. This is a border
+  along **all four edges**, with a configurable gap outside the box (36 screen pixels by default),
+  without clicking or dragging. The strips disappear when the pointer leaves the box and remain
+  available while drawing, moving, or resizing it. This is a border
   overlay that leaves the box's center clear, not just a magnifying lens at the pointer.
 - **Replace box:** Choose **Replace box** from an unlocked rectangle's object menu, or use
   `Shift + N` on the active object, to draw replacement geometry while retaining the same shape or
@@ -261,9 +262,10 @@ Existing saved magnifier preferences initially apply to both hover and drawing/e
 In the global **Settings → Workspace** tab, **Border magnifier size** and **Border magnification** can be adjusted
 independently. Each offers **Low**, **Medium (default)**, and **High**: strip thicknesses are
 16/32/48 screen pixels, and magnification is 2×/4×/8× perpendicular to each edge. Medium preserves
-the original appearance. Both choices are saved in the browser and retained when the magnifier
-is disabled; the controls are disabled only when both magnifier checkboxes are off. All these
-preferences are saved in the browser.
+the original strip size and magnification. **Border magnifier gap** sets the outward spacing from
+each box edge, from 0 to 200 screen pixels (default: 36), independently of zoom. All three values
+are saved in the browser and retained when the magnifier is disabled; the controls are disabled
+only when both magnifier checkboxes are off.
 
 The right sidebar's **Settings** section also contains **Player step**, **Player speed**, **Reset zoom**,
 **Smooth image**, **Show deleted frames**, **Click to grab bounding boxes**, and **Always show object details**,

@@ -38,6 +38,7 @@ interface StateToProps {
     cursorMagnifierHover: boolean;
     cursorMagnifierSize: number;
     cursorMagnifierScale: number;
+    cursorMagnifierGap: number;
     defaultApproxPolyAccuracy: number;
     adaptiveZoom: boolean;
     clearFocusOnCanvasLeave: boolean;
@@ -58,7 +59,9 @@ interface DispatchToProps {
     onChangeFocusedObjectPadding(margin: number): void;
     onChangeFrameFitMargin(margin: number): void;
     onSwitchShowingInterpolatedTracks(enabled: boolean): void;
-    onChangeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): void;
+    onChangeBorderMagnifier(
+        setting: 'cursorMagnifierSize' | 'cursorMagnifierScale' | 'cursorMagnifierGap', value: number,
+    ): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
     onSwitchFlashAnnotations(enabled: boolean): void;
     onSwitchRectanglePrecision(
@@ -85,6 +88,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         cursorMagnifierHover,
         cursorMagnifierSize,
         cursorMagnifierScale,
+        cursorMagnifierGap,
         adaptiveZoom,
         clearFocusOnCanvasLeave,
         resizeFromSides,
@@ -109,6 +113,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         cursorMagnifierHover,
         cursorMagnifierSize,
         cursorMagnifierScale,
+        cursorMagnifierGap,
         adaptiveZoom,
         clearFocusOnCanvasLeave,
         resizeFromSides,

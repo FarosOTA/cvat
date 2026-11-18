@@ -399,7 +399,9 @@ export function switchRectanglePrecision(
     };
 }
 
-export function changeBorderMagnifier(setting: 'cursorMagnifierSize' | 'cursorMagnifierScale', value: number): AnyAction {
+export function changeBorderMagnifier(
+    setting: 'cursorMagnifierSize' | 'cursorMagnifierScale' | 'cursorMagnifierGap', value: number,
+): AnyAction {
     return {
         type: SettingsActionTypes.CHANGE_BORDER_MAGNIFIER,
         payload: { setting, value },
@@ -543,6 +545,10 @@ export function restoreSettingsAsync(): ThunkAction {
                 }
                 if (key === 'frameFitMargin' &&
                     (!Number.isInteger(setValue) || setValue < 0 || setValue > 100)) {
+                    return;
+                }
+                if (key === 'cursorMagnifierGap' &&
+                    (!Number.isInteger(setValue) || setValue < 0 || setValue > 200)) {
                     return;
                 }
                 if (setValue !== undefined) {

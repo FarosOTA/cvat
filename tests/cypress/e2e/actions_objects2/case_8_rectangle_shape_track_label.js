@@ -145,10 +145,14 @@ context('Actions on rectangle', () => {
                         const centerX = box.left + box.width / 2;
                         const centerY = box.top + box.height / 2;
                         for (const [x, y, alpha] of [
-                            [centerX, box.top - 24, 255],
-                            [centerX, box.bottom + 24, 255],
-                            [box.left - 24, centerY, 255],
-                            [box.right + 24, centerY, 255],
+                            [centerX, box.top - 52, 255],
+                            [centerX, box.bottom + 52, 255],
+                            [box.left - 52, centerY, 255],
+                            [box.right + 52, centerY, 255],
+                            [centerX, box.top - 16, 0],
+                            [centerX, box.bottom + 16, 0],
+                            [box.left - 16, centerY, 0],
+                            [box.right + 16, centerY, 0],
                             [centerX, centerY, 0],
                         ]) {
                             expect(overlay.getContext('2d').getImageData(
@@ -235,10 +239,10 @@ context('Actions on rectangle', () => {
             }
         });
 
-        it('Adjust border size and magnification independently and retain them when disabled', () => {
+        it('Adjust border size, magnification, and gap independently and retain them when disabled', () => {
             cy.openSidebarSettings();
             cy.get('.cvat-workspace-settings-click-to-grab input').check();
-            for (const [size, scale] of [[16, 8], [48, 2], [32, 4]]) {
+            for (const [size, scale, gap] of [[16, 8, 0], [48, 2, 64], [32, 4, 36]]) {
                 cy.openSettings();
                 cy.get('.cvat-settings-modal').contains('Workspace').click();
                 for (const [setting, value] of [['size', size], ['scale', scale]]) {
@@ -246,6 +250,8 @@ context('Actions on rectangle', () => {
                     cy.get('.ant-select-dropdown:visible').contains('.ant-select-item-option',
                         setting === 'size' ? `${value} px` : `${value}×`).click();
                 }
+                cy.get('.cvat-workspace-settings-magnifier-gap input').clear();
+                cy.get('.cvat-workspace-settings-magnifier-gap input').type(`${gap}{enter}`);
                 cy.closeSettings();
                 cy.get('#cvat_canvas_shape_5').trigger('mousemove');
                 cy.get('#cvat_canvas_shape_5').trigger('mouseover');
@@ -259,7 +265,7 @@ context('Actions on rectangle', () => {
                     cy.get('.cvat_canvas_cursor_magnifier').should('be.visible').and(([overlay]) => {
                         const bounds = overlay.getBoundingClientRect();
                         const context = overlay.getContext('2d');
-                        for (const [distance, alpha] of [[8 + size - 3, 255], [8 + size + 3, 0]]) {
+                        for (const [distance, alpha] of [[gap + size - 3, 255], [gap + size + 3, 0]]) {
                             const pixel = context.getImageData(
                                 Math.floor(((centerX - bounds.left) * overlay.width) / bounds.width),
                                 Math.floor(((box.top - distance - bounds.top) * overlay.height) / bounds.height),
@@ -274,26 +280,39 @@ context('Actions on rectangle', () => {
                     const { workspace } = JSON.parse(window.localStorage.getItem('clientSettings'));
                     expect(workspace.cursorMagnifierSize).to.equal(size);
                     expect(workspace.cursorMagnifierScale).to.equal(scale);
+                    expect(workspace.cursorMagnifierGap).to.equal(gap);
                 });
                 cy.get('.cvat-appearance-magnifier-editing-checkbox input').uncheck();
                 cy.openSettings();
                 cy.get('.cvat-workspace-settings-magnifier-size input').should('not.be.disabled');
                 cy.get('.cvat-workspace-settings-magnifier-scale input').should('not.be.disabled');
+                cy.get('.cvat-workspace-settings-magnifier-gap input').should('not.be.disabled');
                 cy.closeSettings();
                 cy.get('.cvat-appearance-magnifier-hover-checkbox input').uncheck();
                 cy.openSettings();
                 cy.get('.cvat-workspace-settings-magnifier-size input').should('be.disabled');
                 cy.get('.cvat-workspace-settings-magnifier-scale input').should('be.disabled');
+                cy.get('.cvat-workspace-settings-magnifier-gap input').should('be.disabled');
                 cy.closeSettings();
                 cy.get('.cvat-appearance-magnifier-editing-checkbox input').check();
                 cy.get('.cvat-appearance-magnifier-hover-checkbox input').check();
                 cy.openSettings();
                 cy.get('.cvat-workspace-settings-magnifier-size').should('contain.text', `${size} px`);
                 cy.get('.cvat-workspace-settings-magnifier-scale').should('contain.text', `${scale}×`);
+                cy.get('.cvat-workspace-settings-magnifier-gap input').should('have.value', `${gap}`);
                 cy.closeSettings();
+                if (gap === 64) {
+                    cy.reload();
+                    cy.openSettings();
+                    cy.get('.cvat-settings-modal').contains('Workspace').click();
+                    cy.get('.cvat-workspace-settings-magnifier-gap input').should('have.value', '64');
+                    cy.closeSettings();
+                    cy.openSidebarSettings();
+                }
             }
             cy.openSettings();
             cy.get('.cvat-settings-modal').contains('Workspace').click();
+            cy.get('.cvat-workspace-settings-magnifier-gap input').should('have.value', '36');
             cy.get('.cvat-workspace-settings').should('contain.text', 'Border magnifier size')
                 .and('contain.text', 'Border magnification').and('not.contain.text', 'Magnify box borders on hover')
                 .and('not.contain.text', 'Show box-edge guides while editing');
@@ -426,10 +445,10 @@ context('Actions on rectangle', () => {
                             const centerY = box.top + box.height / 2;
                             const context = overlay.getContext('2d');
                             for (const [x, y, alpha] of [
-                                [centerX, box.top - 24, 255],
-                                [centerX, box.bottom + 24, 255],
-                                [box.left - 24, centerY, 255],
-                                [box.right + 24, centerY, 255],
+                                [centerX, box.top - 52, 255],
+                                [centerX, box.bottom + 52, 255],
+                                [box.left - 52, centerY, 255],
+                                [box.right + 52, centerY, 255],
                                 [centerX, centerY, 0],
                             ]) {
                                 const pixel = context.getImageData(
@@ -500,10 +519,10 @@ context('Actions on rectangle', () => {
                         const centerX = box.left + box.width / 2;
                         const centerY = box.top + box.height / 2;
                         for (const [x, y, alpha] of [
-                            [centerX, box.top - 12, 255],
-                            [centerX, box.bottom + 12, 255],
-                            [box.left - 12, centerY, 255],
-                            [box.right + 12, centerY, 255],
+                            [centerX, box.top - 40, 255],
+                            [centerX, box.bottom + 40, 255],
+                            [box.left - 40, centerY, 255],
+                            [box.right + 40, centerY, 255],
                             [centerX, centerY, 0],
                         ]) {
                             expect(overlay.getContext('2d').getImageData(

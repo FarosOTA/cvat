@@ -100,6 +100,7 @@ export interface Configuration {
     cursorMagnifierHover?: boolean;
     cursorMagnifierSize?: number;
     cursorMagnifierScale?: number;
+    cursorMagnifierGap?: number;
     displayAllText?: boolean;
     textFontSize?: number;
     textPosition?: 'auto' | 'center';
@@ -467,6 +468,7 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
                 cursorMagnifierHover: true,
                 cursorMagnifierSize: 32,
                 cursorMagnifierScale: 4,
+                cursorMagnifierGap: 36,
             },
             imageBitmap: false,
             image: null,
@@ -1071,6 +1073,10 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
         }
         if ([2, 4, 8].includes(configuration.cursorMagnifierScale)) {
             this.data.configuration.cursorMagnifierScale = configuration.cursorMagnifierScale;
+        }
+        if (Number.isInteger(configuration.cursorMagnifierGap) &&
+            configuration.cursorMagnifierGap >= 0 && configuration.cursorMagnifierGap <= 200) {
+            this.data.configuration.cursorMagnifierGap = configuration.cursorMagnifierGap;
         }
         if (typeof configuration.smoothImage === 'boolean') {
             this.data.configuration.smoothImage = configuration.smoothImage;
