@@ -548,16 +548,46 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     private repeatNotice = 0;
     private repeatBusy = false;
     private pointer: { x: number; y: number } | null = null;
+    private repeatPainting = false;
+    private pointerButtons = 0;
     private repeatAttempted = new WeakSet<ObjectState>();
     private repeatBrushContext = document.createElement('canvas').getContext('2d');
 
     private trackPointer = (event: MouseEvent): void => {
         this.pointer = { x: event.clientX, y: event.clientY };
+        this.pointerButtons = event.buttons;
+        const { canvasInstance } = this.props as { canvasInstance: Canvas };
+        const primaryInBrush = this.repeatAction && event.type !== 'mousemove' && event.button === 0 &&
+            canvasInstance.html().contains(event.target as Node);
+        if (event.type === 'mousedown' && primaryInBrush) this.repeatPainting = true;
+        if (event.buttons % 2 === 0) this.repeatPainting = false;
+        // Own primary strokes before the canvas can start drawing, dragging, or resizing.
+        // Middle-button events still reach the canvas navigation handlers.
+        if (primaryInBrush || (event.type === 'mousemove' && this.repeatPainting && event.buttons === 1)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
         this.applyRepeatAction();
+    };
+
+    private onRepeatBlur = (): void => {
+        this.repeatPainting = false;
+        this.pointerButtons = 0;
+        this.pointer = null;
+        this.applyRepeatAction();
+    };
+
+    private onRepeatClick = (event: MouseEvent): void => {
+        const { canvasInstance } = this.props as { canvasInstance: Canvas };
+        if (this.repeatAction && canvasInstance.html().contains(event.target as Node)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
     };
 
     private stopRepeatAction = (): void => {
         this.repeatAction = null;
+        this.repeatPainting = false;
         if (!this.unmounted) this.setState({ repeatBrush: null });
         this.repeatAttempted = new WeakSet();
         if (this.repeatTimer !== null) window.clearInterval(this.repeatTimer);
@@ -603,7 +633,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 visible: 'REPEAT_NOT_OCCLUDED',
                 label: 'REPEAT_APPLY_LABEL',
             }[action]].name,
-            description: 'Active inside the brush, including during playback. Set its diameter in sidebar Settings. Press Escape or close this notice to stop.',
+            description: 'Hold the left mouse button to apply, including during playback. Hold the middle button to pan. Set the diameter in sidebar Settings. Press Escape or close this notice to stop.',
             duration: 0,
             onClose: () => {
                 // A replaced notice can finish closing after the next mode has already started.
@@ -632,7 +662,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             canvasInstance.html().contains(document.elementFromPoint(pointer.x, pointer.y));
         const repeatBrush = brushVisible ? pointer : null;
         if (this.state.repeatBrush !== repeatBrush) this.setState({ repeatBrush });
-        if (!brushVisible || this.repeatBusy ||
+        if (!brushVisible || !this.repeatPainting || this.pointerButtons !== 1 || this.repeatBusy ||
             (action === 'label' && (!label || labelReplacement.sourceLabelID === null ||
                 labelReplacement.sourceLabelID === labelReplacement.targetLabelID)) ||
             !this.repeatBrushContext) return;
@@ -658,7 +688,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             ));
             // Apply to every intersecting annotation, including overlaps.
             while (candidates.length) {
-                if (this.unmounted || this.repeatAction !== action || this.pointer !== pointer ||
+                if (this.unmounted || !this.repeatPainting || this.pointerButtons !== 1 ||
+                    this.repeatAction !== action || this.pointer !== pointer ||
                     (action === 'label' && this.props.labelReplacement !== labelReplacement) ||
                     this.repeatAttempted !== attempted || !document.hasFocus() ||
                     this.props.frame !== frame || this.props.annotations !== annotations ||
@@ -690,7 +721,12 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     };
 
     public componentDidMount(): void {
-        document.addEventListener('mousemove', this.trackPointer);
+        window.addEventListener('mousemove', this.trackPointer, true);
+        window.addEventListener('mousedown', this.trackPointer, true);
+        window.addEventListener('mouseup', this.trackPointer, true);
+        window.addEventListener('click', this.onRepeatClick, true);
+        window.addEventListener('dblclick', this.onRepeatClick, true);
+        window.addEventListener('blur', this.onRepeatBlur);
         document.addEventListener('keydown', this.onRepeatEscape, true);
         document.addEventListener(TOGGLE_LABEL_REPLACEMENT_EVENT, this.onToggleLabelReplacement);
         const {
@@ -1007,7 +1043,12 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     public componentWillUnmount(): void {
         this.unmounted = true;
         this.stopRepeatAction();
-        document.removeEventListener('mousemove', this.trackPointer);
+        window.removeEventListener('mousemove', this.trackPointer, true);
+        window.removeEventListener('mousedown', this.trackPointer, true);
+        window.removeEventListener('mouseup', this.trackPointer, true);
+        window.removeEventListener('click', this.onRepeatClick, true);
+        window.removeEventListener('dblclick', this.onRepeatClick, true);
+        window.removeEventListener('blur', this.onRepeatBlur);
         document.removeEventListener('keydown', this.onRepeatEscape, true);
         document.removeEventListener(TOGGLE_LABEL_REPLACEMENT_EVENT, this.onToggleLabelReplacement);
         this.props.frameData?.cancelRefinement();

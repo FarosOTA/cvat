@@ -118,6 +118,13 @@ context('Quick rectangle classes', () => {
         cy.get('rect.cvat_canvas_shape_drawing')
             .should('have.css', 'fill-opacity', '0')
             .and('have.css', 'stroke-opacity', '1');
+        cy.openSidebarSettings();
+        for (let toggle = 0; toggle < 2; toggle++) {
+            cy.get('.cvat-player-settings-smooth-image-checkbox input').click();
+            cy.get('rect.cvat_canvas_shape_drawing')
+                .should('have.css', 'fill-opacity', '0')
+                .and('have.css', 'stroke-opacity', '1');
+        }
         cy.get('.cvat-canvas-container').click(370, 310);
         cy.get('.cvat-objects-sidebar-state-item').should('have.length', 1).then(($objects) => {
             objectId = Number($objects[0].id.split('-').at(-1));

@@ -76,6 +76,19 @@ context('Repeat cursor actions', () => {
         });
     }
 
+    function brushButton(type = 'mousedown', button = 0, buttons = 1) {
+        cy.get('.cvat-repeat-action-brush').then(([$brush]) => {
+            const rect = $brush.getBoundingClientRect();
+            const clientX = rect.left + rect.width / 2;
+            const clientY = rect.top + rect.height / 2;
+            cy.document().then((doc) => {
+                cy.wrap(doc.elementFromPoint(clientX, clientY)).trigger(type, {
+                    clientX, clientY, button, buttons, bubbles: true, scrollBehavior: false,
+                });
+            });
+        });
+    }
+
     function checkSaved(frame, count, occluded) {
         shortcut('Escape', { keyCode: 27, which: 27 });
         cy.clickSaveAnnotationView();
@@ -93,6 +106,56 @@ context('Repeat cursor actions', () => {
         cy.get('#cvat-label-replacement-new').type(`${target}{enter}`);
         cy.contains('[role="tab"]', 'Objects').click();
     }
+
+    it('requires a left stroke, pans with middle, and stops applying on release or window blur', () => {
+        cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
+        cy.get('.cvat_canvas_shape').should('have.length', 3);
+        pointAtOverlap();
+        shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
+        cy.get('.cvat-repeat-action-brush').should('exist');
+        cy.wait(150); // Exercise the stationary-pointer timer, not just mousemove.
+        cy.get('.cvat_canvas_shape_occluded').should('not.exist');
+        cy.get('.cvat_canvas_shape').first().then(([shape]) => {
+            const before = shape.getBoundingClientRect();
+            brushButton('mousedown', 1, 4);
+            cy.get('.cvat-repeat-action-brush').then(([$brush]) => {
+                const rect = $brush.getBoundingClientRect();
+                cy.get('.cvat-canvas-container').trigger('mousemove', {
+                    clientX: rect.left + rect.width / 2 + 40,
+                    clientY: rect.top + rect.height / 2 + 25,
+                    buttons: 4,
+                    bubbles: true,
+                    scrollBehavior: false,
+                });
+            });
+            brushButton('mouseup', 1, 0);
+            cy.get('.cvat_canvas_shape').first().should(([$shape]) => {
+                const after = $shape.getBoundingClientRect();
+                expect(after.left - before.left).to.be.closeTo(40, 1);
+                expect(after.top - before.top).to.be.closeTo(25, 1);
+            });
+        });
+        cy.get('.cvat_canvas_shape_occluded').should('not.exist');
+        pointAtOverlap();
+        brushButton();
+        cy.get('.cvat_canvas_shape_occluded').should('have.length', 2);
+        brushButton('mouseup', 0, 0);
+        shortcut('f', { keyCode: 70, which: 70 });
+        cy.get('.cvat-player-frame-selector input').should('have.value', '1');
+        cy.wait(150);
+        cy.get('.cvat_canvas_shape_occluded').should('not.exist');
+        pointAtOverlap();
+        brushButton();
+        cy.get('.cvat_canvas_shape_occluded').should('have.length', 2);
+        cy.window().trigger('blur');
+        shortcut('f', { keyCode: 70, which: 70 });
+        cy.get('.cvat-player-frame-selector input').should('have.value', '2');
+        pointAtOverlap();
+        cy.wait(150);
+        cy.get('.cvat_canvas_shape_occluded').should('not.exist');
+        shortcut('Escape', { keyCode: 27, which: 27 });
+        // No save: the next visit reloads the unchanged fixture annotations.
+    });
 
     it('uses the sidebar brush diameter only while a repeat mode is active', () => {
         cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
@@ -120,8 +183,11 @@ context('Repeat cursor actions', () => {
                 expect(bounds.left + bounds.width / 2).to.be.closeTo(point.clientX, 0.5);
                 expect(bounds.top + bounds.height / 2).to.be.closeTo(point.clientY, 0.5);
             });
+            cy.get('.cvat_canvas_shape').first().should('not.have.class', 'cvat_canvas_shape_occluded');
+            brushButton();
             cy.get('.cvat_canvas_shape').first().should('have.class', 'cvat_canvas_shape_occluded');
             cy.get('.cvat_canvas_shape').eq(1).should('not.have.class', 'cvat_canvas_shape_occluded');
+            brushButton('mouseup', 0, 0);
         });
         shortcut('Escape', { keyCode: 27, which: 27 });
         cy.get('.cvat-repeat-action-brush').should('not.exist');
@@ -141,6 +207,7 @@ context('Repeat cursor actions', () => {
         cy.contains('button', 'Start / stop replacement brush').click();
         cy.contains('[role="tab"]', 'Objects').click();
         pointAtOverlap();
+        brushButton();
         cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
             .filter('[title="replacement"]').should('have.length', 1);
         cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
@@ -153,6 +220,7 @@ context('Repeat cursor actions', () => {
         cy.contains('[role="tab"]', 'Objects').click();
         pointAtOverlap();
         shortcut('L', { keyCode: 76, which: 76, shiftKey: true });
+        brushButton();
         shortcut('f', { keyCode: 70, which: 70 });
         cy.get('.cvat-player-frame-selector input').should('have.value', '1');
         cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
@@ -165,6 +233,7 @@ context('Repeat cursor actions', () => {
         // Changing the sidebar pair affects already visited objects without restarting repeat mode.
         selectReplacement('replacement', 'object');
         pointAtOverlap();
+        brushButton();
         cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
             .filter('[title="object"]').should('have.length', 3);
         shortcut('Escape', { keyCode: 27, which: 27 });
@@ -187,14 +256,17 @@ context('Repeat cursor actions', () => {
         cy.get('.cvat_canvas_shape').should('have.length', 3);
         pointAtOverlap();
         shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
+        brushButton();
         cy.get('.cvat_canvas_shape_occluded').should('have.length', 2);
         cy.get('.cvat-repeat-action-feedback').should('not.exist');
         shortcut('Q', {
             keyCode: 81, which: 81, shiftKey: true, altKey: true,
         });
+        brushButton();
         cy.get('.cvat_canvas_shape_occluded').should('not.exist');
         cy.get('.cvat-repeat-action-feedback').should('not.exist');
         shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
+        brushButton();
         cy.get('.cvat_canvas_shape_occluded').should('have.length', 2);
         shortcut('f', { keyCode: 70, which: 70 });
         cy.get('.cvat-player-frame-selector input').should('have.value', '1');
@@ -205,11 +277,13 @@ context('Repeat cursor actions', () => {
         shortcut('Q', {
             keyCode: 81, which: 81, shiftKey: true, altKey: true,
         });
+        brushButton();
         cy.get('.cvat_canvas_shape_occluded').should('not.exist');
         checkSaved(1, 3, 0);
 
         pointAtOverlap();
         shortcut('Backspace', { keyCode: 8, which: 8, shiftKey: true });
+        brushButton();
         cy.get('.cvat_canvas_shape').should('have.length', 1);
         cy.get('.cvat-repeat-action-feedback').should('not.exist');
         shortcut('f', { keyCode: 70, which: 70 });
@@ -229,16 +303,20 @@ context('Repeat cursor actions', () => {
         cy.get(selectedClass).should('have.attr', 'aria-pressed', 'true');
         pointAtOverlap();
         shortcut('Q', { keyCode: 81, which: 81, shiftKey: true });
+        brushButton();
         cy.get('.cvat_canvas_shape_occluded').should('have.length', 2);
         shortcut('Q', {
             keyCode: 81, which: 81, shiftKey: true, altKey: true,
         });
+        brushButton();
         cy.get('.cvat_canvas_shape_occluded').should('have.length', 1);
         shortcut('Backspace', { keyCode: 8, which: 8, shiftKey: true });
+        brushButton();
         cy.get('.cvat_canvas_shape').should('have.length', 2);
         cy.get(selectedClass).should('have.attr', 'aria-pressed', 'true').click();
         cy.get(selectedClass).should('have.attr', 'aria-pressed', 'false');
         pointAtOverlap();
+        brushButton();
         cy.get('.cvat_canvas_shape').should('have.length', 1);
         checkSaved(3, 1, 0);
     });

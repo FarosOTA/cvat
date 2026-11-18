@@ -182,7 +182,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 ## Precision bounding-box controls
 
 - **Transparent drawing preview:** While drawing or redrawing a 2D rectangle, only its border is
-  shown, with no fill obscuring the image. Completed boxes retain the configured fill opacity.
+  shown, with no fill obscuring the image, even when settings such as **Smooth image** change
+  mid-draw. Completed boxes retain the configured fill opacity.
 - **Click to grab (off by default):** Hold the mouse button to drag or resize boxes by default.
   Enable **right sidebar → Settings → Click to grab bounding boxes** to click an active box body to
   pick it up, move the pointer without holding the mouse button, and click again to place it.
@@ -209,6 +210,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   without placing it or changing its image coordinates. Double-click the middle button to fit the
   image to the canvas; an engaged edit remains active afterward. Magnified borders and editing
   crosshairs stay aligned during panning and refresh on fit without requiring another pointer move.
+  Brushes, including mask painting/erasing and repeat-action brushes, use the left mouse button to
+  apply and the middle button to pan; hovering or panning does not apply a repeat action.
 - **Pointer-centred zoom (upstream):** Scroll the mouse wheel or pinch on a touchpad to zoom around
   the pointer. Zoom follows the total distance scrolled, so smooth-scrolling mice (such as Logitech
   mice with smooth scrolling enabled) zoom one notch per notch instead of jumping.
@@ -251,7 +254,10 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   Arrow keys adjust the focused slider without navigating frames; Escape still stops repeat mode.
   Its visible footprint stays the same size on screen when zooming; ordinary selection, drawing,
   and one-shot actions are unchanged. The mode applies to all annotations intersecting the brush,
-  including overlaps and when the pointer is stationary, and stays
+  including overlaps and when the pointer is stationary, **while holding the left mouse button**.
+  Release it to stop applying without leaving the mode; hold the middle button to pan without
+  applying. A stroke must start inside the canvas; returning from another application requires a
+  new left-button press. The mode stays
   engaged through frame seeking (`F`, `D`, `C`,
   `V`, Left/Right), playback, and pauses. Repeat deletion bypasses confirmation and object locks;
   deleting a track removes the whole track, just like ordinary object deletion. Occlusion modes set

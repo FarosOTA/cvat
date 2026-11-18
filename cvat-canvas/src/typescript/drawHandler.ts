@@ -1399,7 +1399,7 @@ export class DrawHandlerImpl implements DrawHandler {
 
         if (this.drawInstance && (isFillableRect || isFillableCuboid || isFilalblePolygon)) {
             this.drawInstance.fill({
-                opacity: configuration.hideEditedObject ? 0 : configuration.selectedShapeOpacity,
+                opacity: isFillableRect || configuration.hideEditedObject ? 0 : configuration.selectedShapeOpacity,
             });
         }
 
