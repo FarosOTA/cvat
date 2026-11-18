@@ -6,6 +6,7 @@
 import './styles.scss';
 
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import Spin from 'antd/lib/spin';
 import Popover from 'antd/lib/popover';
@@ -1715,7 +1716,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             <>
                 <GlobalHotKeys keyMap={subKeyMap(componentShortcuts, keyMap)} handlers={handlers} />
                 <CanvasTipsComponent ref={this.canvasTipsRef} />
-                {repeatBrush && (
+                {/* Viewport-positioned overlays must not inherit the grid item's CSS transform. */}
+                {repeatBrush && ReactDOM.createPortal(
                     <div
                         className='cvat-repeat-action-brush'
                         aria-hidden='true'
@@ -1725,9 +1727,10 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                             width: this.props.repeatBrushSize,
                             height: this.props.repeatBrushSize,
                         }}
-                    />
+                    />,
+                    document.body,
                 )}
-                {repeatFeedback && (
+                {repeatFeedback && ReactDOM.createPortal(
                     <div
                         className='cvat-repeat-action-feedback'
                         role='status'
@@ -1738,7 +1741,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                     >
                         <strong>✓ Applied</strong>
                         <span>{repeatFeedback.text}</span>
-                    </div>
+                    </div>,
+                    document.body,
                 )}
                 {
                     !canvasIsReady && (

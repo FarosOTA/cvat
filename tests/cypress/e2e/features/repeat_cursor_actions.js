@@ -109,6 +109,11 @@ context('Repeat cursor actions', () => {
             cy.get('.cvat-repeat-brush-size input').type('50{enter}');
             cy.get('.cvat-canvas-container').trigger('mousemove', { ...point, scrollBehavior: false });
             cy.get('.cvat-repeat-action-brush').should('have.css', 'width', '50px');
+            cy.get('.cvat-repeat-action-brush').should(($brush) => {
+                const bounds = $brush[0].getBoundingClientRect();
+                expect(bounds.left + bounds.width / 2).to.be.closeTo(point.clientX, 0.5);
+                expect(bounds.top + bounds.height / 2).to.be.closeTo(point.clientY, 0.5);
+            });
             cy.get('.cvat_canvas_shape').first().should('have.class', 'cvat_canvas_shape_occluded');
             cy.get('.cvat_canvas_shape').eq(1).should('not.have.class', 'cvat_canvas_shape_occluded');
         });
