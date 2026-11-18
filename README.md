@@ -173,6 +173,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 
 ## Precision bounding-box controls
 
+- **Transparent drawing preview:** While drawing or redrawing a 2D rectangle, only its border is
+  shown, with no fill obscuring the image. Completed boxes retain the configured fill opacity.
 - **Click to grab (off by default):** Hold the mouse button to drag or resize boxes by default.
   Enable **right sidebar → Settings → Click to grab bounding boxes** to click an active box body to
   pick it up, move the pointer without holding the mouse button, and click again to place it.

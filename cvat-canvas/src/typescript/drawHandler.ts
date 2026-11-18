@@ -464,7 +464,7 @@ export class DrawHandlerImpl implements DrawHandler {
             .addClass('cvat_canvas_shape_drawing')
             .attr({
                 'stroke-width': consts.BASE_STROKE_WIDTH / this.geometry.scale,
-                'fill-opacity': this.selectedShapeOpacity,
+                'fill-opacity': 0,
                 stroke: this.outlinedBorders,
             });
     }

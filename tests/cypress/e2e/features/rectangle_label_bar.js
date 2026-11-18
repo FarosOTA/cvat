@@ -114,6 +114,10 @@ context('Quick rectangle classes', () => {
         cy.get(classButton('car')).click();
         cy.get(classButton('car')).should('have.attr', 'aria-pressed', 'true');
         cy.get('.cvat-canvas-container').click(200, 180);
+        cy.get('.cvat-canvas-container').trigger('mousemove', 370, 310);
+        cy.get('rect.cvat_canvas_shape_drawing')
+            .should('have.css', 'fill-opacity', '0')
+            .and('have.css', 'stroke-opacity', '1');
         cy.get('.cvat-canvas-container').click(370, 310);
         cy.get('.cvat-objects-sidebar-state-item').should('have.length', 1).then(($objects) => {
             objectId = Number($objects[0].id.split('-').at(-1));
