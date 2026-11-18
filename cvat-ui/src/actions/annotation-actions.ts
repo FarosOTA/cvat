@@ -619,8 +619,8 @@ export function propagateObjectAsync(from: number, to: number): ThunkAction {
     };
 }
 
-export function removeObjectAsync(objectState: ObjectState, force: boolean): ThunkAction {
-    return async (dispatch: ThunkDispatch): Promise<void> => {
+export function removeObjectAsync(objectState: ObjectState, force: boolean): ThunkAction<Promise<boolean>> {
+    return async (dispatch: ThunkDispatch): Promise<boolean> => {
         try {
             const { frame, jobInstance } = receiveAnnotationsParameters();
             await jobInstance.logger.log(EventScope.deleteObject, { count: 1 });
@@ -639,6 +639,7 @@ export function removeObjectAsync(objectState: ObjectState, force: boolean): Thu
             } else {
                 throw new Error('Could not remove the locked object');
             }
+            return true;
         } catch (error) {
             dispatch({
                 type: AnnotationActionTypes.REMOVE_OBJECT_FAILED,
@@ -646,6 +647,7 @@ export function removeObjectAsync(objectState: ObjectState, force: boolean): Thu
                     error,
                 },
             });
+            return false;
         }
     };
 }
@@ -1354,9 +1356,9 @@ async function updateObjectsLayers(
     }
 }
 
-export function updateAnnotationsAsync(statesToUpdate: ObjectState[], batch = false): ThunkAction {
-    return async (dispatch: ThunkDispatch): Promise<void> => {
-        const { jobInstance, workspace } = receiveAnnotationsParameters();
+export function updateAnnotationsAsync(statesToUpdate: ObjectState[], batch = false): ThunkAction<Promise<boolean>> {
+    return async (dispatch: ThunkDispatch): Promise<boolean> => {
+        const { jobInstance, workspace, frame } = receiveAnnotationsParameters();
         try {
             if (statesToUpdate.some((state): boolean => state.updateFlags.zOrder)) {
                 // deactivate object to visualize changes immediately (UX)
@@ -1365,13 +1367,13 @@ export function updateAnnotationsAsync(statesToUpdate: ObjectState[], batch = fa
 
             const statesToSave = statesToUpdate.filter((objectState) => !objectState.isGroundTruth);
             if (!statesToSave.length) {
-                return;
+                return true;
             }
 
             if (batch) {
                 await jobInstance.annotations.bulkSave(statesToSave);
                 dispatch(fetchAnnotationsAsync());
-                return;
+                return true;
             }
 
             const promises = statesToSave.map((objectState) => objectState.save());
@@ -1385,16 +1387,27 @@ export function updateAnnotationsAsync(statesToUpdate: ObjectState[], batch = fa
                 .some((state) => state.shapeType === ShapeType.MASK || state.parentID !== null);
             if (needToUpdateAll) {
                 dispatch(fetchAnnotationsAsync());
-                return;
+                return true;
             }
 
-            dispatchAnnotationsUpdate(dispatch, states, await jobInstance.actions.get());
+            const history = await jobInstance.actions.get();
+            const current = receiveAnnotationsParameters();
+            if (current.jobInstance !== jobInstance) return true;
+            if (current.frame !== frame) {
+                // Playback/seek may finish while a repeat occlusion edit is saving. Reload the
+                // current frame instead of replacing its track states with those from the old frame.
+                dispatch(fetchAnnotationsAsync());
+            } else {
+                dispatchAnnotationsUpdate(dispatch, states, history);
+            }
+            return true;
         } catch (error) {
             dispatch({
                 type: AnnotationActionTypes.UPDATE_ANNOTATIONS_FAILED,
                 payload: { error },
             });
             dispatch(fetchAnnotationsAsync());
+            return false;
         }
     };
 }

@@ -49,6 +49,7 @@ export interface CanvasView {
     html(): HTMLDivElement;
     setupConflictRegions(clientID: number): number[];
     translateFromSVG(points: number[]): number[];
+    translateToSVG(points: number[]): number[];
     undo(): boolean;
     redo(): boolean;
 }
@@ -3320,6 +3321,10 @@ export class CanvasViewImpl implements CanvasView, Listener {
 
     public translateFromSVG(point: number[]): number[] {
         return translateFromSVG(this.content, point);
+    }
+
+    public translateToSVG(points: number[]): number[] {
+        return translateToSVG(this.content, points);
     }
 
     private redrawBitmap(): void {

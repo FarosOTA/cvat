@@ -37,6 +37,7 @@ import {
     resetCanvas,
     updateActiveControl as updateActiveControlAction,
     updateAnnotationsAsync,
+    removeObjectAsync,
     createAnnotationsAsync,
     placeAnnotationsAsync,
     modifyAnnotationsAsync,
@@ -79,6 +80,7 @@ import CanvasTipsComponent from './canvas-hints';
 
 const cvat = getCore();
 const MAX_DISTANCE_TO_OPEN_SHAPE = 50;
+type RepeatAction = 'delete' | 'occluded' | 'visible';
 
 interface StateToProps {
     canvasInstance: Canvas | Canvas3d | null;
@@ -156,6 +158,7 @@ interface DispatchToProps {
     onResetCanvas: () => void;
     updateActiveControl: (activeControl: ActiveControl) => void;
     onUpdateAnnotations(states: ObjectState[]): void;
+    onRepeatAction(state: ObjectState, action: RepeatAction): Promise<boolean>;
     onModifyAnnotations(states: ObjectState[], redraw?: boolean): void;
     onCreateAnnotations(states: ObjectState[], source?: AnnotationSource): void;
     onPlaceAnnotations(states: ObjectState[], source?: AnnotationSource): void;
@@ -335,6 +338,24 @@ function mapStateToProps(state: CombinedState): StateToProps {
 }
 
 const componentShortcuts = {
+    REPEAT_DELETE: {
+        name: 'Repeat delete',
+        description: 'Toggle force deletion of annotations under the pointer',
+        sequences: ['shift+backspace'],
+        scope: ShortcutScope.STANDARD_WORKSPACE,
+    },
+    REPEAT_OCCLUDED: {
+        name: 'Repeat mark occluded',
+        description: 'Toggle marking annotations under the pointer occluded',
+        sequences: ['shift+q'],
+        scope: ShortcutScope.STANDARD_WORKSPACE,
+    },
+    REPEAT_NOT_OCCLUDED: {
+        name: 'Repeat mark not occluded',
+        description: 'Toggle marking annotations under the pointer not occluded',
+        sequences: ['alt+shift+q'],
+        scope: ShortcutScope.STANDARD_WORKSPACE,
+    },
     SWITCH_AUTOMATIC_BORDERING: {
         name: 'Toggle snap to contour',
         description: 'Toggle automatic snap to contour for polygons and polylines during drawing/editing',
@@ -376,6 +397,14 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         },
         onUpdateAnnotations(states: ObjectState[]): void {
             dispatch(updateAnnotationsAsync(states));
+        },
+        async onRepeatAction(state: ObjectState, action: RepeatAction): Promise<boolean> {
+            if (action === 'delete') {
+                return dispatch(removeObjectAsync(state, true));
+            }
+            const target = state;
+            target.occluded = action === 'occluded';
+            return dispatch(updateAnnotationsAsync([target]));
         },
         onModifyAnnotations(states: ObjectState[], redraw?: boolean): void {
             dispatch(modifyAnnotationsAsync(states, redraw));
@@ -477,8 +506,112 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     private unmounted = false;
     private refinedFrame: Props['frameData'] = null;
     private hoverRequest = 0;
+    private repeatAction: RepeatAction | null = null;
+    private repeatTimer: number | null = null;
+    private repeatNotice = 0;
+    private repeatBusy = false;
+    private pointer: { x: number; y: number } | null = null;
+    private repeatAttempted = new WeakSet<ObjectState>();
+
+    private trackPointer = (event: MouseEvent): void => {
+        this.pointer = { x: event.clientX, y: event.clientY };
+        this.applyRepeatAction();
+    };
+
+    private stopRepeatAction = (): void => {
+        this.repeatAction = null;
+        this.repeatAttempted = new WeakSet();
+        if (this.repeatTimer !== null) window.clearInterval(this.repeatTimer);
+        this.repeatTimer = null;
+        notification.destroy(`repeat-annotation-action-${this.repeatNotice}`);
+    };
+
+    private onRepeatEscape = (event: KeyboardEvent): void => {
+        if (event.key === 'Escape') this.stopRepeatAction();
+    };
+
+    private toggleRepeatAction = (action: RepeatAction, event?: KeyboardEvent): void => {
+        event?.preventDefault();
+        if (event?.repeat || this.props.workspace !== Workspace.STANDARD) return;
+        const previous = this.repeatAction;
+        this.stopRepeatAction();
+        if (previous === action) return;
+        this.repeatAction = action;
+        const attempted = this.repeatAttempted;
+        this.repeatNotice++;
+        notification.info({
+            key: `repeat-annotation-action-${this.repeatNotice}`,
+            message: componentShortcuts[{
+                delete: 'REPEAT_DELETE', occluded: 'REPEAT_OCCLUDED', visible: 'REPEAT_NOT_OCCLUDED',
+            }[action]].name,
+            description: 'Active under the pointer, including during playback. Press Escape or close this notice to stop.',
+            duration: 0,
+            onClose: () => {
+                // A replaced notice can finish closing after the next mode has already started.
+                if (this.repeatAttempted === attempted) this.stopRepeatAction();
+            },
+        });
+        this.repeatTimer = window.setInterval(() => this.applyRepeatAction(), 50);
+        this.applyRepeatAction();
+    };
+
+    private applyRepeatAction = async (): Promise<void> => {
+        const action = this.repeatAction;
+        const { pointer } = this;
+        const attempted = this.repeatAttempted;
+        const {
+            annotations, frame, frameData, canvasIsReady, workspace, hiddenZLayers, jobInstance, onRepeatAction,
+        } = this.props;
+        const { canvasInstance } = this.props as { canvasInstance: Canvas };
+        if (!action || !pointer || this.repeatBusy || this.unmounted || !canvasIsReady || frameData?.deleted ||
+            workspace !== Workspace.STANDARD || !document.hasFocus() ||
+            ![CanvasMode.IDLE, CanvasMode.DRAW].includes(canvasInstance.mode()) ||
+            !canvasInstance.html().contains(document.elementFromPoint(pointer.x, pointer.y))) return;
+
+        this.repeatBusy = true;
+        try {
+            // Reproject screen coordinates each time: zoom, pan and frame fitting can move the image
+            // under a stationary pointer. Ignore hover's active-handle retention for destructive actions.
+            const [svgX, svgY] = canvasInstance.translateToSVG([pointer.x, pointer.y]);
+            const { offset } = canvasInstance.geometry;
+            const candidates = annotations.filter((state) => (
+                !state.isGroundTruth && !state.hidden && !state.outside && state.objectType !== ObjectType.TAG &&
+                !hiddenZLayers.has(state.zOrder) && !this.repeatAttempted.has(state) &&
+                (action === 'delete' || (!state.lock && state.occluded !== (action === 'occluded')))
+            ));
+            // select returns one hit. Remove it from the candidates to reach overlapping annotations too.
+            while (candidates.length) {
+                const result = await jobInstance.annotations.select(candidates, svgX - offset, svgY - offset);
+                if (this.unmounted || this.repeatAction !== action || this.pointer !== pointer ||
+                    this.repeatAttempted !== attempted || !document.hasFocus() ||
+                    this.props.frame !== frame || this.props.annotations !== annotations ||
+                    this.props.hiddenZLayers !== hiddenZLayers || !this.props.canvasIsReady ||
+                    ![CanvasMode.IDLE, CanvasMode.DRAW].includes(canvasInstance.mode())) break;
+                const state = result?.state;
+                if (!state) break;
+                candidates.splice(candidates.indexOf(state), 1);
+                if ([ShapeType.POLYLINE, ShapeType.POINTS].includes(state.shapeType) &&
+                    result.distance > MAX_DISTANCE_TO_OPEN_SHAPE) continue;
+                this.repeatAttempted.add(state);
+                if (!await onRepeatAction(state, action)) {
+                    if (this.repeatAttempted === attempted) this.stopRepeatAction();
+                    break;
+                }
+            }
+        } catch (error) {
+            this.stopRepeatAction();
+            this.props.onCanvasErrorOccurred(error);
+        } finally {
+            this.repeatBusy = false;
+            if (this.props.annotations !== annotations || this.props.frame !== frame || this.pointer !== pointer) {
+                this.applyRepeatAction();
+            }
+        }
+    };
 
     public componentDidMount(): void {
+        document.addEventListener('mousemove', this.trackPointer);
+        document.addEventListener('keydown', this.onRepeatEscape, true);
         const {
             automaticBordering,
             snapToPoint,
@@ -556,6 +689,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     }
 
     public componentDidUpdate(prevProps: Props): void {
+        if (prevProps.workspace !== this.props.workspace) this.stopRepeatAction();
         const {
             opacity,
             selectedOpacity,
@@ -776,10 +910,14 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         }
 
         this.activateOnCanvas();
+        this.applyRepeatAction();
     }
 
     public componentWillUnmount(): void {
         this.unmounted = true;
+        this.stopRepeatAction();
+        document.removeEventListener('mousemove', this.trackPointer);
+        document.removeEventListener('keydown', this.onRepeatEscape, true);
         this.props.frameData?.cancelRefinement();
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
 
@@ -1043,6 +1181,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     };
 
     private onCanvasMouseLeave = (): void => {
+        this.pointer = null;
         // A pending hover lookup must not reactivate an annotation after the pointer leaves.
         this.hoverRequest++;
         const {
@@ -1457,6 +1596,9 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         };
 
         const handlers: Record<keyof typeof componentShortcuts, (event?: KeyboardEvent) => void> = {
+            REPEAT_DELETE: (event) => this.toggleRepeatAction('delete', event),
+            REPEAT_OCCLUDED: (event) => this.toggleRepeatAction('occluded', event),
+            REPEAT_NOT_OCCLUDED: (event) => this.toggleRepeatAction('visible', event),
             SWITCH_AUTOMATIC_BORDERING: (event: KeyboardEvent | undefined) => {
                 preventDefault(event);
                 onSwitchAutomaticBordering(!automaticBordering);

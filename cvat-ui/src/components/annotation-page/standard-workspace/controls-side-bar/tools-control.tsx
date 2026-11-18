@@ -79,7 +79,7 @@ interface StateToProps {
 
 interface DispatchToProps {
     placeRectangle: (states: ObjectState[], drawing: CombinedState['annotation']['drawing']) => void;
-    updateAnnotations: (states: ObjectState[]) => Promise<void>;
+    updateAnnotations: (states: ObjectState[]) => Promise<boolean>;
     createAnnotations: (states: ObjectState[]) => void;
     placeAnnotations: (states: ObjectState[]) => void;
     fetchAnnotations: () => void;

@@ -209,6 +209,18 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   placed annotation is created occluded, and the switch resets to not occluded after each placement.
   Redraw starts with the switch set to the redrawn object's occluded flag and keeps it (or applies a
   `Q` toggle) when the new geometry is placed.
+- **Repeat cursor actions (2D standard workspace):** `Shift+Backspace` toggles **Repeat delete**,
+  `Shift+Q` toggles **Repeat mark occluded**, and `Alt+Shift+Q` (Option on macOS) toggles
+  **Repeat mark not occluded**. These shortcuts are configurable in **Settings → Shortcuts**.
+  Only one repeat mode is active at a time; press its shortcut again, press `Esc`, or close its
+  persistent notice to stop. The mode applies to all overlapping annotations under the pointer,
+  including when the pointer is stationary, and stays engaged through frame seeking (`F`, `D`, `C`,
+  `V`, Left/Right), playback, and pauses. Repeat deletion bypasses confirmation and object locks;
+  deleting a track removes the whole track, just like ordinary object deletion. Occlusion modes set
+  the flag explicitly rather than toggling it and respect object locks. Hidden objects/layers,
+  outside objects, tags, and ground-truth overlays are excluded. Actions pause outside the canvas,
+  while the window is unfocused, and while an edit is in progress. Repeat actions do not trigger
+  auto advance on modification. Leaving the annotation workspace ends the mode.
 - **Outlined borders:** With **Outlined borders** on, the translucent fill inside shapes (controlled by
   the opacity sliders) uses the outline color.
 - **Optional handles and dimensions:** Sidebar **Settings → Show corner control points** (on by default)
