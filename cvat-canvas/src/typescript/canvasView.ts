@@ -995,13 +995,48 @@ export class CanvasViewImpl implements CanvasView, Listener {
         );
     }
 
+    private shouldFlash(state: any): boolean {
+        const { previousFrameBoxes } = this.controller.renderData;
+        if (state.shapeType !== 'rectangle' || !previousFrameBoxes ||
+            (state.objectType === 'track' && state.keyframes?.first !== state.frame)) {
+            return false;
+        }
+
+        // Compare the occupied area, including rotation, rather than annotation IDs or labels.
+        const bounds = (box: { points: number[]; rotation: number }): number[] => {
+            const [x1, y1, x2, y2] = box.points;
+            const radians = (box.rotation * Math.PI) / 180;
+            const cos = Math.abs(Math.cos(radians));
+            const sin = Math.abs(Math.sin(radians));
+            const width = Math.abs(x2 - x1) * cos + Math.abs(y2 - y1) * sin;
+            const height = Math.abs(x2 - x1) * sin + Math.abs(y2 - y1) * cos;
+            const cx = (x1 + x2) / 2;
+            const cy = (y1 + y2) / 2;
+            return [cx - width / 2, cy - height / 2, cx + width / 2, cy + height / 2];
+        };
+        const [left, top, right, bottom] = bounds(state);
+        const area = (right - left) * (bottom - top);
+        if (Math.max(right - left, bottom - top) * this.geometry.scale > 32 || area <= 0) {
+            return false;
+        }
+
+        return !previousFrameBoxes.some((box) => {
+            const [x1, y1, x2, y2] = bounds(box);
+            const intersection = Math.max(0, Math.min(right, x2) - Math.max(left, x1)) *
+                Math.max(0, Math.min(bottom, y2) - Math.max(top, y1));
+            const union = area + (x2 - x1) * (y2 - y1) - intersection;
+            return intersection / union >= 0.5;
+        });
+    }
+
     private setupObjects(states: any[]): void {
         const created = [];
         const updated = [];
         const appeared = states.filter((state) => {
             const previous = this.drawnStates[state.clientID];
-            return !state.hidden && !state.outside && (!previous || previous.frame !== state.frame ||
-                previous.hidden || previous.outside);
+            return this.configuration.flashAnnotations && !state.hidden && !state.outside &&
+                (!previous || previous.frame !== state.frame || previous.hidden || previous.outside) &&
+                this.shouldFlash(state);
         });
 
         for (const state of states) {
@@ -1009,6 +1044,12 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 created.push(state);
             } else {
                 const drawnState = this.drawnStates[state.clientID];
+                if (drawnState.frame !== state.frame) {
+                    // Do not carry a start-frame halo into a later, ineligible frame during playback.
+                    this.svgShapes[state.clientID]?.node.getAnimations()
+                        .filter((animation) => animation.id === 'cvat-annotation-appear')
+                        .forEach((animation) => animation.cancel());
+                }
                 // object has been changed or changed frame for a track
                 if (
                     drawnState.updated !== state.updated ||
@@ -1062,17 +1103,11 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 // Restart rather than stack halos when stepping quickly through frames.
                 shape.node.getAnimations().filter((animation) => animation.id === 'cvat-annotation-appear')
                     .forEach((animation) => animation.cancel());
-                const radius = 6 / this.geometry.scale;
-                const { strokeWidth } = window.getComputedStyle(shape.node);
-                const flash = {
-                    filter: `brightness(2) drop-shadow(0 0 ${radius}px white)`,
-                    strokeWidth: `${Math.max(parseFloat(strokeWidth), radius)}px`,
-                };
+                const radius = 2 / this.geometry.scale;
                 shape.node.animate([
-                    flash,
-                    { ...flash, offset: 0.25 },
-                    { filter: 'brightness(1) drop-shadow(0 0 0 transparent)', strokeWidth },
-                ], { duration: 700, easing: 'ease-out', id: 'cvat-annotation-appear' });
+                    { filter: `brightness(1.3) drop-shadow(0 0 ${radius}px rgba(255, 255, 255, 0.6))` },
+                    { filter: 'brightness(1) drop-shadow(0 0 0 transparent)' },
+                ], { duration: 220, easing: 'ease-out', id: 'cvat-annotation-appear' });
             }
         }
     }

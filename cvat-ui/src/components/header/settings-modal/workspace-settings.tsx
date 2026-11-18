@@ -172,7 +172,8 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
                 </Col>
                 <Col span={24}>
                     <Text type='secondary'>
-                        Briefly highlight shapes and tracks when they appear or the 2D frame changes.
+                        Subtly highlight newly appearing small boxes in 2D, only at a track&apos;s start
+                        and only without a similar box in the previous frame.
                         Enabled by default; respects reduced motion.
                     </Text>
                 </Col>

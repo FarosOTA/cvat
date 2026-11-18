@@ -24,9 +24,12 @@ import {
 
 const cvat = getCore();
 
-function getAnnotationsRenderData(states: ObjectState[], filters: object[]): RenderData {
+function getAnnotationsRenderData(
+    states: ObjectState[], filters: object[], previousFrameBoxes?: RenderData['previousFrameBoxes'],
+): RenderData {
     return {
         visibleSkeletonElements: cvat.utils.getVisibleSkeletonElements(states, filters),
+        previousFrameBoxes,
     };
 }
 
@@ -442,7 +445,9 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     highlightedConflict: null,
                     states,
                     initialized: true,
-                    renderData: getAnnotationsRenderData(states, state.annotations.filters),
+                    renderData: getAnnotationsRenderData(
+                        states, state.annotations.filters, action.payload.previousFrameBoxes,
+                    ),
                     history,
                     zLayer: {
                         ...state.annotations.zLayer,
@@ -732,7 +737,9 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         max: maxZ,
                     },
                     states: nextStates,
-                    renderData: getAnnotationsRenderData(nextStates, state.annotations.filters),
+                    renderData: getAnnotationsRenderData(
+                        nextStates, state.annotations.filters, state.annotations.renderData.previousFrameBoxes,
+                    ),
                     history,
                 },
                 rectangleTrack: updatesRectangle ? {
@@ -832,7 +839,9 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     history,
                     activatedStateID: null,
                     states: nextStates,
-                    renderData: getAnnotationsRenderData(nextStates, state.annotations.filters),
+                    renderData: getAnnotationsRenderData(
+                        nextStates, state.annotations.filters, state.annotations.renderData.previousFrameBoxes,
+                    ),
                 },
                 canvas: {
                     ...state.canvas,
@@ -1083,7 +1092,9 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.annotations,
                     activatedStateID: updateActivatedStateID(states, activatedStateID),
                     states,
-                    renderData: getAnnotationsRenderData(states, state.annotations.filters),
+                    renderData: getAnnotationsRenderData(
+                        states, state.annotations.filters, action.payload.previousFrameBoxes,
+                    ),
                     history,
                     initialized: true,
                     zLayer: {
@@ -1115,7 +1126,9 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 annotations: {
                     ...state.annotations,
                     filters,
-                    renderData: getAnnotationsRenderData(state.annotations.states, filters),
+                    renderData: getAnnotationsRenderData(
+                        state.annotations.states, filters, state.annotations.renderData.previousFrameBoxes,
+                    ),
                 },
             };
         }
@@ -1254,7 +1267,9 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 annotations: {
                     ...state.annotations,
                     states: nextStates,
-                    renderData: getAnnotationsRenderData(nextStates, state.annotations.filters),
+                    renderData: getAnnotationsRenderData(
+                        nextStates, state.annotations.filters, state.annotations.renderData.previousFrameBoxes,
+                    ),
                     activatedStateID: null,
                     activatedAttributeID: null,
 

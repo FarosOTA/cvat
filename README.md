@@ -63,13 +63,17 @@ Default shortcuts (customizable through CVAT's shortcut settings):
 | `Shift + [` / `Shift + ]` | Activate the previous / next rectangle shape or track in that label scope |
 
 The annotation-frame shortcuts search annotations, not just rectangle-track keyframes.
-In the **2D canvas**, visible shapes and tracks briefly brighten with a thicker outline and halo
-when they appear or the frame changes, including when annotations occupy exactly the same position
-on successive frames. **Settings → Workspace → Flash annotations** enables this effect (**on by
-default**), and the preference is saved in the browser. Turning it off also cancels an active flash.
-The single **700 ms** flash helps reveal small annotations without changing their geometry,
-selection, or saved styling. Ordinary same-frame edits do not restart it; hidden and outside
-annotations do not flash. The effect is disabled when the browser requests reduced motion.
+In the **2D canvas**, newly appearing small boxes receive a subtle **220 ms** brightness halo,
+without thickening their outlines or changing their geometry, selection, or saved styling.
+Both dimensions must be at most **32 screen pixels at the current zoom**. Tracks qualify only on
+their **first keyframe**; later frames and reappearances do not flash. A box does not flash if a
+similar box occupied the preceding video frame, even with a different annotation ID or label:
+similarity means at least **50% intersection over union** of their rotation-aware bounding areas.
+The comparison uses the actual preceding frame, including when seeking or skipping frames.
+**Settings → Workspace → Flash annotations** enables this effect (**on by default**), and the
+preference is saved in the browser. Turning it off also cancels an active flash. Ordinary same-frame
+edits do not restart it; hidden and outside annotations and non-box shapes do not flash.
+The effect is disabled when the browser requests reduced motion.
 
 Canvas sizing accounts for the class strip and timeline, and the image is refitted after actual layout
 size changes, including class-strip wrapping, timeline expansion, window resizing, and fullscreen transitions.

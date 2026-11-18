@@ -334,6 +334,7 @@ function lockStatesForReviewWorkspace(states: ObjectState[]): ObjectState[] {
 
 async function fetchAnnotations(predefinedFrame?: number): Promise<{
     states: CombinedState['annotation']['annotations']['states'];
+    previousFrameBoxes: CombinedState['annotation']['annotations']['renderData']['previousFrameBoxes'];
     intervals: AudioIntervalState[];
     history: CombinedState['annotation']['annotations']['history'];
 }> {
@@ -345,6 +346,8 @@ async function fetchAnnotations(predefinedFrame?: number): Promise<{
 
     const fetchFrame = typeof predefinedFrame === 'undefined' ? frame : predefinedFrame;
     let states = await jobInstance.annotations.get(fetchFrame, showAllInterpolationTracks, filters);
+    const previousStates = jobInstance.dimension === DimensionType.DIMENSION_2D && fetchFrame > jobInstance.startFrame ?
+        await jobInstance.annotations.get(fetchFrame - 1, false, filters) : [];
 
     if (jobInstance.type !== JobType.GROUND_TRUTH && showGroundTruth && groundTruthInstance) {
         let gtFrame: number | null = fetchFrame;
@@ -362,6 +365,15 @@ async function fetchAnnotations(predefinedFrame?: number): Promise<{
 
             states.push(...gtStates);
         }
+
+        if (jobInstance.dimension === DimensionType.DIMENSION_2D && fetchFrame > jobInstance.startFrame) {
+            const previousGTFrame = validationLayout ?
+                await validationLayout.getRealFrame(fetchFrame - 1) : fetchFrame - 1;
+            if (previousGTFrame !== null && previousGTFrame >= groundTruthInstance.startFrame &&
+                previousGTFrame <= groundTruthInstance.stopFrame) {
+                previousStates.push(...await groundTruthInstance.annotations.get(previousGTFrame, false, filters));
+            }
+        }
     }
 
     if (workspace === Workspace.REVIEW) {
@@ -374,6 +386,9 @@ async function fetchAnnotations(predefinedFrame?: number): Promise<{
 
     return {
         states,
+        previousFrameBoxes: previousStates.filter((state) => (
+            state.shapeType === ShapeType.RECTANGLE && !state.outside && !state.hidden
+        )).map((state) => ({ points: state.points, rotation: state.rotation })),
         intervals,
         history,
     };
@@ -382,12 +397,15 @@ async function fetchAnnotations(predefinedFrame?: number): Promise<{
 export function fetchAnnotationsAsync(): ThunkAction {
     return async (dispatch: ThunkDispatch): Promise<void> => {
         try {
-            const { states, intervals, history } = await fetchAnnotations();
+            const {
+                states, previousFrameBoxes, intervals, history,
+            } = await fetchAnnotations();
 
             await dispatch({
                 type: AnnotationActionTypes.FETCH_ANNOTATIONS_SUCCESS,
                 payload: {
                     states,
+                    previousFrameBoxes,
                     intervals,
                     history,
                 },
@@ -843,7 +861,7 @@ export function changeFrameAsync(
                 Math.round(1000 / frameSpeed) - currentTime + (state.annotation.player.frame.changeTime as number),
             );
 
-            const { states, history } = await fetchAnnotations(toFrame);
+            const { states, previousFrameBoxes, history } = await fetchAnnotations(toFrame);
 
             if (state.annotation.workspace === Workspace.REVIEW) {
                 userUnlockedInReviewMode.clear();
@@ -857,6 +875,7 @@ export function changeFrameAsync(
                     filename: data.filename,
                     relatedFiles: data.relatedFiles,
                     states,
+                    previousFrameBoxes,
                     history,
                     changeTime: currentTime + delay,
                     delay,

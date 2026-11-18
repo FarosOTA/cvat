@@ -35,6 +35,7 @@ export enum CanvasHistorySource {
 
 export interface RenderData {
     visibleSkeletonElements: Record<number, number[]>;
+    previousFrameBoxes?: { points: number[]; rotation: number }[];
 }
 
 export interface Geometry {
@@ -1191,6 +1192,7 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
     public get renderData(): RenderData {
         return {
             visibleSkeletonElements: { ...this.data.renderData.visibleSkeletonElements },
+            previousFrameBoxes: this.data.renderData.previousFrameBoxes,
         };
     }
 
