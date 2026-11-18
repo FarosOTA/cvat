@@ -2094,12 +2094,15 @@ export function placeAnnotationsAsync(
             if (drawnTrack) [trackID] = clientIDs;
         }
 
-        if (!enabled) return;
-        const nextFrame = await autoAdvance(dispatch, getState);
+        const repeatRectangle = workspace === Workspace.STANDARD && statesToCreate.length === 1 &&
+            drawn.shapeType === ShapeType.RECTANGLE;
+        if (!enabled && !repeatRectangle) return;
+        const nextFrame = enabled ? await autoAdvance(dispatch, getState) : frame;
         // Do not restart the tool if navigation was refused or the user has already started something else.
-        if (nextFrame !== null && getState().annotation.canvas.activeControl === ActiveControl.CURSOR) {
+        if (nextFrame !== null && getState().annotation.player.frame.number === nextFrame &&
+            getState().annotation.canvas.activeControl === ActiveControl.CURSOR) {
             await dispatch(repeatDrawShapeAsync());
-            dispatch(setContinuedTrack(trackID === null ? null : { clientID: trackID, frame: nextFrame }));
+            dispatch(setContinuedTrack(!enabled || trackID === null ? null : { clientID: trackID, frame: nextFrame }));
         }
     };
 }

@@ -145,7 +145,12 @@ with or without a selected class; neither changes an existing annotation. Custom
 Typing in editors and open modal dialogs retain priority over these shortcuts.
 
 All rectangle modes support **Shape** or **Track**, including right-click scissors. Use the class
-strip's toggle: **on = Track**, **off = Shape**. Clicking the currently selected class again
+strip's toggle: **on = Track**, **off = Shape**. In the Standard 2D workspace, placing a new box
+keeps the bounding-box tool active with the same class, drawing method, and Shape/Track mode, so you
+can place another box without selecting the tool again. With **Auto advance** off, drawing continues
+on the same frame and each box is a separate annotation; with it on, the existing next-frame and
+track-continuation behavior is unchanged. Redraw and paste are unaffected.
+Clicking the currently selected class again
 deselects it and cancels drawing, like `Esc`. While a class is selected, `Left` / `Right` search
 backward / forward for annotations of that class, also respecting the active annotation filters
 and deleted-frame visibility. With no class selected, the shortcuts search all classes as before.
