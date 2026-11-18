@@ -186,7 +186,9 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   image to the canvas; an engaged edit remains active afterward. Magnified borders and editing
   crosshairs stay aligned during panning and refresh on fit without requiring another pointer move.
 - **Pointer-centred zoom (upstream):** Scroll the mouse wheel or pinch on a touchpad to zoom around
-  the pointer. Combine this with middle-button panning to inspect small or distant defects without
+  the pointer. Zoom follows the total distance scrolled, so smooth-scrolling mice (such as Logitech
+  mice with smooth scrolling enabled) zoom one notch per notch instead of jumping.
+  Combine this with middle-button panning to inspect small or distant defects without
   leaving the current annotation tool.
 - **Cancel safely:** Press `Esc` during a move or resize to restore the box's geometry from before
   the interaction instead of keeping the unfinished edit.

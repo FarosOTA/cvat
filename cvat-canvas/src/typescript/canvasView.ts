@@ -101,6 +101,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
     private precisionToolsRequest: number | null = null;
     private middleMousePosition: { clientX: number; clientY: number } | null = null;
     private hoverPosition: { clientX: number; clientY: number } | null = null;
+    private wheelAccumulator = 0;
+    private wheelTimestamp = -Infinity;
     private innerObjectsFlags: {
         drawHidden: Record<number, boolean>;
         editHidden: Record<number, boolean>;
@@ -2340,6 +2342,34 @@ export class CanvasViewImpl implements CanvasView, Listener {
         restoreAnchors.forEach((restore) => restore());
     }
 
+    // Smooth-scrolling mice (e.g. Logitech) split one notch into a burst of small wheel events.
+    // Zoom by the total distance scrolled instead of per event, so a notch zooms the same amount
+    // however the driver splits it. Touchpad pinch (ctrlKey) keeps the previous per-event response.
+    private normalizeWheel(event: WheelEvent): number[] {
+        const NOTCH = 100; // pixels per mouse-wheel notch in Chromium and Firefox
+        const LIMIT_DELTA_Y = 8; // zoom response of one notch with the adaptive algorithm
+        let delta = event.deltaY;
+        if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) delta *= NOTCH / 3;
+        if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) delta *= this.canvas.clientHeight;
+        if (!delta) return [];
+        if (event.ctrlKey) return [clamp(delta, -LIMIT_DELTA_Y, LIMIT_DELTA_Y)];
+        delta = clamp(delta, -NOTCH, NOTCH);
+        if (this.configuration.adaptiveZoom !== false) return [(delta * LIMIT_DELTA_Y) / NOTCH];
+
+        // Fixed steps: the first event of a gesture zooms at once; the rest of the burst must add up
+        // to another notch before the next step.
+        const sign = Math.sign(delta);
+        const newGesture = event.timeStamp - this.wheelTimestamp > 150 || Math.sign(this.wheelAccumulator) === -sign;
+        this.wheelTimestamp = event.timeStamp;
+        this.wheelAccumulator = newGesture ? delta + sign * NOTCH : this.wheelAccumulator + delta;
+        const steps: number[] = [];
+        while (Math.abs(this.wheelAccumulator) >= NOTCH && Math.sign(this.wheelAccumulator) === sign) {
+            steps.push(sign);
+            this.wheelAccumulator -= sign * NOTCH;
+        }
+        return steps;
+    }
+
     private onMouseUp = (event: MouseEvent): void => {
         if (!this.middleMousePosition && (event.button === 0 || event.button === 1)) {
             this.controller.disableDrag();
@@ -2605,16 +2635,11 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 return;
             }
 
-            let { deltaY } = event;
-            // clamp too high values to avoid strong zooming
-            // high values are usually applicable to mice
-            // 8 is a good experimental value to avoid strong zooming
-            const LIMIT_DELTA_Y = 8;
-            deltaY = clamp(deltaY, -LIMIT_DELTA_Y, LIMIT_DELTA_Y);
-
             const { offset } = this.controller.geometry;
             const point = translateToSVG(this.content, [event.clientX, event.clientY]);
-            this.controller.zoom(point[0] - offset, point[1] - offset, deltaY);
+            for (const deltaY of this.normalizeWheel(event)) {
+                this.controller.zoom(point[0] - offset, point[1] - offset, deltaY);
+            }
             this.canvas.dispatchEvent(
                 new CustomEvent('canvas.zoom', {
                     bubbles: false,
