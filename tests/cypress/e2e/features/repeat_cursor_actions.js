@@ -14,6 +14,7 @@ context('Repeat cursor actions', () => {
             name: 'Repeat cursor actions',
             labels: [
                 { name: 'object', type: 'rectangle', attributes: [] },
+                { name: 'replacement', type: 'rectangle', attributes: [] },
                 { name: 'other', type: 'rectangle', attributes: [] },
             ],
             project_id: null,
@@ -85,6 +86,40 @@ context('Repeat cursor actions', () => {
             expect(shapes.filter((shape) => shape.occluded)).to.have.length(occluded);
         });
     }
+
+    it('applies the top bar label to overlaps, follows label changes and stops with Escape', () => {
+        cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
+        cy.get('.cvat_canvas_shape').should('have.length', 3);
+        cy.get('.cvat-rectangle-label-button[aria-label="Draw replacement"]').click();
+        cy.get('.cvat-rectangle-label-button[aria-label="Draw replacement"]')
+            .should('have.attr', 'aria-pressed', 'true');
+        pointAtOverlap();
+        shortcut('L', { keyCode: 76, which: 76, shiftKey: true });
+        cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
+            .filter('[title="replacement"]').should('have.length', 2);
+        shortcut('f', { keyCode: 70, which: 70 });
+        cy.get('.cvat-player-frame-selector input').should('have.value', '1');
+        cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
+            .filter('[title="replacement"]').should('have.length', 2);
+
+        // Selecting another class must affect already visited objects without restarting repeat mode.
+        shortcut('1', { keyCode: 49, which: 49 });
+        cy.get('.cvat-objects-sidebar-state-item-label-selector .ant-select-selection-item')
+            .filter('[title="object"]').should('have.length', 3);
+        shortcut('Escape', { keyCode: 27, which: 27 });
+        shortcut('f', { keyCode: 70, which: 70 });
+        cy.get('.cvat-player-frame-selector input').should('have.value', '2');
+        checkSaved(2, 3, 0);
+        cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => {
+            cy.request(`/api/labels?task_id=${taskId}`).then(({ body: labels }) => {
+                const replacement = labels.results.find((label) => label.name === 'replacement').id;
+                expect(body.shapes.filter((shape) => shape.label_id === replacement && shape.frame === 0))
+                    .to.have.length(2);
+                expect(body.shapes.filter((shape) => shape.label_id === replacement && shape.frame > 0))
+                    .to.have.length(0);
+            });
+        });
+    });
 
     it('sets both occlusion values and deletes overlaps after seeking with a stationary pointer', () => {
         cy.visit(`/tasks/${taskId}/jobs/${jobId}`);

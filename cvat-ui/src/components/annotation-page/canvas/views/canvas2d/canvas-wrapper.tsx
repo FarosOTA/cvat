@@ -24,7 +24,7 @@ import {
 import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import {
     AnnotationConflict, ObjectState, ObjectType, ShapeType, QualityConflict, getCore,
-    RectangleTrackTransformRequest,
+    RectangleTrackTransformRequest, Label, LabelType,
 } from 'cvat-core-wrapper';
 import { openZLayerInObjectsSidebar, scrollAndExpandState } from 'utils/objects-sidebar';
 import getHiddenZLayers from 'utils/get-hidden-z-layers';
@@ -81,7 +81,7 @@ import CanvasTipsComponent from './canvas-hints';
 
 const cvat = getCore();
 const MAX_DISTANCE_TO_OPEN_SHAPE = 50;
-type RepeatAction = 'delete' | 'occluded' | 'visible';
+type RepeatAction = 'delete' | 'occluded' | 'visible' | 'label';
 
 interface StateToProps {
     canvasInstance: Canvas | Canvas3d | null;
@@ -162,7 +162,7 @@ interface DispatchToProps {
     onResetCanvas: () => void;
     updateActiveControl: (activeControl: ActiveControl) => void;
     onUpdateAnnotations(states: ObjectState[]): void;
-    onRepeatAction(state: ObjectState, action: RepeatAction): Promise<boolean>;
+    onRepeatAction(state: ObjectState, action: RepeatAction, label?: Label): Promise<boolean>;
     onModifyAnnotations(states: ObjectState[], redraw?: boolean): void;
     onCreateAnnotations(states: ObjectState[], source?: AnnotationSource): void;
     onPlaceAnnotations(states: ObjectState[], source?: AnnotationSource): void;
@@ -353,6 +353,12 @@ function mapStateToProps(state: CombinedState): StateToProps {
 }
 
 const componentShortcuts = {
+    REPEAT_APPLY_LABEL: {
+        name: 'Repeat apply label',
+        description: 'Toggle applying the top bar label to compatible annotations under the pointer',
+        sequences: ['shift+l'],
+        scope: ShortcutScope.STANDARD_WORKSPACE,
+    },
     REPEAT_DELETE: {
         name: 'Repeat delete',
         description: 'Toggle force deletion of annotations under the pointer',
@@ -413,12 +419,16 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         onUpdateAnnotations(states: ObjectState[]): void {
             dispatch(updateAnnotationsAsync(states));
         },
-        async onRepeatAction(state: ObjectState, action: RepeatAction): Promise<boolean> {
+        async onRepeatAction(state: ObjectState, action: RepeatAction, label?: Label): Promise<boolean> {
             if (action === 'delete') {
                 return dispatch(removeObjectAsync(state, true));
             }
             const target = state;
-            target.occluded = action === 'occluded';
+            if (action === 'label') {
+                target.label = label;
+            } else {
+                target.occluded = action === 'occluded';
+            }
             return dispatch(updateAnnotationsAsync([target]));
         },
         onModifyAnnotations(states: ObjectState[], redraw?: boolean): void {
@@ -562,7 +572,10 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         notification.info({
             key: `repeat-annotation-action-${this.repeatNotice}`,
             message: componentShortcuts[{
-                delete: 'REPEAT_DELETE', occluded: 'REPEAT_OCCLUDED', visible: 'REPEAT_NOT_OCCLUDED',
+                delete: 'REPEAT_DELETE',
+                occluded: 'REPEAT_OCCLUDED',
+                visible: 'REPEAT_NOT_OCCLUDED',
+                label: 'REPEAT_APPLY_LABEL',
             }[action]].name,
             description: 'Active under the pointer, including during playback. Press Escape or close this notice to stop.',
             duration: 0,
@@ -581,10 +594,13 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const attempted = this.repeatAttempted;
         const {
             annotations, frame, frameData, canvasIsReady, workspace, hiddenZLayers, jobInstance, onRepeatAction,
-            selectedRectangleLabelID,
+            activeLabelID, selectedRectangleLabelID,
         } = this.props;
+        const label: Label | undefined = action === 'label' ?
+            jobInstance.labels.find((candidate: Label) => candidate.id === activeLabelID) : undefined;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
         if (!action || !pointer || this.repeatBusy || this.unmounted || !canvasIsReady || frameData?.deleted ||
+            (action === 'label' && !label) ||
             workspace !== Workspace.STANDARD || !document.hasFocus() ||
             ![CanvasMode.IDLE, CanvasMode.DRAW].includes(canvasInstance.mode()) ||
             !canvasInstance.html().contains(document.elementFromPoint(pointer.x, pointer.y))) return;
@@ -597,14 +613,19 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             const { offset } = canvasInstance.geometry;
             const candidates = annotations.filter((state) => (
                 !state.isGroundTruth && !state.hidden && !state.outside && state.objectType !== ObjectType.TAG &&
-                (selectedRectangleLabelID === null || state.label.id === selectedRectangleLabelID) &&
-                !hiddenZLayers.has(state.zOrder) && !this.repeatAttempted.has(state) &&
-                (action === 'delete' || (!state.lock && state.occluded !== (action === 'occluded')))
+                (action === 'label' || selectedRectangleLabelID === null ||
+                    state.label.id === selectedRectangleLabelID) &&
+                !hiddenZLayers.has(state.zOrder) && (action === 'label' || !this.repeatAttempted.has(state)) &&
+                (action === 'delete' || (!state.lock && (action === 'label' ? (
+                    state.label.id !== label.id && state.shapeType !== ShapeType.SKELETON &&
+                    !label.hasParent && (label.type === LabelType.ANY || label.type === String(state.shapeType))
+                ) : state.occluded !== (action === 'occluded'))))
             ));
             // select returns one hit. Remove it from the candidates to reach overlapping annotations too.
             while (candidates.length) {
                 const result = await jobInstance.annotations.select(candidates, svgX - offset, svgY - offset);
                 if (this.unmounted || this.repeatAction !== action || this.pointer !== pointer ||
+                    (action === 'label' && this.props.activeLabelID !== activeLabelID) ||
                     this.repeatAttempted !== attempted || !document.hasFocus() ||
                     this.props.frame !== frame || this.props.annotations !== annotations ||
                     this.props.selectedRectangleLabelID !== selectedRectangleLabelID ||
@@ -619,13 +640,16 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 const finishFeedback = beginRepeatActionFeedback();
                 let applied = false;
                 try {
-                    if (!await onRepeatAction(state, action)) {
+                    if (!await onRepeatAction(state, action, label)) {
                         if (this.repeatAttempted === attempted) this.stopRepeatAction();
                         break;
                     }
                     if (!this.unmounted) {
                         const verb = {
-                            delete: 'Deleted', occluded: 'Marked occluded', visible: 'Marked not occluded',
+                            delete: 'Deleted',
+                            occluded: 'Marked occluded',
+                            visible: 'Marked not occluded',
+                            label: 'Applied label',
                         }[action];
                         this.setState({
                             repeatFeedback: {
@@ -1655,6 +1679,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         };
 
         const handlers: Record<keyof typeof componentShortcuts, (event?: KeyboardEvent) => void> = {
+            REPEAT_APPLY_LABEL: (event) => this.toggleRepeatAction('label', event),
             REPEAT_DELETE: (event) => this.toggleRepeatAction('delete', event),
             REPEAT_OCCLUDED: (event) => this.toggleRepeatAction('occluded', event),
             REPEAT_NOT_OCCLUDED: (event) => this.toggleRepeatAction('visible', event),

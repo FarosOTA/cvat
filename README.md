@@ -221,10 +221,15 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   `Q` toggle) when the new geometry is placed.
 - **Repeat cursor actions (2D standard workspace):** `Shift+Backspace` toggles **Repeat delete**,
   `Shift+Q` toggles **Repeat mark occluded**, and `Alt+Shift+Q` (Option on macOS) toggles
-  **Repeat mark not occluded**. These shortcuts are configurable in **Settings → Shortcuts**.
+  **Repeat mark not occluded**. `Shift+L` toggles **Repeat apply label**, which uses the currently
+  selected top-bar class, including changes to that selection while the mode is active. It respects
+  object locks and skips objects already using the label, incompatible shape types, and skeletons.
+  These shortcuts are configurable in **Settings → Shortcuts**.
   Only one repeat mode is active at a time; press its shortcut again, press `Esc`, or close its
-  persistent notice to stop. With a class selected in the top label bar, repeat actions target only
-  annotations of that class; with no class selected, they target all classes. The mode applies to
+  persistent notice to stop. With a class selected in the top label bar, repeat deletion and occlusion
+  target only annotations of that class; with no class selected, they target all classes.
+  Repeat apply label uses the selected class as the destination, not as a filter on existing labels.
+  The mode applies to
   overlapping annotations under the pointer, including when the pointer is stationary, and stays
   engaged through frame seeking (`F`, `D`, `C`,
   `V`, Left/Right), playback, and pauses. Repeat deletion bypasses confirmation and object locks;
