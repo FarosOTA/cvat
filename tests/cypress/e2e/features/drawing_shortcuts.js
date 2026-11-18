@@ -46,6 +46,19 @@ context('Drawing object type and cancellation shortcuts', () => {
         cy.get('.cvat-canvas-container').should('be.visible');
     });
 
+    it('keeps the pointer visible with rectangle precision guides and after cancelling by keyboard', () => {
+        cy.openSidebarSettings();
+        cy.get('.cvat-appearance-editing-crosshair-checkbox input').check();
+        startDrawing('rectangle', 'Shape', 'By 2 Points');
+        cy.get('.cvat-canvas-container').click(230, 170);
+        cy.get('.cvat-canvas-container').trigger('mousemove', 410, 290);
+        cy.get('.cvat_canvas_crosshair').should('be.visible');
+        cy.get('#cvat_canvas_wrapper').should('not.have.css', 'cursor', 'none');
+        cy.get('.cvat_canvas_shape_drawing').should('not.have.css', 'cursor', 'none');
+        cy.get('body').type('{esc}');
+        cy.get('#cvat_canvas_wrapper').should('not.have.css', 'cursor', 'none');
+    });
+
     it('switches both ways mid-drawing without losing points or changing an existing object', () => {
         for (const [index, initialType] of ['Shape', 'Track'].entries()) {
             startDrawing('rectangle', initialType, 'By 4 Points');

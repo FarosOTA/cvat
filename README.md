@@ -207,8 +207,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 - **Cancel safely:** Press `Esc` during a move or resize to restore the box's geometry from before
   the interaction instead of keeping the unfinished edit.
 - **Editing crosshairs:** Guides extend all four box borders while moving or resizing, anchored to
-  the box edges rather than the mouse pointer. While they are enabled, the mouse pointer is hidden
-  while drawing, moving, or resizing a box.
+  the box edges rather than the mouse pointer. The mouse pointer remains visible, including while
+  drawing, moving, resizing, playing, seeking, or using keyboard shortcuts and slash commands.
 - **Drawing with an annotation in the chamber:** While a box tool is engaged (for example after `N`),
   a click places a corner, and pressing and dragging on empty image pans it. Before the first corner
   is placed, pressing and dragging an existing unlocked, unrotated box moves it, or resizes it from

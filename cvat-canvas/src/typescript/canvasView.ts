@@ -2152,7 +2152,6 @@ export class CanvasViewImpl implements CanvasView, Listener {
         }
         this.editingCrosshairs.forEach((crosshair) => crosshair.hide());
         if (this.cursorMagnifier) this.cursorMagnifier.hidden = true;
-        this.canvas?.classList.remove('cvat_canvas_hide_cursor');
     }
 
     private updatePrecisionTools = (event: MouseEvent): void => {
@@ -2181,9 +2180,6 @@ export class CanvasViewImpl implements CanvasView, Listener {
             return;
         }
 
-        // Box-edge guides replace the pointer while rectangles are drawn or edited.
-        this.canvas.classList.toggle('cvat_canvas_hide_cursor',
-            !!(editingRectangle || drawingRectangle || this.drawPress?.edit) && !!this.configuration.editingCrosshair);
         if (editingRectangle && this.configuration.editingCrosshair) {
             const {
                 x, y, x2, y2,
