@@ -142,6 +142,7 @@ interface StateToProps {
     cornerHandles: boolean;
     drawingDimensions: boolean;
     editingCrosshair: boolean;
+    showCrosshairCursor: boolean;
     cursorMagnifier: boolean;
     cursorMagnifierHover: boolean;
     cursorMagnifierSize: number;
@@ -257,6 +258,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 cornerHandles,
                 drawingDimensions,
                 editingCrosshair,
+                showCrosshairCursor,
                 cursorMagnifier,
                 cursorMagnifierHover,
                 cursorMagnifierSize,
@@ -340,6 +342,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         cornerHandles,
         drawingDimensions,
         editingCrosshair,
+        showCrosshairCursor,
         cursorMagnifier,
         cursorMagnifierHover,
         cursorMagnifierSize,
@@ -744,6 +747,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             cornerHandles,
             drawingDimensions,
             editingCrosshair,
+            showCrosshairCursor,
             cursorMagnifier,
             cursorMagnifierHover,
             cursorMagnifierSize,
@@ -787,6 +791,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             cornerHandles,
             drawingDimensions,
             editingCrosshair,
+            showCrosshairCursor,
             cursorMagnifier,
             cursorMagnifierHover,
             cursorMagnifierSize,
@@ -853,6 +858,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             cornerHandles,
             drawingDimensions,
             editingCrosshair,
+            showCrosshairCursor,
             cursorMagnifier,
             cursorMagnifierHover,
             cursorMagnifierSize,
@@ -891,6 +897,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             prevProps.cornerHandles !== cornerHandles ||
             prevProps.drawingDimensions !== drawingDimensions ||
             prevProps.editingCrosshair !== editingCrosshair ||
+            prevProps.showCrosshairCursor !== showCrosshairCursor ||
             prevProps.cursorMagnifier !== cursorMagnifier ||
             prevProps.cursorMagnifierHover !== cursorMagnifierHover ||
             prevProps.cursorMagnifierSize !== cursorMagnifierSize ||
@@ -926,6 +933,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 cornerHandles,
                 drawingDimensions,
                 editingCrosshair,
+                showCrosshairCursor,
                 cursorMagnifier,
                 cursorMagnifierHover,
                 cursorMagnifierSize,

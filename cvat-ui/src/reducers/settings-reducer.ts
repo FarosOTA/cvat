@@ -46,6 +46,7 @@ const defaultState: SettingsState = {
         autoAdvanceOnModify: false,
         flashAnnotations: true,
         editingCrosshair: true,
+        showCrosshairCursor: false,
         cursorMagnifier: true,
         cursorMagnifierHover: true,
         cursorMagnifierSize: 32,

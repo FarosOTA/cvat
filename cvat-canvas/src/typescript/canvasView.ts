@@ -2181,10 +2181,11 @@ export class CanvasViewImpl implements CanvasView, Listener {
             return;
         }
 
-        // Only crosshair-guided drawing and editing replace the native pointer.
+        // Crosshair-guided drawing and editing optionally replace the native pointer.
         this.canvas.classList.toggle('cvat_canvas_hide_cursor',
-            (!!editingRectangle && !!this.configuration.editingCrosshair) ||
-            (drawingRectangle && !!this.controller.drawData.crosshair));
+            !this.configuration.showCrosshairCursor && (
+                (!!editingRectangle && !!this.configuration.editingCrosshair) ||
+                (drawingRectangle && !!this.controller.drawData.crosshair)));
 
         if (editingRectangle && this.configuration.editingCrosshair) {
             const {

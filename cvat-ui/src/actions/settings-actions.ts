@@ -406,7 +406,8 @@ export function switchFlashAnnotations(flashAnnotations: boolean): AnyAction {
 
 export function switchRectanglePrecision(
     tool: 'clickToGrab' | 'resizeFromSides' | 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover' |
-    'clearFocusOnCanvasLeave' | 'cornerHandles' | 'drawingDimensions' | 'autoAdvanceOnModify' | 'hideRotationControl',
+    'clearFocusOnCanvasLeave' | 'cornerHandles' | 'drawingDimensions' | 'autoAdvanceOnModify' | 'hideRotationControl' |
+    'showCrosshairCursor',
     enabled: boolean,
 ): AnyAction {
     return {

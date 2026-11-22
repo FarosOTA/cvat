@@ -96,6 +96,7 @@ export interface Configuration {
     drawingDimensions?: boolean;
     flashAnnotations?: boolean;
     editingCrosshair?: boolean;
+    showCrosshairCursor?: boolean;
     cursorMagnifier?: boolean;
     cursorMagnifierHover?: boolean;
     cursorMagnifierSize?: number;
@@ -464,6 +465,7 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
                 drawingDimensions: true,
                 flashAnnotations: true,
                 editingCrosshair: true,
+                showCrosshairCursor: false,
                 cursorMagnifier: true,
                 cursorMagnifierHover: true,
                 cursorMagnifierSize: 32,
@@ -1061,6 +1063,9 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
         }
         if (typeof configuration.editingCrosshair === 'boolean') {
             this.data.configuration.editingCrosshair = configuration.editingCrosshair;
+        }
+        if (typeof configuration.showCrosshairCursor === 'boolean') {
+            this.data.configuration.showCrosshairCursor = configuration.showCrosshairCursor;
         }
         if (typeof configuration.cursorMagnifier === 'boolean') {
             this.data.configuration.cursorMagnifier = configuration.cursorMagnifier;

@@ -1108,6 +1108,7 @@ export interface WorkspaceSettingsState {
     autoAdvanceOnModify: boolean;
     flashAnnotations: boolean;
     editingCrosshair: boolean;
+    showCrosshairCursor: boolean;
     cursorMagnifier: boolean;
     cursorMagnifierHover: boolean;
     cursorMagnifierSize: number;

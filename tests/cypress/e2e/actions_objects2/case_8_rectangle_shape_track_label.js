@@ -320,6 +320,27 @@ context('Actions on rectangle', () => {
             cy.get('.cvat-workspace-settings-click-to-grab input').uncheck();
         });
 
+        it('Keep the mouse pointer visible with crosshairs when enabled', () => {
+            cy.openSidebarSettings();
+            cy.get('.cvat-workspace-settings-click-to-grab input').check();
+            for (const visible of [false, true, false]) {
+                cy.get('.cvat-appearance-crosshair-cursor-checkbox input')[visible ? 'check' : 'uncheck']();
+                cy.get('#cvat_canvas_shape_5').realHover().click();
+                cy.get('.cvat-canvas-container').trigger('mousemove', { clientX: 500, clientY: 400 });
+                cy.get('.cvat_canvas_crosshair').should('have.length', 4);
+                cy.get('.cvat-canvas-container').should(
+                    visible ? 'not.have.class' : 'have.class', 'cvat_canvas_hide_cursor',
+                );
+                cy.get('body').type('{esc}', { scrollBehavior: false });
+                cy.get('.cvat-canvas-container').should('not.have.class', 'cvat_canvas_hide_cursor');
+            }
+            cy.get('.cvat-appearance-crosshair-cursor-checkbox input').check();
+            cy.reload();
+            cy.openSidebarSettings();
+            cy.get('.cvat-appearance-crosshair-cursor-checkbox input').should('be.checked').uncheck();
+            cy.get('.cvat-workspace-settings-click-to-grab input').uncheck();
+        });
+
         it('Control hover magnification, editing magnification, and crosshairs independently', () => {
             cy.openSidebarSettings();
             cy.get('.cvat-workspace-settings-click-to-grab input').check();

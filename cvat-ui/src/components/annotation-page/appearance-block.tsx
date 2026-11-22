@@ -72,6 +72,7 @@ interface StateToProps {
     outlined: boolean;
     outlineColor: string;
     editingCrosshair: boolean;
+    showCrosshairCursor: boolean;
     cursorMagnifier: boolean;
     cursorMagnifierHover: boolean;
     nextFrameAfterPlacing: boolean;
@@ -93,7 +94,7 @@ interface DispatchToProps {
     changeShowProjections(event: CheckboxChangeEvent): void;
     changeOrientationVisibility(orientationVisibility: Partial<OrientationVisibility>): void;
     onSwitchRectanglePrecision(
-        tool: 'editingCrosshair' | 'cursorMagnifier' | 'cursorMagnifierHover' | 'clickToGrab' |
+        tool: 'editingCrosshair' | 'showCrosshairCursor' | 'cursorMagnifier' | 'cursorMagnifierHover' | 'clickToGrab' |
         'cornerHandles' | 'drawingDimensions' | 'autoAdvanceOnModify', enabled: boolean,
     ): void;
     onSwitchNextFrameAfterPlacing(enabled: boolean): void;
@@ -112,7 +113,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 orientationVisibility,
             },
             workspace: {
-                editingCrosshair, cursorMagnifier, cursorMagnifierHover,
+                editingCrosshair, showCrosshairCursor, cursorMagnifier, cursorMagnifierHover,
                 nextFrameAfterPlacing,
             },
         },
@@ -127,6 +128,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         outlined,
         outlineColor,
         editingCrosshair,
+        showCrosshairCursor,
         cursorMagnifier,
         cursorMagnifierHover,
         nextFrameAfterPlacing,
@@ -184,6 +186,7 @@ function AppearanceBlock(props: Props): JSX.Element {
         cursorMagnifier,
         cursorMagnifierHover,
         onSwitchRectanglePrecision,
+        showCrosshairCursor,
         nextFrameAfterPlacing,
         onSwitchNextFrameAfterPlacing,
         workspace,
@@ -359,6 +362,16 @@ function AppearanceBlock(props: Props): JSX.Element {
                                     }}
                                 >
                                     Show box-edge guides while editing
+                                </Checkbox>
+                                <Checkbox
+                                    className='cvat-appearance-crosshair-cursor-checkbox'
+                                    title='Keep the mouse pointer visible while drawing or editing boxes with crosshairs'
+                                    checked={showCrosshairCursor}
+                                    onChange={(event: CheckboxChangeEvent) => {
+                                        onSwitchRectanglePrecision('showCrosshairCursor', event.target.checked);
+                                    }}
+                                >
+                                    Show mouse pointer with crosshairs
                                 </Checkbox>
                                 <Checkbox
                                     className='cvat-workspace-settings-click-to-grab'
