@@ -47,6 +47,26 @@ context('Settings. "Player speed" option.', () => {
             cy.goCheckFrameNumber(0);
         });
 
+        it('Play backward with Shift+Space, stop at the first frame, and resume forward with Space.', () => {
+            cy.goCheckFrameNumber(6);
+            cy.get('body').type('{shift+space}');
+            cy.checkFrameNum(0);
+            cy.get('.cvat-player-play-button').should('exist');
+
+            // Reverse playback cannot start before the job's first frame.
+            cy.get('body').type('{shift+space}');
+            cy.get('.cvat-player-play-button').should('exist');
+            cy.checkFrameNum(0);
+
+            cy.get('body').type(' ');
+            cy.get('.cvat-player-frame-selector input').should(($input) => {
+                expect(Number($input.val())).to.be.greaterThan(0);
+            });
+            cy.get('body').type('{shift+space}');
+            cy.get('.cvat-player-play-button').should('exist');
+            cy.goCheckFrameNumber(0);
+        });
+
         it('Change "Player speed" to "Fastest" and measure the speed of changing frames. The "Slower" is expected to be slower than the "Fastest"', () => {
             changePlayerSpeed('fastest');
             cy.get('.cvat-player-play-button').click();

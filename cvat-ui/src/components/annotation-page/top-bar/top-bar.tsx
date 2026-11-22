@@ -55,7 +55,7 @@ interface Props {
     changeWorkspace(workspace: Workspace): void;
     showStatistics(): void;
     showFilters(): void;
-    onSwitchPlay(): void;
+    onSwitchPlay(reverse?: boolean): void;
     onPrevFrame(): void;
     onNextFrame(): void;
     onForward(): void;

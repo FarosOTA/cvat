@@ -43,7 +43,7 @@ interface Props {
     keyMap: KeyMap;
     workspace: Workspace;
     navigationType: NavigationType;
-    onSwitchPlay(): void;
+    onSwitchPlay(reverse?: boolean): void;
     onPrevFrame(): void;
     onNextFrame(): void;
     onForward(): void;
@@ -110,6 +110,12 @@ const componentShortcuts = {
         name: 'Play/pause',
         description: 'Start/stop automatic changing frames',
         sequences: ['space'],
+        scope: ShortcutScope.ANNOTATION_PAGE,
+    },
+    REVERSE_PLAY_PAUSE: {
+        name: 'Reverse play/pause',
+        description: 'Start automatic changing frames backward or stop playback',
+        sequences: ['shift+space'],
         scope: ShortcutScope.ANNOTATION_PAGE,
     },
 };
@@ -179,6 +185,10 @@ function PlayerButtons(props: Props): JSX.Element {
             PLAY_PAUSE: (event: KeyboardEvent | undefined) => {
                 event?.preventDefault();
                 onSwitchPlay();
+            },
+            REVERSE_PLAY_PAUSE: (event: KeyboardEvent | undefined) => {
+                event?.preventDefault();
+                onSwitchPlay(true);
             },
         } : {}),
     };
@@ -311,7 +321,7 @@ function PlayerButtons(props: Props): JSX.Element {
                         style={navIconStyle}
                         className='cvat-player-play-button'
                         component={PlayIcon}
-                        onClick={onSwitchPlay}
+                        onClick={() => onSwitchPlay()}
                     />
                 </CVATTooltip>
             ) : (
@@ -320,7 +330,7 @@ function PlayerButtons(props: Props): JSX.Element {
                         style={navIconStyle}
                         className='cvat-player-pause-button'
                         component={PauseIcon}
-                        onClick={onSwitchPlay}
+                        onClick={() => onSwitchPlay()}
                     />
                 </CVATTooltip>
             )}

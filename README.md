@@ -375,6 +375,12 @@ as an empty model catalog; other failures are reported rather than hidden.
 
 ## Frame loading, buffering, and playback
 
+- **Reverse playback:** Press **Shift + Space** to play frames backward at the configured player speed.
+  **Space** starts forward playback. Either shortcut pauses active playback; after pausing, use the
+  shortcut for the desired direction to resume. Reverse playback stops at the job's first available
+  frame and skips deleted frames unless they are shown. Customize **Reverse play/pause** in shortcut
+  settings. Like forward playback, it is unavailable in the Single shape and Audio workspaces and
+  does not fire while typing or while a modal is open.
 - **Full-resolution, bandwidth-saving playback:** **Settings → Player → Bandwidth-saving playback
   (full resolution)** is enabled by default for 2D image jobs. Playback uses JPEG quality **50** at
   the source's full dimensions, not 512px thumbnails. JPEG compression is lossy: small objects can

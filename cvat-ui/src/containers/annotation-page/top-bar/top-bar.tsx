@@ -279,6 +279,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
     private inputFrameRef: React.RefObject<HTMLInputElement>;
     private autoSaveInterval: number | undefined;
     private isWaitingForPlayDelay: boolean;
+    private playbackDirection: 1 | -1 = 1;
     private unblock: any;
 
     constructor(props: Props) {
@@ -346,7 +347,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
             onChangeFrame,
         } = this.props;
 
-        const { stopFrame } = jobInstance;
+        const { startFrame, stopFrame } = jobInstance;
 
         if (playing && canvasIsReady && !frameFetching && !this.isWaitingForPlayDelay) {
             this.isWaitingForPlayDelay = true;
@@ -358,16 +359,17 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
                 const { playing: currentPlaying, showDeletedFrames } = this.props;
 
                 if (currentPlaying) {
-                    const nextCandidate = frameNumber + 1;
-                    if (nextCandidate > stopFrame) {
+                    const nextCandidate = frameNumber + this.playbackDirection;
+                    const boundary = this.playbackDirection === 1 ? stopFrame : startFrame;
+                    if (nextCandidate > stopFrame || nextCandidate < startFrame) {
                         onSwitchPlay(false);
                         return;
                     }
 
                     const next = await jobInstance.frames
-                        .search({ notDeleted: !showDeletedFrames }, nextCandidate, stopFrame);
+                        .search({ notDeleted: !showDeletedFrames }, nextCandidate, boundary);
                     if (next !== null && isAbleToChangeFrame(next)) {
-                        onChangeFrame(next, currentPlaying);
+                        onChangeFrame(next, currentPlaying, this.playbackDirection);
                     } else {
                         onSwitchPlay(false);
                     }
@@ -416,14 +418,15 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
         showFilters();
     };
 
-    private onSwitchPlay = (): void => {
+    private onSwitchPlay = (reverse = false): void => {
         const {
             frameNumber, jobInstance, onSwitchPlay, playing,
         } = this.props;
 
         if (playing) {
             onSwitchPlay(false);
-        } else if (frameNumber < jobInstance.stopFrame) {
+        } else if (reverse ? frameNumber > jobInstance.startFrame : frameNumber < jobInstance.stopFrame) {
+            this.playbackDirection = reverse ? -1 : 1;
             onSwitchPlay(true);
         }
     };
