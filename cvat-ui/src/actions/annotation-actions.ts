@@ -2045,8 +2045,8 @@ export function modifyAnnotationsAsync(statesToUpdate: ObjectState[], redraw = f
     };
 }
 
-// Places annotations drawn with a drawing or interaction tool. With "Auto advance" enabled,
-// it then moves to the next frame and restarts the same tool there, as the repeat-draw shortcut does.
+// Places annotations drawn with a drawing or interaction tool and restarts it in the Standard workspace.
+// With "Auto advance" enabled, it moves to the next frame before restarting the tool.
 // A track drawn on that frame adds a keyframe to the track placed before it instead of starting a new track.
 export function placeAnnotationsAsync(
     statesToCreate: ObjectState[],
@@ -2094,9 +2094,7 @@ export function placeAnnotationsAsync(
             if (drawnTrack) [trackID] = clientIDs;
         }
 
-        const repeatRectangle = workspace === Workspace.STANDARD && statesToCreate.length === 1 &&
-            drawn.shapeType === ShapeType.RECTANGLE;
-        if (!enabled && !repeatRectangle) return;
+        if (workspace !== Workspace.STANDARD) return;
         const nextFrame = enabled ? await autoAdvance(dispatch, getState) : frame;
         // Do not restart the tool if navigation was refused or the user has already started something else.
         if (nextFrame !== null && getState().annotation.player.frame.number === nextFrame &&

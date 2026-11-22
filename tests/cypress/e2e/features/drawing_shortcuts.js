@@ -10,7 +10,7 @@ context('Drawing object type and cancellation shortcuts', () => {
 
     function startDrawing(type, objectType = 'Shape', method) {
         cy.get(`.cvat-draw-${type}-control`).click();
-        cy.get(`.cvat-draw-${type}-popover`).filter(':visible').within(() => {
+        cy.get('.cvat-draw-shape-popover-content').filter(':visible').within(() => {
             if (method) cy.contains('.ant-radio-wrapper', method).click();
             cy.get(`.cvat-draw-${type}-${objectType.toLowerCase()}-button`).click();
         });
@@ -46,18 +46,21 @@ context('Drawing object type and cancellation shortcuts', () => {
         cy.get('.cvat-canvas-container').should('be.visible');
     });
 
-    it('keeps rectangle placement active for consecutive shapes and tracks until Escape', () => {
-        for (const [index, objectType] of ['Shape', 'Track'].entries()) {
-            startDrawing('rectangle', objectType, 'By 2 Points');
+    it('keeps drawing active for consecutive shapes and tracks until Escape', () => {
+        const tools = [
+            ['rectangle', 'Shape'], ['rectangle', 'Track'], ['ellipse', 'Shape'], ['ellipse', 'Track'],
+        ];
+        for (const [index, [type, objectType]] of tools.entries()) {
+            startDrawing(type, objectType, type === 'rectangle' ? 'By 2 Points' : undefined);
             for (let box = 0; box < 2; box++) {
                 const offset = box * 100;
                 cy.get('.cvat-canvas-container').click(230 + offset, 170);
                 cy.get('.cvat-canvas-container').click(300 + offset, 260);
                 cy.get('.cvat-objects-sidebar-state-item').should('have.length', index * 2 + box + 1);
-                cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
+                cy.get(`.cvat-draw-${type}-control`).should('have.class', 'cvat-active-canvas-control');
             }
             cy.get('body').type('{esc}');
-            cy.get('.cvat-draw-rectangle-control').should('not.have.class', 'cvat-active-canvas-control');
+            cy.get(`.cvat-draw-${type}-control`).should('not.have.class', 'cvat-active-canvas-control');
             cy.get('.cvat-canvas-container').click(550, 350);
             cy.get('.cvat-canvas-container').click(610, 410);
             cy.get('.cvat-objects-sidebar-state-item').should('have.length', (index + 1) * 2);
@@ -65,9 +68,12 @@ context('Drawing object type and cancellation shortcuts', () => {
         cy.clickSaveAnnotationView();
         cy.get('.cvat-annotation-header-save-button').should('not.have.class', 'cvat-annotation-disabled-header-button');
         cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => {
-            expect(body.shapes).to.have.length(2);
-            expect(body.tracks).to.have.length(2);
-            expect(body.shapes.every((shape) => shape.frame === 0 && shape.type === 'rectangle')).to.equal(true);
+            expect(body.shapes).to.have.length(4);
+            expect(body.tracks).to.have.length(4);
+            expect(body.shapes.map((shape) => shape.type)).to.deep.equal([
+                'rectangle', 'rectangle', 'ellipse', 'ellipse',
+            ]);
+            expect(body.shapes.every((shape) => shape.frame === 0)).to.equal(true);
             expect(body.tracks.every((track) => track.shapes.length === 1 && track.shapes[0].frame === 0))
                 .to.equal(true);
         });

@@ -101,6 +101,12 @@ ignores annotation-search navigation modes and the configured frame step, and do
 of the job. It does not interrupt drawing, editing, playback, or frame loading, and does not fire while
 typing or while a modal is open. If deleted frames are shown, advancing to one does not start drawing.
 
+In the **Standard 2D workspace**, placing a new annotation automatically restarts the last drawing
+or interaction tool, as **N** would, with the same label, parameters, and Shape/Track choice.
+With **Auto advance** off, drawing continues on the same frame and each placement is a separate
+annotation. Press **Esc** or choose the pointer tool to stop. Paste, redraw, and other workspaces
+are unchanged.
+
 Press **Alt + T** in the Standard 2D or 3D workspace to switch manual annotation creation between
 **Shape** and **Track**. It changes the next annotation's type, or the current manual drawing's type
 without discarding points already placed; it does not convert existing annotations. The rectangle
