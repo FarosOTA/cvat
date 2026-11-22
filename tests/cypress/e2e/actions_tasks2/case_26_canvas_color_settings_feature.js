@@ -55,6 +55,42 @@ context('Canvas color settings feature', () => {
     });
 
     describe(`Testing case "${caseId}"`, () => {
+        it('Render adjusted levels in the display bitmap and restore the original pixels on reset', () => {
+            cy.get('#cvat_canvas_background').then(([canvas]) => {
+                const original = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+                const samples = [];
+                const stride = Math.max(1, Math.floor((canvas.width * canvas.height) / 64)) * 4;
+                for (let i = 0; i < original.data.length; i += stride) {
+                    samples.push(i);
+                }
+                const expected = new Uint8ClampedArray(original.data);
+                for (const i of samples) {
+                    for (let channel = 0; channel < 3; channel++) {
+                        expected[i + channel] = (original.data[i + channel] - 20) * 1.275;
+                    }
+                }
+                expect(samples.some((i) => expected[i] !== original.data[i])).to.equal(true);
+                cy.get('.cvat-image-setups-black-point input').clear();
+                cy.get('.cvat-image-setups-black-point input').type('20{enter}');
+                cy.get('.cvat-image-setups-white-point input').clear();
+                cy.get('.cvat-image-setups-white-point input').type('220{enter}');
+                cy.get('#cvat_canvas_background').should(([adjusted]) => {
+                    const { data } = adjusted.getContext('2d').getImageData(0, 0, adjusted.width, adjusted.height);
+                    for (const i of samples) {
+                        expect(Array.from(data.slice(i, i + 4))).to.deep.equal(Array.from(expected.slice(i, i + 4)));
+                    }
+                });
+                cy.get('.cvat-image-setups-reset-color-settings').find('button').click();
+                cy.get('#cvat_canvas_background').should(([reset]) => {
+                    const { data } = reset.getContext('2d').getImageData(0, 0, reset.width, reset.height);
+                    for (const i of samples) {
+                        expect(Array.from(data.slice(i, i + 4)))
+                            .to.deep.equal(Array.from(original.data.slice(i, i + 4)));
+                    }
+                });
+            });
+        });
+
         it('Check application of CSS filters', () => {
             const stringAction = generateString(countActionMoveSlider, 'rightarrow');
             cy.applyActionToSliders(
@@ -83,7 +119,7 @@ context('Canvas color settings feature', () => {
             cy.get('.cvat-image-setups-black-point input').type('20{enter}');
             cy.get('.cvat-image-setups-white-point input').clear();
             cy.get('.cvat-image-setups-white-point input').type('220{enter}');
-            cy.get('#cvat_canvas_background').should('have.attr', 'style').and('contain', 'cvat-picture-levels');
+            cy.get('#cvat_canvas_background').should('have.css', 'filter', 'none');
             cy.get('.cvat-image-setups-black-point [role="slider"]').should('have.attr', 'aria-valuemax', '219');
             cy.get('.cvat-image-setups-white-point [role="slider"]').should('have.attr', 'aria-valuemin', '21');
             cy.get('.cvat-canvas-container').click('topRight');
@@ -98,7 +134,7 @@ context('Canvas color settings feature', () => {
             cy.get('.cvat-image-setups-reset-color-settings').find('button').click();
             const expectedResultInBackground = defaultValueInSidebar / 100;
             checkStateValuesInBackground(expectedResultInBackground);
-            cy.get('#cvat_canvas_background').should('have.attr', 'style').and('not.contain', 'cvat-picture-levels');
+            cy.get('#cvat_canvas_background').should('have.css', 'filter', 'brightness(1) contrast(1) saturate(1)');
             cy.get('.cvat-image-setups-black-point input').should('have.value', '0');
             cy.get('.cvat-image-setups-white-point input').should('have.value', '255');
             cy.checkSlidersValues(
@@ -127,7 +163,7 @@ context('Canvas color settings feature', () => {
             cy.get('.cvat-canvas-image-setups-trigger').click();
             cy.get('.cvat-image-setups-black-point input').should('have.value', '35');
             cy.get('.cvat-image-setups-white-point input').should('have.value', '190');
-            cy.get('#cvat_canvas_background').should('have.attr', 'style').and('contain', 'cvat-picture-levels');
+            cy.get('#cvat_canvas_background').should('have.css', 'filter', 'none');
             cy.checkSlidersValues(
                 '.cvat-canvas-image-setups-content', classNameSliders, expectedResultInSetting,
             );

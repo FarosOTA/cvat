@@ -107,6 +107,8 @@ levels at or above the white point become white; intermediate levels are stretch
 The black point must remain below the white point. Adjustments affect only the displayed image,
 not annotations, source media, or exports. Preferences persist in this browser and across jobs;
 **Reset color settings** restores all color adjustments, including gamma and both points.
+Non-default black or white points use browser-side pixel processing to avoid SVG canvas-filter
+rendering issues in Safari. Processing large frames can reduce playback speed.
 
 ## Cursor-targeted annotation shortcuts
 

@@ -71,7 +71,7 @@ import {
 import { reviewActions } from 'actions/review-actions';
 
 import { filterAnnotations } from 'utils/filter-annotations';
-import { ImageFilter } from 'utils/image-processing';
+import { ImageFilter, applyColorLevels } from 'utils/image-processing';
 import { ShortcutScope } from 'utils/enums';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import { subKeyMap } from 'utils/component-subkeymap';
@@ -1011,10 +1011,18 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             blackPoint !== prevProps.blackPoint || whitePoint !== prevProps.whitePoint
         ) {
             canvasInstance.configure({
-                CSSImageFilter:
-                    `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})${
-                        blackPoint !== 0 || whitePoint !== 255 ? ' url(#cvat-picture-levels)' : ''}`,
+                CSSImageFilter: blackPoint !== 0 || whitePoint !== 255 ? '' :
+                    `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})`,
             });
+            if (blackPoint !== 0 || whitePoint !== 255 || prevProps.blackPoint !== 0 || prevProps.whitePoint !== 255) {
+                // Levels and the preceding color adjustments are baked into display pixels.
+                // Avoid SVG-reference filters on the canvas, which can hide it in Safari.
+                for (const imageFilter of imageFilters) {
+                    imageFilter.modifier.currentProcessedImage = null;
+                }
+                canvasInstance.configure({ forceFrameUpdate: true });
+                this.debouncedUpdate();
+            }
         }
 
         if (prevProps.imageFilters !== imageFilters) {
@@ -1546,7 +1554,9 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const {
             hiddenZLayers, annotations, frameData,
             workspace, frame, imageFilters, renderData, playing, jobInstance, bandwidthSavingPlayback,
+            blackPoint, whitePoint, brightnessLevel, contrastLevel, saturationLevel,
         } = this.props;
+        const levelsActive = blackPoint !== 0 || whitePoint !== 255;
 
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
         if (frameData !== null && canvasInstance) {
@@ -1576,7 +1586,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                                 imageFilter.modifier.currentProcessedImage !== frame
                             ));
 
-                            if (imageIsNotProcessed) {
+                            if (imageIsNotProcessed || levelsActive) {
                                 try {
                                     const { renderWidth, renderHeight, imageData: imageBitmap } = originalImage;
 
@@ -1588,6 +1598,16 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                                     const newImageData = imageFilters
                                         .reduce((oldImageData, activeImageModifier) => activeImageModifier
                                             .modifier.processImage(oldImageData, frame), imageData);
+                                    if (levelsActive) {
+                                        applyColorLevels(
+                                            newImageData,
+                                            blackPoint,
+                                            whitePoint,
+                                            brightnessLevel,
+                                            contrastLevel,
+                                            saturationLevel,
+                                        );
+                                    }
                                     const newImageBitmap = await createImageBitmap(newImageData);
                                     return {
                                         renderWidth,
@@ -1645,9 +1665,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         canvasInstance.grid(gridSize, gridSize);
 
         canvasInstance.configure({
-            CSSImageFilter:
-                `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})${
-                    blackPoint !== 0 || whitePoint !== 255 ? ' url(#cvat-picture-levels)' : ''}`,
+            CSSImageFilter: blackPoint !== 0 || whitePoint !== 255 ? '' :
+                `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})`,
         });
 
         canvasInstance.fitCanvas();
