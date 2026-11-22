@@ -43,6 +43,7 @@ export enum SettingsActionTypes {
     CHANGE_BRIGHTNESS_LEVEL = 'CHANGE_BRIGHTNESS_LEVEL',
     CHANGE_CONTRAST_LEVEL = 'CHANGE_CONTRAST_LEVEL',
     CHANGE_SATURATION_LEVEL = 'CHANGE_SATURATION_LEVEL',
+    CHANGE_PICTURE_LEVELS = 'CHANGE_PICTURE_LEVELS',
     SWITCH_AUTO_SAVE = 'SWITCH_AUTO_SAVE',
     CHANGE_AUTO_SAVE_INTERVAL = 'CHANGE_AUTO_SAVE_INTERVAL',
     CHANGE_FOCUSED_OBJECT_PADDING = 'CHANGE_FOCUSED_OBJECT_PADDING',
@@ -69,6 +70,13 @@ export enum SettingsActionTypes {
     DISABLE_IMAGE_FILTER = 'DISABLE_IMAGE_FILTER',
     RESET_IMAGE_FILTERS = 'RESET_IMAGE_FILTERS',
     CHANGE_SHAPES_ORIENTATION_VISIBILITY = 'CHANGE_SHAPES_ORIENTATION_VISIBILITY',
+}
+
+export function changePictureLevels(blackPoint: number, whitePoint: number): AnyAction {
+    return {
+        type: SettingsActionTypes.CHANGE_PICTURE_LEVELS,
+        payload: { blackPoint, whitePoint },
+    };
 }
 
 export function changeShapesOpacity(opacity: number): AnyAction {
@@ -533,6 +541,14 @@ export function restoreSettingsAsync(): ThunkAction {
         if (!settingsString) return;
 
         const loadedSettings = JSON.parse(settingsString);
+        if (loadedSettings.player) {
+            const { blackPoint = 0, whitePoint = 255 } = loadedSettings.player;
+            if (!Number.isInteger(blackPoint) || !Number.isInteger(whitePoint) ||
+                blackPoint < 0 || whitePoint > 255 || blackPoint >= whitePoint) {
+                delete loadedSettings.player.blackPoint;
+                delete loadedSettings.player.whitePoint;
+            }
+        }
         // Preserve the previous combined preference until hover is configured independently.
         if (loadedSettings.workspace?.cursorMagnifierHover === undefined &&
             typeof loadedSettings.workspace?.cursorMagnifier === 'boolean') {

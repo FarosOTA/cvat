@@ -22,6 +22,7 @@ import {
     changeSaturationLevel,
     changeGridSize,
     resetImageFilters,
+    changePictureLevels,
 } from 'actions/settings-actions';
 import { clamp } from 'utils/math';
 import { GridColor, CombinedState, PlayerSettingsState } from 'reducers';
@@ -36,6 +37,8 @@ export default function ImageSetupsContent(): JSX.Element {
         brightnessLevel,
         contrastLevel,
         saturationLevel,
+        blackPoint,
+        whitePoint,
         gridOpacity,
         gridColor,
         gridSize,
@@ -173,6 +176,37 @@ export default function ImageSetupsContent(): JSX.Element {
                     </Row>
                 </Col>
             </Row>
+            {(['black', 'white'] as const).map((point) => {
+                const black = point === 'black';
+                const label = black ? 'Black point' : 'White point';
+                const value = black ? blackPoint : whitePoint;
+                const min = black ? 0 : blackPoint + 1;
+                const max = black ? whitePoint - 1 : 255;
+                const onChange = (level: number | null): void => {
+                    if (level !== null) {
+                        const converted = Math.round(clamp(level, min, max));
+                        dispatch(changePictureLevels(black ? converted : blackPoint, black ? whitePoint : converted));
+                    }
+                };
+                return (
+                    <Row key={point} className={`cvat-image-setups-${point}-point`} align='middle'>
+                        <Col span={6}><Text className='cvat-text-color'>{label}</Text></Col>
+                        <Col span={12}>
+                            <Slider min={min} max={max} value={value} onChange={onChange} />
+                        </Col>
+                        <Col span={6}>
+                            <InputNumber
+                                aria-label={label}
+                                min={min}
+                                max={max}
+                                precision={0}
+                                value={value}
+                                onChange={onChange}
+                            />
+                        </Col>
+                    </Row>
+                );
+            })}
             <GammaFilter />
             <Row className='cvat-image-setups-reset-color-settings' justify='space-around'>
                 <Col>
@@ -183,6 +217,7 @@ export default function ImageSetupsContent(): JSX.Element {
                             dispatch(changeBrightnessLevel(defaultValue));
                             dispatch(changeContrastLevel(defaultValue));
                             dispatch(changeSaturationLevel(defaultValue));
+                            dispatch(changePictureLevels(0, 255));
                             dispatch(resetImageFilters());
                         }}
                     >

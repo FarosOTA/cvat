@@ -83,6 +83,8 @@ const defaultState: SettingsState = {
         brightnessLevel: 100,
         contrastLevel: 100,
         saturationLevel: 100,
+        blackPoint: 0,
+        whitePoint: 255,
     },
     imageFilters: [],
     showDialog: false,
@@ -327,6 +329,17 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                     ...state.player,
                     saturationLevel: action.payload.level,
                 },
+            };
+        }
+        case SettingsActionTypes.CHANGE_PICTURE_LEVELS: {
+            const { blackPoint, whitePoint } = action.payload;
+            if (!Number.isInteger(blackPoint) || !Number.isInteger(whitePoint) ||
+                blackPoint < 0 || whitePoint > 255 || blackPoint >= whitePoint) {
+                return state;
+            }
+            return {
+                ...state,
+                player: { ...state.player, blackPoint, whitePoint },
             };
         }
         case SettingsActionTypes.SWITCH_AUTO_SAVE: {

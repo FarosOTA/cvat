@@ -78,10 +78,29 @@ context('Canvas color settings feature', () => {
             cy.get('.cvat-notification-notice-image-processing-error').should('not.exist');
         });
 
+        it('Adjust black and white points without closing the panel while annotating', () => {
+            cy.get('.cvat-image-setups-black-point input').clear();
+            cy.get('.cvat-image-setups-black-point input').type('20{enter}');
+            cy.get('.cvat-image-setups-white-point input').clear();
+            cy.get('.cvat-image-setups-white-point input').type('220{enter}');
+            cy.get('#cvat_canvas_background').should('have.attr', 'style').and('contain', 'cvat-picture-levels');
+            cy.get('.cvat-image-setups-black-point [role="slider"]').should('have.attr', 'aria-valuemax', '219');
+            cy.get('.cvat-image-setups-white-point [role="slider"]').should('have.attr', 'aria-valuemin', '21');
+            cy.get('.cvat-canvas-container').click('topRight');
+            cy.get('#cvat-picture-controls-panel').should('be.visible');
+            cy.get('.cvat-image-setups-black-point input').focus();
+            cy.get('.cvat-image-setups-black-point input').type('{esc}');
+            cy.get('.cvat-canvas-image-setups-trigger').should('be.focused').and('have.attr', 'aria-expanded', 'false');
+            cy.get('.cvat-canvas-image-setups-trigger').click();
+        });
+
         it('Check reset of settings', () => {
             cy.get('.cvat-image-setups-reset-color-settings').find('button').click();
             const expectedResultInBackground = defaultValueInSidebar / 100;
             checkStateValuesInBackground(expectedResultInBackground);
+            cy.get('#cvat_canvas_background').should('have.attr', 'style').and('not.contain', 'cvat-picture-levels');
+            cy.get('.cvat-image-setups-black-point input').should('have.value', '0');
+            cy.get('.cvat-image-setups-white-point input').should('have.value', '255');
             cy.checkSlidersValues(
                 '.cvat-canvas-image-setups-content', classNameSliders, defaultValueInSetting,
             );
@@ -91,6 +110,10 @@ context('Canvas color settings feature', () => {
         });
 
         it('Check persisting image filters across jobs', () => {
+            cy.get('.cvat-image-setups-black-point input').clear();
+            cy.get('.cvat-image-setups-black-point input').type('35{enter}');
+            cy.get('.cvat-image-setups-white-point input').clear();
+            cy.get('.cvat-image-setups-white-point input').type('190{enter}');
             const sliderAction = generateString(countActionMoveSlider, 'rightarrow');
             const filterAction = generateString(countActionMoveFilterSlider, 'rightarrow');
             cy.applyActionToSliders(
@@ -102,6 +125,9 @@ context('Canvas color settings feature', () => {
             cy.interactMenu('Open the task');
             cy.openJob(1);
             cy.get('.cvat-canvas-image-setups-trigger').click();
+            cy.get('.cvat-image-setups-black-point input').should('have.value', '35');
+            cy.get('.cvat-image-setups-white-point input').should('have.value', '190');
+            cy.get('#cvat_canvas_background').should('have.attr', 'style').and('contain', 'cvat-picture-levels');
             cy.checkSlidersValues(
                 '.cvat-canvas-image-setups-content', classNameSliders, expectedResultInSetting,
             );

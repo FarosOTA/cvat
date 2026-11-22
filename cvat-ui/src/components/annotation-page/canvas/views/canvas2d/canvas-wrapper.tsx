@@ -9,8 +9,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import Spin from 'antd/lib/spin';
-import Popover from 'antd/lib/popover';
-import Icon, { UpOutlined } from '@ant-design/icons';
+import Icon from '@ant-design/icons';
 import notification from 'antd/lib/notification';
 import debounce from 'lodash/debounce';
 
@@ -78,7 +77,7 @@ import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import { subKeyMap } from 'utils/component-subkeymap';
 import { beginRepeatAction, TOGGLE_LABEL_REPLACEMENT_EVENT } from 'utils/repeat-action';
 import repeatBrushHits from 'utils/repeat-brush';
-import ImageSetupsContent from './image-setups-content';
+import PictureControls from './picture-controls';
 import CanvasTipsComponent from './canvas-hints';
 
 const cvat = getCore();
@@ -115,6 +114,8 @@ interface StateToProps {
     brightnessLevel: number;
     contrastLevel: number;
     saturationLevel: number;
+    blackPoint: number;
+    whitePoint: number;
     resetZoom: boolean;
     bandwidthSavingPlayback: boolean;
     smoothImage: boolean;
@@ -233,6 +234,8 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 brightnessLevel,
                 contrastLevel,
                 saturationLevel,
+                blackPoint,
+                whitePoint,
                 resetZoom,
                 bandwidthSavingPlayback,
                 smoothImage,
@@ -309,6 +312,8 @@ function mapStateToProps(state: CombinedState): StateToProps {
         brightnessLevel: brightnessLevel / 100,
         contrastLevel: contrastLevel / 100,
         saturationLevel: saturationLevel / 100,
+        blackPoint,
+        whitePoint,
         resetZoom,
         bandwidthSavingPlayback,
         smoothImage,
@@ -831,6 +836,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             brightnessLevel,
             contrastLevel,
             saturationLevel,
+            blackPoint,
+            whitePoint,
             showObjectsTextAlways,
             textFontSize,
             controlPointsSize,
@@ -992,11 +999,13 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         if (
             brightnessLevel !== prevProps.brightnessLevel ||
             contrastLevel !== prevProps.contrastLevel ||
-            saturationLevel !== prevProps.saturationLevel
+            saturationLevel !== prevProps.saturationLevel ||
+            blackPoint !== prevProps.blackPoint || whitePoint !== prevProps.whitePoint
         ) {
             canvasInstance.configure({
                 CSSImageFilter:
-                    `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})`,
+                    `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})${
+                        blackPoint !== 0 || whitePoint !== 255 ? ' url(#cvat-picture-levels)' : ''}`,
             });
         }
 
@@ -1610,6 +1619,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             brightnessLevel,
             contrastLevel,
             saturationLevel,
+            blackPoint,
+            whitePoint,
         } = this.props;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
 
@@ -1627,7 +1638,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
 
         canvasInstance.configure({
             CSSImageFilter:
-                `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})`,
+                `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})${
+                    blackPoint !== 0 || whitePoint !== 255 ? ' url(#cvat-picture-levels)' : ''}`,
         });
 
         canvasInstance.fitCanvas();
@@ -1792,15 +1804,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                     }}
                 />
 
-                <Popover
-                    destroyTooltipOnHide
-                    trigger='click'
-                    placement='top'
-                    overlayInnerStyle={{ padding: 0 }}
-                    content={<ImageSetupsContent />}
-                >
-                    <UpOutlined className='cvat-canvas-image-setups-trigger' />
-                </Popover>
+                <PictureControls />
 
                 <CVATTooltip title={`Open layer stack. Current layer ${currentZLayer}`}>
                     <button

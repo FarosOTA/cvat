@@ -10,6 +10,7 @@ are not necessarily fork-specific. This checkout reports CVAT **2.74.1**.
 
 - [Rectangle-track editing](#rectangle-track-editing)
 - [Track timeline and navigation](#track-timeline-and-navigation)
+- [Picture controls](#picture-controls)
 - [Cursor-targeted annotation shortcuts](#cursor-targeted-annotation-shortcuts)
 - [Quick bounding-box classes](#quick-bounding-box-classes)
 - [Precision bounding-box controls](#precision-bounding-box-controls)
@@ -90,6 +91,22 @@ fitted image in screen pixels (**0–100**, default **8**), so the pointer can r
 canvas, including when the image is rotated. Set it to **0** for edge-to-edge fitting. Changing the
 setting immediately refits the frame, and the value is saved in the browser. It applies to initial
 fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
+
+## Picture controls
+
+In 2D annotation workspaces, the labeled **Picture controls** button stays at the bottom-left of
+the canvas, including in fullscreen and with the objects sidebar collapsed. Open it for upstream
+**Brightness**, **Contrast**, **Saturation**, **Gamma**, and grid controls, plus fork-added
+**Black point** and **White point** sliders and numeric inputs. The panel stays open while you
+annotate; click the button again to close it, or press **Escape** while focus is inside the controls.
+On shorter windows the panel scrolls.
+
+Black and white points use input channel levels **0–255** (defaults **0** and **255**).
+After brightness, contrast, and saturation, levels at or below the black point become black and
+levels at or above the white point become white; intermediate levels are stretched linearly.
+The black point must remain below the white point. Adjustments affect only the displayed image,
+not annotations, source media, or exports. Preferences persist in this browser and across jobs;
+**Reset color settings** restores all color adjustments, including gamma and both points.
 
 ## Cursor-targeted annotation shortcuts
 
