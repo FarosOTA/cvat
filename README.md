@@ -193,6 +193,13 @@ The default lasts for the current job. `Esc` cancels drawing, and the existing `
 finishes an assisted interaction or repeats the chosen class and mode when idle. Pointer-centred
 zoom and middle-button panning remain available during all these modes.
 
+Enable **Settings → Workspace → Suppress repeat-drawing shortcut (N)** to prevent **Draw mode**
+(`N` by default, including a customized binding) from starting with the remembered label in the
+**Standard 2D workspace**. Select the class explicitly using its code or drawing controls instead.
+The checkbox is **off by default** and saved in the browser. `N` still finishes active drawing,
+assisted interactions, and editing. Class codes, automatic continuation after placement,
+**Advance and draw** (`Ctrl + N`), and **Redraw shape** (`Shift + N`) are unchanged.
+
 - With up to five classes, press the displayed key `1`–`5`.
 - With more classes, press the two displayed keys **in sequence**, within one second: `1 1`,
   `1 2`, …, `1 5`, `1 Q`, …, using digits `1`–`5` and letters `QWERT`, `ASDFG`, `ZXCVB`.

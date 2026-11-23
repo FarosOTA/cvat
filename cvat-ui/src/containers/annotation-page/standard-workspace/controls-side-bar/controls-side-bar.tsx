@@ -27,6 +27,7 @@ interface StateToProps {
     normalizedKeyMap: Record<string, string>;
     labels: CombinedState['annotation']['job']['labels'];
     frameData: any;
+    suppressRepeatDrawing: boolean;
 }
 
 interface DispatchToProps {
@@ -50,6 +51,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         },
         settings: {
             player: { rotateAll },
+            workspace: { suppressRepeatDrawing },
         },
         shortcuts: { keyMap, normalizedKeyMap },
     } = state;
@@ -62,6 +64,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         normalizedKeyMap,
         keyMap,
         frameData,
+        suppressRepeatDrawing,
     };
 }
 

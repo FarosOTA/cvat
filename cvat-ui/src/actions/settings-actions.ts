@@ -55,6 +55,7 @@ export enum SettingsActionTypes {
     SWITCH_SNAP_TO_POINT = 'SWITCH_SNAP_TO_POINT',
     SWITCH_ADAPTIVE_ZOOM = 'SWITCH_ADAPTIVE_ZOOM',
     SWITCH_FLASH_ANNOTATIONS = 'SWITCH_FLASH_ANNOTATIONS',
+    SWITCH_SUPPRESS_REPEAT_DRAWING = 'SWITCH_SUPPRESS_REPEAT_DRAWING',
     SWITCH_RECTANGLE_PRECISION = 'SWITCH_RECTANGLE_PRECISION',
     CHANGE_BORDER_MAGNIFIER = 'CHANGE_BORDER_MAGNIFIER',
     SWITCH_NEXT_FRAME_AFTER_PLACING = 'SWITCH_NEXT_FRAME_AFTER_PLACING',
@@ -409,6 +410,13 @@ export function switchFlashAnnotations(flashAnnotations: boolean): AnyAction {
     return {
         type: SettingsActionTypes.SWITCH_FLASH_ANNOTATIONS,
         payload: { flashAnnotations },
+    };
+}
+
+export function switchSuppressRepeatDrawing(suppressRepeatDrawing: boolean): AnyAction {
+    return {
+        type: SettingsActionTypes.SWITCH_SUPPRESS_REPEAT_DRAWING,
+        payload: { suppressRepeatDrawing },
     };
 }
 

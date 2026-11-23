@@ -1100,6 +1100,7 @@ export interface WorkspaceSettingsState {
     automaticBordering: boolean;
     snapToPoint: boolean;
     adaptiveZoom: boolean;
+    suppressRepeatDrawing: boolean;
     clickToGrab: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;

@@ -21,6 +21,7 @@ import {
     switchShowingTagsOnFrame,
     switchAdaptiveZoom,
     switchFlashAnnotations,
+    switchSuppressRepeatDrawing,
     switchRectanglePrecision,
 } from 'actions/settings-actions';
 
@@ -41,6 +42,7 @@ interface StateToProps {
     cursorMagnifierGap: number;
     defaultApproxPolyAccuracy: number;
     adaptiveZoom: boolean;
+    suppressRepeatDrawing: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
     hideRotationControl: boolean;
@@ -64,6 +66,7 @@ interface DispatchToProps {
     ): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
     onSwitchFlashAnnotations(enabled: boolean): void;
+    onSwitchSuppressRepeatDrawing(enabled: boolean): void;
     onSwitchRectanglePrecision(
         tool: 'clearFocusOnCanvasLeave' | 'resizeFromSides' | 'hideRotationControl', enabled: boolean,
     ): void;
@@ -90,6 +93,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         cursorMagnifierScale,
         cursorMagnifierGap,
         adaptiveZoom,
+        suppressRepeatDrawing,
         clearFocusOnCanvasLeave,
         resizeFromSides,
         hideRotationControl,
@@ -115,6 +119,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         cursorMagnifierScale,
         cursorMagnifierGap,
         adaptiveZoom,
+        suppressRepeatDrawing,
         clearFocusOnCanvasLeave,
         resizeFromSides,
         hideRotationControl,
@@ -138,6 +143,7 @@ const mapDispatchToProps: DispatchToProps = {
     onChangeBorderMagnifier: changeBorderMagnifier,
     onSwitchAdaptiveZoom: switchAdaptiveZoom,
     onSwitchFlashAnnotations: switchFlashAnnotations,
+    onSwitchSuppressRepeatDrawing: switchSuppressRepeatDrawing,
     onSwitchRectanglePrecision: switchRectanglePrecision,
     onSwitchIntelligentPolygonCrop: switchIntelligentPolygonCrop,
     onChangeDefaultApproxPolyAccuracy: changeDefaultApproxPolyAccuracy,

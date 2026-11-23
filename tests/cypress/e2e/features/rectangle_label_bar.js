@@ -95,6 +95,46 @@ context('Quick rectangle classes', () => {
         checkObjects([]);
     });
 
+    it('optionally suppresses repeat drawing, persists the choice, and keeps explicit class codes and finishing', () => {
+        cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
+        cy.get('.cvat-canvas-container').should('be.visible');
+        cy.get('body').type('11{esc}', { delay: 100 });
+        cy.get('body').type('n');
+        cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
+        cy.get('body').type('{esc}');
+
+        cy.openSettings();
+        cy.contains('Workspace').click();
+        cy.get('.cvat-workspace-settings-suppress-repeat-drawing input').should('not.be.checked').check();
+        cy.closeSettings();
+        cy.get('body').type('n');
+        cy.get('.cvat-cursor-control').should('have.class', 'cvat-active-canvas-control');
+
+        cy.get('body').type('1q', { delay: 100 });
+        cy.get(classButton('motorcycle')).should('have.attr', 'aria-pressed', 'true');
+        cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
+        cy.get('body').type('n');
+        cy.get('.cvat-cursor-control').should('have.class', 'cvat-active-canvas-control');
+        cy.get('body').type('1q', { delay: 100 });
+        cy.get('.cvat-canvas-container').click(200, 180);
+        cy.get('.cvat-canvas-container').click(370, 310);
+        cy.get('body').type('{esc}');
+        checkObjects(['motorcycle']);
+
+        cy.reload();
+        cy.get('.cvat-canvas-container').should('be.visible');
+        cy.get('body').type('n');
+        cy.get('.cvat-cursor-control').should('have.class', 'cvat-active-canvas-control');
+        cy.openSettings();
+        cy.contains('Workspace').click();
+        cy.get('.cvat-workspace-settings-suppress-repeat-drawing input').should('be.checked').uncheck();
+        cy.closeSettings();
+        cy.get('body').type('n');
+        cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
+        cy.get('body').type('{esc}');
+        cy.request('DELETE', `/api/jobs/${jobId}/annotations`);
+    });
+
     it('creates boxes by click and two-key code without relabeling the selected box', () => {
         cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
         cy.get('.cvat-canvas-container').should('be.visible');

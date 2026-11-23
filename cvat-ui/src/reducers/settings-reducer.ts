@@ -37,6 +37,7 @@ const defaultState: SettingsState = {
         automaticBordering: false,
         snapToPoint: false,
         adaptiveZoom: true,
+        suppressRepeatDrawing: false,
         clickToGrab: false,
         clearFocusOnCanvasLeave: false,
         resizeFromSides: false,
@@ -404,6 +405,15 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 workspace: {
                     ...state.workspace,
                     flashAnnotations: action.payload.flashAnnotations,
+                },
+            };
+        }
+        case SettingsActionTypes.SWITCH_SUPPRESS_REPEAT_DRAWING: {
+            return {
+                ...state,
+                workspace: {
+                    ...state.workspace,
+                    suppressRepeatDrawing: action.payload.suppressRepeatDrawing,
                 },
             };
         }

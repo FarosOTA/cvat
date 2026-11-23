@@ -51,6 +51,7 @@ interface Props {
     normalizedKeyMap: Record<string, string>;
     labels: Label[];
     frameData: any;
+    suppressRepeatDrawing: boolean;
 
     updateActiveControl(activeControl: ActiveControl): void;
     rotateFrame(rotation: Rotation): void;
@@ -167,6 +168,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
         resetGroup,
         redrawShape,
         frameData,
+        suppressRepeatDrawing,
     } = props;
 
     const controlsDisabled = !labels.length || frameData.deleted;
@@ -326,6 +328,8 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
                 canvasInstance.edit({ enabled: false });
                 return;
             }
+
+            if (action === 'draw' && suppressRepeatDrawing) return;
 
             canvasInstance.cancel();
             // repeatDrawShape gets all the latest parameters

@@ -28,6 +28,7 @@ interface Props {
     cursorMagnifierScale: number;
     cursorMagnifierGap: number;
     adaptiveZoom: boolean;
+    suppressRepeatDrawing: boolean;
     clearFocusOnCanvasLeave: boolean;
     resizeFromSides: boolean;
     hideRotationControl: boolean;
@@ -50,6 +51,7 @@ interface Props {
     ): void;
     onSwitchAdaptiveZoom(enabled: boolean): void;
     onSwitchFlashAnnotations(enabled: boolean): void;
+    onSwitchSuppressRepeatDrawing(enabled: boolean): void;
     onSwitchRectanglePrecision(
         tool: 'clearFocusOnCanvasLeave' | 'resizeFromSides' | 'hideRotationControl', enabled: boolean,
     ): void;
@@ -74,6 +76,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         cursorMagnifierScale,
         cursorMagnifierGap,
         adaptiveZoom,
+        suppressRepeatDrawing,
         clearFocusOnCanvasLeave,
         resizeFromSides,
         hideRotationControl,
@@ -93,6 +96,7 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
         onChangeBorderMagnifier,
         onSwitchAdaptiveZoom,
         onSwitchFlashAnnotations,
+        onSwitchSuppressRepeatDrawing,
         onSwitchRectanglePrecision,
         onSwitchIntelligentPolygonCrop,
         onChangeDefaultApproxPolyAccuracy,
@@ -112,6 +116,26 @@ function WorkspaceSettingsComponent(props: Props): JSX.Element {
 
     return (
         <div className='cvat-workspace-settings'>
+            <Row className='cvat-player-setting'>
+                <Col span={24}>
+                    <Checkbox
+                        className='cvat-workspace-settings-suppress-repeat-drawing'
+                        checked={suppressRepeatDrawing}
+                        onChange={(event: CheckboxChangeEvent): void => {
+                            onSwitchSuppressRepeatDrawing(event.target.checked);
+                        }}
+                    >
+                        Suppress repeat-drawing shortcut (N)
+                    </Checkbox>
+                </Col>
+                <Col span={24}>
+                    <Text type='secondary'>
+                        In Standard 2D, prevent Draw mode (N by default) from starting with the last label.
+                        Choose a class explicitly by its code or drawing controls instead.
+                        N still finishes active drawing or editing. Off by default.
+                    </Text>
+                </Col>
+            </Row>
             <Row className='cvat-player-setting'>
                 <Col span={24}>
                     <Checkbox
