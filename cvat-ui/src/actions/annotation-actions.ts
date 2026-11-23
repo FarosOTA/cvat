@@ -2153,7 +2153,7 @@ export function redrawShapeAsync(clientID?: number): ThunkAction {
                 const activeControl = ShapeTypeToControl[state.shapeType as ShapeType] || ActiveControl.CURSOR;
                 if (canvasInstance instanceof Canvas) {
                     canvasInstance.cancel();
-                    // The chamber shows the redrawn object's occluded flag (Q toggles it) until the redraw ends.
+                    // The chamber's placement-occlusion shortcut toggles this flag until the redraw ends.
                     if (state.shapeType !== ShapeType.SKELETON) {
                         dispatch(setDrawingOccluded(!!state.occluded));
                         canvasInstance.html().addEventListener('canvas.canceled', () => {

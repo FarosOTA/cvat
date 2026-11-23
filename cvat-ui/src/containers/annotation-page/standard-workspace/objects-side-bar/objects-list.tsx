@@ -35,7 +35,9 @@ import {
     CombinedState, StatesOrdering, ColorBy, Workspace,
     ActiveControl,
 } from 'reducers';
-import { ObjectState, ObjectType, ShapeType } from 'cvat-core-wrapper';
+import {
+    Label, LabelType, ObjectState, ObjectType, ShapeType,
+} from 'cvat-core-wrapper';
 import { RenderData } from 'cvat-canvas-wrapper';
 import { filterAnnotations } from 'utils/filter-annotations';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
@@ -74,6 +76,7 @@ interface StateToProps {
     editedState: ObjectState | null,
     activeControl: ActiveControl,
     activeObjectHidden: boolean,
+    activeLabelID: number;
 }
 
 interface DispatchToProps {
@@ -124,6 +127,18 @@ const componentShortcuts = {
         name: 'Switch occluded',
         description: 'Change occluded property for an active object',
         sequences: ['q', '/'],
+        scope: ShortcutScope.OBJECTS_SIDEBAR,
+    },
+    SWITCH_DRAWING_OCCLUDED: {
+        name: 'Switch occluded for new annotation',
+        description: 'Toggle occlusion for the annotation being placed, without changing existing objects',
+        sequences: ['alt+q'],
+        scope: ShortcutScope.OBJECTS_SIDEBAR,
+    },
+    APPLY_SELECTED_LABEL: {
+        name: 'Apply selected label',
+        description: 'Apply the current drawing label to the targeted object, including while placing an annotation',
+        sequences: ['w'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     SWITCH_PINNED: {
@@ -242,6 +257,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
             canvas: {
                 activeControl, activeObjectHidden,
             },
+            drawing: { activeLabelID },
             editing: { objectState: editedState },
             colors,
             workspace,
@@ -296,6 +312,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         editedState,
         activeControl,
         activeObjectHidden,
+        activeLabelID,
     };
 }
 
@@ -578,6 +595,8 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             workspace,
             renderData,
             switchDrawingOccluded,
+            jobInstance,
+            activeLabelID,
         } = this.props;
         const {
             objectStates, sortedStatesID, statesOrdering, filteredStates,
@@ -640,11 +659,24 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             },
             SWITCH_OCCLUDED: (event?: KeyboardEvent) => {
                 preventDefault(event);
-                // With an annotation in the chamber, toggle whether it will be placed as occluded.
-                if (switchDrawingOccluded()) return;
                 const state = activatedState();
                 if (state && isLayerState(state)) {
                     state.occluded = !state.occluded;
+                    updateAnnotations([state]);
+                }
+            },
+            SWITCH_DRAWING_OCCLUDED: (event?: KeyboardEvent) => {
+                preventDefault(event);
+                if (!event?.repeat) switchDrawingOccluded();
+            },
+            APPLY_SELECTED_LABEL: (event?: KeyboardEvent) => {
+                preventDefault(event);
+                const state = activatedState(true);
+                const label = jobInstance.labels.find((candidate: Label) => candidate.id === activeLabelID);
+                if (state && label && !state.lock && !state.hidden && !state.outside && !state.isGroundTruth &&
+                    state.shapeType !== ShapeType.SKELETON && !label.hasParent && state.label.id !== label.id &&
+                    (label.type === LabelType.ANY || label.type === (state.shapeType || LabelType.TAG))) {
+                    state.label = label;
                     updateAnnotations([state]);
                 }
             },

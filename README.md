@@ -148,6 +148,13 @@ Moving over empty canvas clears the target rather than editing the previously ho
 object. Existing shortcut customizations (including a remapped Delete key), lock protections,
 and sidebar selection outside the canvas are preserved.
 
+Press **W** (**Apply selected label**) to apply the current drawing label to the targeted annotation,
+including while Place Annotation mode is active, without stopping the drawing tool. It uses the
+class selected in the top bar (or the last drawing label when idle), not the Label Replacement pair.
+Locked, hidden, outside, ground-truth, and incompatible annotations are not relabeled; skeletons are
+excluded. Relabeling a track changes the whole track's label and supports normal undo/redo and saving.
+Customize the binding in **Settings → Shortcuts**.
+
 Enable **Settings → Workspace → Clear annotation focus when leaving the canvas** to also remove
 the active annotation highlight when the pointer leaves the 2D canvas, including when moving to the
 objects sidebar. This preference is **off by default** and saved in the browser. It applies in the
@@ -277,10 +284,13 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   The box being drawn stays transparent, including when **Smooth image** or other appearance
   settings change during placement; selected-object opacity does not fill the unfinished box.
 - **Occluded in the chamber:** The class strip has an **Occluded** switch next to **Shape/Track**.
-  Press `Q` (the **Switch occluded** shortcut) while a drawing tool is engaged to toggle it; the next
-  placed annotation is created occluded, and the switch resets to not occluded after each placement.
+  Press `Alt+Q` (the **Switch occluded for new annotation** shortcut) while a drawing tool is engaged
+  to toggle it; the next annotation is created occluded, and the switch resets after each placement.
   Redraw starts with the switch set to the redrawn object's occluded flag and keeps it (or applies a
-  `Q` toggle) when the new geometry is placed.
+  placement-occlusion toggle) when the new geometry is placed. `Q` (or `/`, **Switch occluded**)
+  independently toggles the targeted existing annotation, even while placing another annotation;
+  it no longer changes the next placement's flag. Both shortcuts are customizable in
+  **Settings → Shortcuts**.
 - **Repeat cursor actions (2D standard workspace):** `Shift+Backspace` toggles **Repeat delete**,
   `Shift+Q` toggles **Repeat mark occluded**, and `Alt+Shift+Q` (Option on macOS) toggles
   **Repeat mark not occluded**. `Shift+L` toggles **Repeat apply label**, which uses the currently

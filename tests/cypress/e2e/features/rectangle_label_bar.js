@@ -135,6 +135,78 @@ context('Quick rectangle classes', () => {
         cy.request('DELETE', `/api/jobs/${jobId}/annotations`);
     });
 
+    it('applies the selected label and keeps existing and placement occlusion independent', () => {
+        cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
+        cy.get('.cvat-canvas-container').should('be.visible');
+        const pendingOcclusion = '[aria-label="New annotation occluded"]';
+        const names = labelNames;
+        const pointAtObject = () => {
+            cy.get('.cvat_canvas_shape').first().then(([shape]) => {
+                const bounds = shape.getBoundingClientRect();
+                cy.get('body').realMouseMove(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2, {
+                    position: 'topLeft', scrollBehavior: false,
+                });
+            });
+        };
+        for (const objectType of ['Shape', 'Track']) {
+            cy.get('[aria-label="New rectangle track mode"]').then(($toggle) => {
+                if (($toggle.attr('aria-checked') === 'true') !== (objectType === 'Track')) cy.wrap($toggle).click();
+            });
+            cy.get(classButton('car')).click();
+            cy.get('.cvat-canvas-container').click(200, 180);
+            cy.get('.cvat-canvas-container').click(370, 310);
+            cy.get('.cvat-objects-sidebar-state-item').should('have.length', 1);
+            cy.get(classButton('bus')).click();
+
+            pointAtObject();
+            cy.realPress('W');
+            cy.get('.cvat-objects-sidebar-state-item').should('contain.text', 'bus');
+            cy.get(classButton('bus')).should('have.attr', 'aria-pressed', 'true');
+            // Drawing has its own undo stack; stop it before undoing the object edit.
+            cy.realPress('Escape');
+            cy.realPress(['Control', 'Z']);
+            cy.get('.cvat-objects-sidebar-state-item').should('contain.text', 'car');
+            cy.realPress(['Control', 'Y']);
+            cy.get('.cvat-objects-sidebar-state-item').should('contain.text', 'bus');
+            cy.get(classButton('bus')).click();
+            pointAtObject();
+
+            cy.realPress('Q');
+            cy.get('.cvat_canvas_shape').first().should('have.class', 'cvat_canvas_shape_occluded');
+            cy.get(pendingOcclusion).should('have.attr', 'aria-checked', 'false');
+            cy.realPress(['Alt', 'Q']);
+            cy.get(pendingOcclusion).should('have.attr', 'aria-checked', 'true');
+            cy.get('.cvat_canvas_shape').first().should('have.class', 'cvat_canvas_shape_occluded');
+            cy.realPress('Q');
+            cy.get('.cvat_canvas_shape').first().should('not.have.class', 'cvat_canvas_shape_occluded');
+            cy.get(pendingOcclusion).should('have.attr', 'aria-checked', 'true');
+            cy.get(classButton('bus')).should('have.attr', 'aria-pressed', 'true');
+
+            // Finishing a new annotation must still work with the same label, type and pending flag.
+            cy.get('.cvat-canvas-container').click(470, 190);
+            cy.get('.cvat-canvas-container').click(570, 280);
+            cy.get('.cvat-objects-sidebar-state-item').should('have.length', 2);
+            cy.get(pendingOcclusion).should('have.attr', 'aria-checked', 'false');
+            cy.get('body').type('{esc}');
+            cy.clickSaveAnnotationView();
+            cy.get('.cvat-annotation-header-save-button')
+                .should('not.have.class', 'cvat-annotation-disabled-header-button');
+            cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => {
+                const objects = objectType === 'Track' ? body.tracks : body.shapes;
+                expect(objects.map((object) => names[object.label_id])).to.deep.equal(['bus', 'bus']);
+                expect(objects.map((object) => (objectType === 'Track' ? object.shapes[0] : object).occluded))
+                    .to.deep.equal([false, true]);
+                expect(objectType === 'Track' ? body.shapes : body.tracks).to.have.length(0);
+            });
+            cy.request('DELETE', `/api/jobs/${jobId}/annotations`);
+            cy.reload();
+            cy.get('.cvat-canvas-container').should('be.visible');
+        }
+        cy.get('[aria-label="New rectangle track mode"]').then(($toggle) => {
+            if ($toggle.attr('aria-checked') === 'true') cy.wrap($toggle).click();
+        });
+    });
+
     it('creates boxes by click and two-key code without relabeling the selected box', () => {
         cy.visit(`/tasks/${taskId}/jobs/${jobId}`);
         cy.get('.cvat-canvas-container').should('be.visible');

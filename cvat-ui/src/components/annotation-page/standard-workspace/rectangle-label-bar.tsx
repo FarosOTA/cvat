@@ -44,7 +44,8 @@ registerComponentShortcuts(componentShortcuts);
 export default function RectangleLabelBar(): JSX.Element {
     const dispatch = useDispatch<any>();
     const {
-        labels, canvas, ready, frame, fetching, deleted, playing, states, drawing, activeControl, keyMap, interactors,
+        labels, canvas, ready, frame, fetching, deleted, playing, states, drawing, activeControl,
+        keyMap, normalizedKeyMap, interactors,
     } = useSelector((state: CombinedState) => ({
         labels: state.annotation.job.labels,
         canvas: state.annotation.canvas.instance as Canvas,
@@ -57,6 +58,7 @@ export default function RectangleLabelBar(): JSX.Element {
         drawing: state.annotation.drawing,
         activeControl: state.annotation.canvas.activeControl,
         keyMap: state.shortcuts.keyMap,
+        normalizedKeyMap: state.shortcuts.normalizedKeyMap,
         interactors: state.models.interactors,
     }), shallowEqual);
     const defaultMode = drawing.rectangleMode ?? 'manual';
@@ -287,7 +289,7 @@ export default function RectangleLabelBar(): JSX.Element {
                     checkedChildren='Occluded'
                     unCheckedChildren='Not occluded'
                     disabled={disabled}
-                    title='Place the next annotation as occluded (Q). Resets after each placement.'
+                    title={`Place the next annotation as occluded ${normalizedKeyMap.SWITCH_DRAWING_OCCLUDED || ''}. Resets after each placement.`}
                     onChange={(checked: boolean, event) => {
                         // Keep the engaged drawing tool; only the next placement's flag changes.
                         event.currentTarget.blur();

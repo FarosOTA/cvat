@@ -1407,7 +1407,7 @@ export default class Collection {
                             {
                                 attributes: attributes.filter((attr) => labelAttributes[attr.spec_id].mutable),
                                 frame: state.frame,
-                                occluded: false,
+                                occluded: state.occluded || false,
                                 outside: false,
                                 points: [...state.points],
                                 rotation: state.rotation || 0,
