@@ -1735,6 +1735,9 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 onDragStart();
                 aborted = false;
                 this.draggableShape = shape;
+                // SVG.js installs its window listener before dragstart, but fires dragmove BEFORE
+                // moving the shape. Follow that listener so guides use this move's final geometry.
+                window.addEventListener('mousemove', this.updateEditingCrosshairs);
                 const { cx, cy } = shape.bbox();
                 startCenter = { x: cx, y: cy };
                 start = Date.now();
@@ -1770,6 +1773,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                     setupSkeletonEdges(shape as SVG.G, skeletonSVGTemplate);
                 }
             }).on('dragend', (): void => {
+                window.removeEventListener('mousemove', this.updateEditingCrosshairs);
                 clearClickDrag();
                 if (aborted) {
                     this.resetViewPosition(state.clientID);
@@ -1935,6 +1939,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 .on('resizing', (e: CustomEvent): void => {
                     resized = true;
                     onResizing();
+                    this.updateEditingCrosshairs();
 
                     if (this.configuration.snapToPoint &&
                         !this.ctrlPressed &&
@@ -2155,6 +2160,21 @@ export class CanvasViewImpl implements CanvasView, Listener {
         this.canvas?.classList.remove('cvat_canvas_hide_cursor');
     }
 
+    private updateEditingCrosshairs = (): void => {
+        const rectangle = [this.draggableShape, this.resizableShape].find((shape) => (
+            shape && this.drawnStates[+shape.attr('clientID')]?.shapeType === 'rectangle'
+        ));
+        if (rectangle && this.configuration.editingCrosshair && this.hoverPosition && !this.isImageLoading) {
+            const {
+                x, y, x2, y2,
+            } = rectangle.rbox(this.adoptedContent);
+            this.editingCrosshairs[0].show(this.adoptedContent, x, y, this.geometry.scale);
+            this.editingCrosshairs[1].show(this.adoptedContent, x2, y2, this.geometry.scale);
+        } else {
+            this.editingCrosshairs.forEach((crosshair) => crosshair.hide());
+        }
+    };
+
     private updatePrecisionTools = (event: MouseEvent): void => {
         if (this.precisionToolsRequest !== null) window.cancelAnimationFrame(this.precisionToolsRequest);
         this.precisionToolsRequest = window.requestAnimationFrame(() => {
@@ -2187,15 +2207,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 (!!editingRectangle && !!this.configuration.editingCrosshair) ||
                 (drawingRectangle && !!this.controller.drawData.crosshair)));
 
-        if (editingRectangle && this.configuration.editingCrosshair) {
-            const {
-                x, y, x2, y2,
-            } = editingRectangle.rbox(this.adoptedContent);
-            this.editingCrosshairs[0].show(this.adoptedContent, x, y, this.geometry.scale);
-            this.editingCrosshairs[1].show(this.adoptedContent, x2, y2, this.geometry.scale);
-        } else {
-            this.editingCrosshairs.forEach((crosshair) => crosshair.hide());
-        }
+        this.updateEditingCrosshairs();
 
         const rectangle = editingRectangle?.node || hoveredRectangle?.node ||
             this.content.querySelector('.cvat_canvas_shape_drawing');

@@ -270,7 +270,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 - **Cancel safely:** Press `Esc` during a move or resize to restore the box's geometry from before
   the interaction instead of keeping the unfinished edit.
 - **Editing crosshairs:** Guides extend all four box borders while moving or resizing, anchored to
-  the box edges rather than the mouse pointer. The mouse pointer is hidden by default while drawing a
+  the box edges rather than the mouse pointer. They update with each move or resize without waiting
+  for the border magnifier's animation frame. The mouse pointer is hidden by default while drawing a
   box with crosshairs or moving/resizing one with editing crosshairs enabled. Enable **Show mouse
   pointer with crosshairs** in the right sidebar's settings pane to keep it visible. This preference
   is saved with your workspace settings. When hidden, it returns when the interaction
