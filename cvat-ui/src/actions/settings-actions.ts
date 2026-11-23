@@ -32,6 +32,7 @@ export enum SettingsActionTypes {
     CHANGE_SHOW_GROUND_TRUTH = 'CHANGE_SHOW_GROUND_TRUTH',
     CHANGE_FRAME_STEP = 'CHANGE_FRAME_STEP',
     CHANGE_FRAME_SPEED = 'CHANGE_FRAME_SPEED',
+    SWITCH_REVERSE_ANNOTATION = 'SWITCH_REVERSE_ANNOTATION',
     SWITCH_BANDWIDTH_SAVING_PLAYBACK = 'SWITCH_BANDWIDTH_SAVING_PLAYBACK',
     CHANGE_FRAME_BUFFER_MULTIPLIER = 'CHANGE_FRAME_BUFFER_MULTIPLIER',
     SWITCH_RESET_ZOOM = 'SWITCH_RESET_ZOOM',
@@ -212,6 +213,13 @@ export function changeFrameSpeed(frameSpeed: number): AnyAction {
         payload: {
             frameSpeed,
         },
+    };
+}
+
+export function switchReverseAnnotation(reverseAnnotation: boolean): AnyAction {
+    return {
+        type: SettingsActionTypes.SWITCH_REVERSE_ANNOTATION,
+        payload: { reverseAnnotation },
     };
 }
 

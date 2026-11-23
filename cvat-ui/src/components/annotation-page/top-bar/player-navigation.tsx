@@ -31,6 +31,7 @@ import { usePlugins } from 'utils/hooks';
 interface Props {
     startFrame: number;
     stopFrame: number;
+    reverseAnnotation: boolean;
     playing: boolean;
     ranges: string;
     frameNumber: number;
@@ -83,6 +84,7 @@ function PlayerNavigation(props: Props): JSX.Element {
     const {
         startFrame,
         stopFrame,
+        reverseAnnotation,
         chapters,
         hoveredChapter,
         playing,
@@ -211,6 +213,7 @@ function PlayerNavigation(props: Props): JSX.Element {
                             className='cvat-player-slider'
                             min={startFrame}
                             max={stopFrame}
+                            reverse={reverseAnnotation}
                             marks={marks}
                             value={frameNumber || 0}
                             onChange={workspace !== Workspace.SINGLE_SHAPE ? onSliderChange : undefined}
@@ -224,7 +227,14 @@ function PlayerNavigation(props: Props): JSX.Element {
                                     const width = (rangeStop - rangeStart + 1) * segmentWidth;
                                     const offset = (Math.max((rangeStart - startFrame), 0) / totalSegments) * 1000;
                                     return (
-                                        <rect rx={10} key={rangeStart} x={offset} y={0} height={16} width={width} />
+                                        <rect
+                                            rx={10}
+                                            key={rangeStart}
+                                            x={reverseAnnotation ? 1000 - offset - width : offset}
+                                            y={0}
+                                            height={16}
+                                            width={width}
+                                        />
                                     );
                                 })}
                             </svg>
@@ -238,6 +248,7 @@ function PlayerNavigation(props: Props): JSX.Element {
                     </Col>
                 </Row>
                 <Row justify='center'>
+                    {reverseAnnotation && <Text type='secondary'>Reverse ·&nbsp;</Text>}
                     <Col className='cvat-player-filename-wrapper'>
                         <CVATTooltip title={`${frameFilename}`}>
                             <Text type='secondary'>{frameFilename}</Text>

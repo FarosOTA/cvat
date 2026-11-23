@@ -288,4 +288,37 @@ context('Drawing object type and cancellation shortcuts', () => {
             expect(nextFrameShapes[0].label_id).to.equal(body.shapes[0].label_id);
         });
     });
+
+    it('auto-advances backwards while keeping placements in one track', () => {
+        cy.request('DELETE', `/api/jobs/${jobId}/annotations`);
+        cy.reload();
+        cy.goCheckFrameNumber(1);
+        cy.openSidebarSettings();
+        cy.get('.cvat-player-settings-reverse-annotation input').check();
+        cy.get('.cvat-appearance-next-frame-after-placing-checkbox input').check();
+        startDrawing('rectangle', 'Track', 'By 2 Points');
+        cy.get('.cvat-canvas-container').click(230, 170);
+        cy.get('.cvat-canvas-container').click(410, 310);
+        cy.checkFrameNum(0);
+        cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
+        cy.get('.cvat-canvas-container').click(250, 190);
+        cy.get('.cvat-canvas-container').click(370, 280);
+        cy.checkFrameNum(0);
+        cy.get('body').type('{esc}');
+        cy.clickSaveAnnotationView();
+        cy.get('.cvat-annotation-header-save-button').should('not.have.class', 'cvat-annotation-disabled-header-button');
+        cy.request(`/api/jobs/${jobId}/annotations`).then(({ body }) => {
+            expect(body.shapes).to.have.length(0);
+            expect(body.tracks).to.have.length(1);
+            expect(body.tracks[0].shapes.filter((shape) => !shape.outside).map((shape) => shape.frame))
+                .to.deep.equal([0, 1]);
+        });
+        cy.get('.cvat-appearance-next-frame-after-placing-checkbox input').uncheck();
+        cy.goCheckFrameNumber(1);
+        cy.realPress(['Control', 'N']);
+        cy.checkFrameNum(0);
+        cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
+        cy.get('body').type('{esc}');
+        cy.get('.cvat-player-settings-reverse-annotation input').uncheck();
+    });
 });

@@ -19,6 +19,7 @@ import RightGroup from './right-group';
 
 interface Props {
     playing: boolean;
+    reverseAnnotation: boolean;
     saving: boolean;
     chapters: Chapter[];
     hoveredChapter: number | null;
@@ -87,6 +88,7 @@ export default function AnnotationTopBarComponent(props: Props): JSX.Element {
         undoAction,
         redoAction,
         playing,
+        reverseAnnotation,
         chapters,
         hoveredChapter,
         ranges,
@@ -181,6 +183,7 @@ export default function AnnotationTopBarComponent(props: Props): JSX.Element {
             key='player_navigation'
             startFrame={startFrame}
             stopFrame={stopFrame}
+            reverseAnnotation={reverseAnnotation}
             playing={playing}
             chapters={chapters}
             hoveredChapter={hoveredChapter}

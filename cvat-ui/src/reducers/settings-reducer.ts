@@ -71,6 +71,7 @@ const defaultState: SettingsState = {
         canvasBackgroundColor: '#ffffff',
         frameStep: 10,
         frameSpeed: FrameSpeed.Usual,
+        reverseAnnotation: false,
         bandwidthSavingPlayback: true,
         frameBufferMultiplier: 10,
         resetZoom: false,
@@ -229,6 +230,15 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 player: {
                     ...state.player,
                     frameSpeed: action.payload.frameSpeed,
+                },
+            };
+        }
+        case SettingsActionTypes.SWITCH_REVERSE_ANNOTATION: {
+            return {
+                ...state,
+                player: {
+                    ...state.player,
+                    reverseAnnotation: action.payload.reverseAnnotation,
                 },
             };
         }

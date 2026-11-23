@@ -22,7 +22,7 @@ import {
 } from 'reducers';
 import { DimensionType, Job } from 'cvat-core-wrapper';
 import { OrientationVisibility } from 'cvat-canvas3d-wrapper';
-import { collapseAppearance as collapseAppearanceAction } from 'actions/annotation-actions';
+import { collapseAppearance as collapseAppearanceAction, switchPlay } from 'actions/annotation-actions';
 import {
     changeShapesColorBy as changeShapesColorByAction,
     changeShapesOpacity as changeShapesOpacityAction,
@@ -36,6 +36,7 @@ import {
     changeRepeatBrushSize,
     changeFrameStep,
     changeFrameSpeed,
+    switchReverseAnnotation,
     switchResetZoom,
     switchSmoothImage,
     switchShowingDeletedFrames,
@@ -207,7 +208,7 @@ function AppearanceBlock(props: Props): JSX.Element {
 
     const dispatch = useDispatch();
     const {
-        frameStep, frameSpeed, resetZoom, smoothImage, showDeletedFrames,
+        frameStep, frameSpeed, reverseAnnotation, resetZoom, smoothImage, showDeletedFrames,
     } = useSelector(
         (state: CombinedState) => state.settings.player,
     );
@@ -405,6 +406,17 @@ function AppearanceBlock(props: Props): JSX.Element {
                                 </Checkbox>
                             </>
                         )}
+                        <Checkbox
+                            className='cvat-player-settings-reverse-annotation'
+                            title='Play and annotate from higher to lower frame numbers without renumbering frames'
+                            checked={reverseAnnotation}
+                            onChange={(event) => {
+                                dispatch(switchPlay(false));
+                                dispatch(switchReverseAnnotation(event.target.checked));
+                            }}
+                        >
+                            Reverse annotation
+                        </Checkbox>
                         <Text type='secondary'>Player step</Text>
                         <InputNumber
                             className='cvat-player-settings-step'

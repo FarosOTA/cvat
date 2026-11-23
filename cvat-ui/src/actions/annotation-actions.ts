@@ -1959,14 +1959,17 @@ export function advanceAndDrawAsync(): ThunkAction {
                 player: { frame, playing },
                 canvas: { activeControl, ready },
             },
-            settings: { player: { showDeletedFrames } },
+            settings: { player: { showDeletedFrames, reverseAnnotation } },
         } = getState();
         if (!job || !labels.length || !ready || frame.fetching || playing ||
-            activeControl !== ActiveControl.CURSOR || frame.number >= job.stopFrame ||
+            activeControl !== ActiveControl.CURSOR ||
             !isAbleToChangeFrame()) return;
+        const direction = reverseAnnotation ? -1 : 1;
+        const candidate = frame.number + direction;
+        if (candidate < job.startFrame || candidate > job.stopFrame) return;
 
         const nextFrame = await job.frames.search(
-            { notDeleted: !showDeletedFrames }, frame.number + 1, job.stopFrame,
+            { notDeleted: !showDeletedFrames }, candidate, reverseAnnotation ? job.startFrame : job.stopFrame,
         );
         if (nextFrame === null) return;
 
@@ -2016,10 +2019,14 @@ export function toggleDrawingOccluded(): ThunkAction<boolean> {
 async function autoAdvance(dispatch: ThunkDispatch, getState: () => CombinedState): Promise<number | null> {
     const {
         annotation: { job: { instance: job }, player: { frame: { number: frame } } },
-        settings: { player: { showDeletedFrames } },
+        settings: { player: { showDeletedFrames, reverseAnnotation } },
     } = getState();
-    if (!job || frame >= job.stopFrame) return null;
-    const nextFrame = await job.frames.search({ notDeleted: !showDeletedFrames }, frame + 1, job.stopFrame);
+    if (!job) return null;
+    const candidate = frame + (reverseAnnotation ? -1 : 1);
+    if (candidate < job.startFrame || candidate > job.stopFrame) return null;
+    const nextFrame = await job.frames.search(
+        { notDeleted: !showDeletedFrames }, candidate, reverseAnnotation ? job.startFrame : job.stopFrame,
+    );
     if (nextFrame === null || nextFrame === frame) return null;
     await dispatch(changeFrameAsync(nextFrame));
     return getState().annotation.player.frame.number === nextFrame ? nextFrame : null;
@@ -2061,7 +2068,7 @@ export function placeAnnotationsAsync(
                 drawing: { continuedTrack, activeOccluded },
             },
             settings: {
-                workspace: { nextFrameAfterPlacing, showAllInterpolationTracks },
+                workspace: { nextFrameAfterPlacing },
             },
         } = getState();
         if (activeOccluded) {
@@ -2077,7 +2084,8 @@ export function placeAnnotationsAsync(
 
         let trackID: number | null = null;
         if (enabled && drawnTrack && continuedTrack?.frame === frame) {
-            const states: ObjectState[] = await job.annotations.get(frame, showAllInterpolationTracks, []);
+            // Reverse annotation continues before the first keyframe, where the track is outside.
+            const states: ObjectState[] = await job.annotations.get(frame, true, []);
             const track = states.find((state) => state.clientID === continuedTrack.clientID);
             if (track && !track.lock && track.objectType === ObjectType.TRACK &&
                 track.shapeType === drawn.shapeType && track.shapeType !== ShapeType.SKELETON &&

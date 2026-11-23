@@ -114,7 +114,7 @@ const componentShortcuts = {
     },
     REVERSE_PLAY_PAUSE: {
         name: 'Reverse play/pause',
-        description: 'Start automatic changing frames backward or stop playback',
+        description: 'Play opposite to the annotation order or stop playback',
         sequences: ['shift+space'],
         scope: ShortcutScope.ANNOTATION_PAGE,
     },

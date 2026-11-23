@@ -52,6 +52,7 @@ interface StateToProps {
     frameFilename: string;
     frameStep: number;
     frameSpeed: FrameSpeed;
+    reverseAnnotation: boolean;
     frameDelay: number;
     frameFetching: boolean;
     playing: boolean;
@@ -146,7 +147,9 @@ function mapStateToProps(state: CombinedState): StateToProps {
             workspace,
         },
         settings: {
-            player: { frameSpeed, frameStep, showDeletedFrames },
+            player: {
+                frameSpeed, frameStep, showDeletedFrames, reverseAnnotation,
+            },
             workspace: {
                 autoSave,
                 autoSaveInterval,
@@ -171,6 +174,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         frameIsDeleted,
         frameStep,
         frameSpeed,
+        reverseAnnotation,
         frameDelay,
         frameFetching,
         playing,
@@ -343,6 +347,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
             frameFetching,
             playing,
             canvasIsReady,
+            reverseAnnotation,
             onSwitchPlay,
             onChangeFrame,
         } = this.props;
@@ -358,7 +363,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
 
                 const { playing: currentPlaying, showDeletedFrames } = this.props;
 
-                if (currentPlaying) {
+                if (currentPlaying && this.props.reverseAnnotation === reverseAnnotation) {
                     const nextCandidate = frameNumber + this.playbackDirection;
                     const boundary = this.playbackDirection === 1 ? stopFrame : startFrame;
                     if (nextCandidate > stopFrame || nextCandidate < startFrame) {
@@ -368,6 +373,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
 
                     const next = await jobInstance.frames
                         .search({ notDeleted: !showDeletedFrames }, nextCandidate, boundary);
+                    if (!this.props.playing || this.props.reverseAnnotation !== reverseAnnotation) return;
                     if (next !== null && isAbleToChangeFrame(next)) {
                         onChangeFrame(next, currentPlaying, this.playbackDirection);
                     } else {
@@ -376,6 +382,9 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
                 }
             } finally {
                 this.isWaitingForPlayDelay = false;
+                if (this.props.playing && this.props.reverseAnnotation !== reverseAnnotation) {
+                    this.handlePlayIfNecessary();
+                }
             }
         }
     }
@@ -420,13 +429,14 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
 
     private onSwitchPlay = (reverse = false): void => {
         const {
-            frameNumber, jobInstance, onSwitchPlay, playing,
+            frameNumber, jobInstance, onSwitchPlay, playing, reverseAnnotation,
         } = this.props;
+        const backward = reverse !== reverseAnnotation;
 
         if (playing) {
             onSwitchPlay(false);
-        } else if (reverse ? frameNumber > jobInstance.startFrame : frameNumber < jobInstance.stopFrame) {
-            this.playbackDirection = reverse ? -1 : 1;
+        } else if (backward ? frameNumber > jobInstance.startFrame : frameNumber < jobInstance.stopFrame) {
+            this.playbackDirection = backward ? -1 : 1;
             onSwitchPlay(true);
         }
     };
@@ -566,14 +576,15 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
 
     private searchAnnotations = (direction: 'forward' | 'backward'): void => {
         const {
-            frameNumber, jobInstance, searchAnnotations,
+            frameNumber, jobInstance, searchAnnotations, reverseAnnotation,
         } = this.props;
         const { startFrame, stopFrame } = jobInstance;
+        const forward = (direction === 'forward') !== reverseAnnotation;
 
         if (isAbleToChangeFrame()) {
-            if (direction === 'forward' && frameNumber + 1 <= stopFrame) {
+            if (forward && frameNumber + 1 <= stopFrame) {
                 searchAnnotations(jobInstance, frameNumber + 1, stopFrame);
-            } else if (direction === 'backward' && frameNumber - 1 >= startFrame) {
+            } else if (!forward && frameNumber - 1 >= startFrame) {
                 searchAnnotations(jobInstance, frameNumber - 1, startFrame);
             }
         }
@@ -581,14 +592,15 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
 
     private readonly searchChapters = (direction: 'forward' | 'backward'): void => {
         const {
-            frameNumber, jobInstance, searchChapters,
+            frameNumber, jobInstance, searchChapters, reverseAnnotation,
         } = this.props;
         const { startFrame, stopFrame } = jobInstance;
+        const forward = (direction === 'forward') !== reverseAnnotation;
 
         if (isAbleToChangeFrame()) {
-            if (direction === 'forward' && frameNumber + 1 <= stopFrame) {
+            if (forward && frameNumber + 1 <= stopFrame) {
                 searchChapters(jobInstance, frameNumber + 1, stopFrame);
-            } else if (direction === 'backward' && frameNumber - 1 >= startFrame) {
+            } else if (!forward && frameNumber - 1 >= startFrame) {
                 searchChapters(jobInstance, frameNumber - 1, startFrame);
             }
         }
@@ -611,7 +623,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
 
     private onChangePlayerSliderValue = async (value: number): Promise<void> => {
         const {
-            playing, onSwitchPlay, jobInstance, showDeletedFrames,
+            playing, onSwitchPlay, jobInstance, showDeletedFrames, reverseAnnotation,
         } = this.props;
         if (playing) {
             onSwitchPlay(false);
@@ -619,7 +631,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
         const newFrame = await jobInstance.frames.search(
             { notDeleted: !showDeletedFrames },
             Math.min(jobInstance.stopFrame, value),
-            jobInstance.stopFrame,
+            reverseAnnotation ? jobInstance.startFrame : jobInstance.stopFrame,
         );
         if (newFrame !== null) {
             this.changeFrame(newFrame);
@@ -738,6 +750,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
             frameNumber,
             frameFilename,
             frameIsDeleted,
+            reverseAnnotation,
             undoAction,
             redoAction,
             canvasUndoAction,
@@ -771,12 +784,13 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
                 showStatistics={this.showStatistics}
                 showFilters={this.showFilters}
                 onSwitchPlay={this.onSwitchPlay}
-                onPrevFrame={this.onPrevFrame}
-                onNextFrame={this.onNextFrame}
-                onForward={this.onForward}
-                onBackward={this.onBackward}
-                onFirstFrame={this.onFirstFrame}
-                onLastFrame={this.onLastFrame}
+                reverseAnnotation={reverseAnnotation}
+                onPrevFrame={reverseAnnotation ? this.onNextFrame : this.onPrevFrame}
+                onNextFrame={reverseAnnotation ? this.onPrevFrame : this.onNextFrame}
+                onForward={reverseAnnotation ? this.onBackward : this.onForward}
+                onBackward={reverseAnnotation ? this.onForward : this.onBackward}
+                onFirstFrame={reverseAnnotation ? this.onLastFrame : this.onFirstFrame}
+                onLastFrame={reverseAnnotation ? this.onFirstFrame : this.onLastFrame}
                 onSearchAnnotations={this.searchAnnotations}
                 onSearchChapters={this.searchChapters}
                 onSelectChapter={this.selectChapter}

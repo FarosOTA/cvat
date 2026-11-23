@@ -403,10 +403,23 @@ as an empty model catalog; other failures are reported rather than hidden.
 
 ## Frame loading, buffering, and playback
 
-- **Reverse playback:** Press **Shift + Space** to play frames backward at the configured player speed.
-  **Space** starts forward playback. Either shortcut pauses active playback; after pausing, use the
-  shortcut for the desired direction to resume. Reverse playback stops at the job's first available
-  frame and skips deleted frames unless they are shown. Customize **Reverse play/pause** in shortcut
+- **Reverse annotation:** Enable **right sidebar → Settings → Reverse annotation** to work through
+  dashcam footage from later to earlier frames. It is off by default and saved in the browser.
+  Switching modes pauses playback and keeps the current frame. The progress bar, buffered ranges,
+  and Frames/Tracks timelines run from higher frame numbers on the left to lower numbers on the right.
+  Frame numbers, filenames, frame URLs, annotation timestamps, and exports are **not renumbered**.
+  **F** advances to a lower frame number; **D** returns to a higher one. **V** jumps toward lower
+  numbers by the configured Player step, and **C** jumps toward higher numbers. Their toolbar buttons,
+  first/last controls, annotation/chapter searches, and annotation-frame timeline shortcuts follow
+  this order too. Numeric frame entry still goes to the original frame number.
+  **Play / Space** plays toward lower numbers; **Shift + Space** plays in the opposite direction.
+  Auto advance, Auto advance on modification, and **Ctrl + N** also follow the selected order.
+  Navigation retains deleted-frame skipping and stops at the job boundaries; it does not wrap.
+  Use the first-frame button to start at the highest available frame. Audio is unchanged.
+- **Reverse playback shortcut:** Without Reverse annotation, **Shift + Space** plays frames backward
+  and **Space** starts forward playback at the configured player speed. Either shortcut pauses active
+  playback; after pausing, use the shortcut for the desired direction to resume. Playback stops at the
+  relevant job boundary and skips deleted frames unless they are shown. Customize **Reverse play/pause** in shortcut
   settings. Like forward playback, it is unavailable in the Single shape and Audio workspaces and
   does not fire while typing or while a modal is open.
 - **Full-resolution, bandwidth-saving playback:** **Settings → Player → Bandwidth-saving playback

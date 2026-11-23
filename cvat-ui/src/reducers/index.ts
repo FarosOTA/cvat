@@ -1073,6 +1073,7 @@ export interface PlayerSettingsState {
     canvasBackgroundColor: string;
     frameStep: number;
     frameSpeed: FrameSpeed;
+    reverseAnnotation: boolean;
     bandwidthSavingPlayback: boolean;
     frameBufferMultiplier: number;
     resetZoom: boolean;

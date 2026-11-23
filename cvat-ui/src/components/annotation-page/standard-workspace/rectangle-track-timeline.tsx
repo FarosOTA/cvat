@@ -70,7 +70,7 @@ function pathForKeyframes(
 export default function RectangleTrackTimeline(): JSX.Element {
     const dispatch = useDispatch<any>();
     const {
-        activeID, frame, frameNumbers, jobInstance, keyMap, metadataRevision,
+        activeID, frame, frameNumbers, jobInstance, keyMap, metadataRevision, reverseAnnotation,
     } = useSelector((state: CombinedState) => ({
         activeID: state.annotation.annotations.activatedStateID,
         frame: state.annotation.player.frame.number,
@@ -78,6 +78,7 @@ export default function RectangleTrackTimeline(): JSX.Element {
         jobInstance: state.annotation.job.instance,
         keyMap: state.shortcuts.keyMap,
         metadataRevision: state.annotation.rectangleTrack.metadataRevision,
+        reverseAnnotation: state.settings.player.reverseAnnotation,
     }), shallowEqual);
     const [expanded, setExpanded] = useState(true);
     const [labelID, setLabelID] = useState<number | null>(null);
@@ -126,11 +127,14 @@ export default function RectangleTrackTimeline(): JSX.Element {
         rectangle.objectType === ObjectType.TRACK
     )).length, [filteredRectangles]);
     const shapeCount = filteredRectangles.length - trackCount;
-    const frameIndexes = useMemo(() => new Map(frameNumbers.map((number, index) => (
+    const orderedFrames = useMemo(() => (
+        reverseAnnotation ? [...frameNumbers].reverse() : frameNumbers
+    ), [frameNumbers, reverseAnnotation]);
+    const frameIndexes = useMemo(() => new Map(orderedFrames.map((number, index) => (
         [number, index]
-    ))), [frameNumbers]);
+    ))), [orderedFrames]);
     const navigableFrameNumbers = useMemo(() => (deletedFrames ?
-        frameNumbers.filter((candidate) => !deletedFrames[candidate]) : []), [deletedFrames, frameNumbers]);
+        orderedFrames.filter((candidate) => !deletedFrames[candidate]) : []), [deletedFrames, orderedFrames]);
     const currentPosition = (((frameIndexes.get(frame) ?? 0) + 0.5) / Math.max(1, frameNumbers.length)) * 100;
     const labelOptions = useMemo(() => [
         { value: 'any', label: 'Any label' },
@@ -138,7 +142,8 @@ export default function RectangleTrackTimeline(): JSX.Element {
     ], [jobInstance]);
 
     const navigateAnnotation = (direction: 'forward' | 'backward'): void => {
-        dispatch(navigateAnnotationFrameAsync(direction, labelID));
+        const forward = (direction === 'forward') !== reverseAnnotation;
+        dispatch(navigateAnnotationFrameAsync(forward ? 'forward' : 'backward', labelID));
     };
 
     const segmentFrames = (segment: RectangleMetadata['visibleSegments'][0]): number[] => (
@@ -258,8 +263,10 @@ export default function RectangleTrackTimeline(): JSX.Element {
                             </button>
                             <div className='cvat-rectangle-track-timeline-track'>
                                 {group.flatMap((rectangle) => rectangle.visibleSegments.map((segment) => {
-                                    const startIndex = frameIndexes.get(segment.start) ?? 0;
-                                    const stopIndex = frameIndexes.get(segment.stop) ?? startIndex;
+                                    const firstIndex = frameIndexes.get(segment.start) ?? 0;
+                                    const lastIndex = frameIndexes.get(segment.stop) ?? firstIndex;
+                                    const startIndex = Math.min(firstIndex, lastIndex);
+                                    const stopIndex = Math.max(firstIndex, lastIndex);
                                     const left = (startIndex / Math.max(1, frameNumbers.length)) * 100;
                                     const width = ((stopIndex - startIndex + 1) /
                                         Math.max(1, frameNumbers.length)) * 100;
@@ -284,7 +291,7 @@ export default function RectangleTrackTimeline(): JSX.Element {
                                                     stopIndex, startIndex + Math.floor(offset * segmentLength),
                                                 );
                                                 const destination = nearestFrame(
-                                                    segmentFrames(segment), frameNumbers[targetIndex],
+                                                    segmentFrames(segment), orderedFrames[targetIndex],
                                                 );
                                                 if (destination !== null) navigateLabel(group, destination);
                                             }}
@@ -347,7 +354,9 @@ export default function RectangleTrackTimeline(): JSX.Element {
                         {
                             key: 'frames',
                             label: 'Frames',
-                            children: expanded ? <FrameTimeline frames={navigableFrameNumbers} /> : null,
+                            children: expanded ? (
+                                <FrameTimeline key={`${reverseAnnotation}`} frames={navigableFrameNumbers} />
+                            ) : null,
                         },
                         { key: 'tracks', label: 'Tracks', children: tracks },
                     ]}
