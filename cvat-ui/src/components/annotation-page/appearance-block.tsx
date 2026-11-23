@@ -32,6 +32,7 @@ import {
     changeShowProjections as changeShowProjectionsAction,
     changeOrientationVisibility as changeOrientationVisibilityAction,
     switchRectanglePrecision,
+    changeCrosshairColor,
     switchNextFrameAfterPlacing,
     changeRepeatBrushSize,
     changeFrameStep,
@@ -214,6 +215,7 @@ function AppearanceBlock(props: Props): JSX.Element {
     );
     const {
         clickToGrab, showObjectsTextAlways, cornerHandles, drawingDimensions, autoAdvanceOnModify, repeatBrushSize,
+        crosshairColor,
     } = useSelector((state: CombinedState) => state.settings.workspace);
 
     const is2D = jobInstance.dimension === DimensionType.DIMENSION_2D;
@@ -374,6 +376,21 @@ function AppearanceBlock(props: Props): JSX.Element {
                                 >
                                     Show mouse pointer with crosshairs
                                 </Checkbox>
+                                <ColorPicker
+                                    key={crosshairColor}
+                                    value={crosshairColor || '#ff0000'}
+                                    onChange={(color) => dispatch(changeCrosshairColor(color))}
+                                >
+                                    <Button
+                                        className='cvat-appearance-crosshair-color-button'
+                                        title='Choose a guide color. Reset restores label-colored drawing and red editing guides.'
+                                        icon={(
+                                            <span style={{ color: crosshairColor || undefined }}><ColorizeIcon /></span>
+                                        )}
+                                    >
+                                        Crosshair color: {crosshairColor || 'Automatic'}
+                                    </Button>
+                                </ColorPicker>
                                 <Checkbox
                                     className='cvat-workspace-settings-click-to-grab'
                                     title='Click to pick up a box or resize handle, then click again to place it.'

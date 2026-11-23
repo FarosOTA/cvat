@@ -57,6 +57,7 @@ export enum SettingsActionTypes {
     SWITCH_FLASH_ANNOTATIONS = 'SWITCH_FLASH_ANNOTATIONS',
     SWITCH_SUPPRESS_REPEAT_DRAWING = 'SWITCH_SUPPRESS_REPEAT_DRAWING',
     SWITCH_RECTANGLE_PRECISION = 'SWITCH_RECTANGLE_PRECISION',
+    CHANGE_CROSSHAIR_COLOR = 'CHANGE_CROSSHAIR_COLOR',
     CHANGE_BORDER_MAGNIFIER = 'CHANGE_BORDER_MAGNIFIER',
     SWITCH_NEXT_FRAME_AFTER_PLACING = 'SWITCH_NEXT_FRAME_AFTER_PLACING',
     SWITCH_INTELLIGENT_POLYGON_CROP = 'SWITCH_INTELLIGENT_POLYGON_CROP',
@@ -438,6 +439,13 @@ export function changeBorderMagnifier(
     return {
         type: SettingsActionTypes.CHANGE_BORDER_MAGNIFIER,
         payload: { setting, value },
+    };
+}
+
+export function changeCrosshairColor(crosshairColor: string): AnyAction {
+    return {
+        type: SettingsActionTypes.CHANGE_CROSSHAIR_COLOR,
+        payload: { crosshairColor },
     };
 }
 

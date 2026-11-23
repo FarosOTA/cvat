@@ -1111,6 +1111,7 @@ export interface WorkspaceSettingsState {
     flashAnnotations: boolean;
     editingCrosshair: boolean;
     showCrosshairCursor: boolean;
+    crosshairColor: string;
     cursorMagnifier: boolean;
     cursorMagnifierHover: boolean;
     cursorMagnifierSize: number;

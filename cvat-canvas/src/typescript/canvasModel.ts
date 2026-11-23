@@ -97,6 +97,7 @@ export interface Configuration {
     flashAnnotations?: boolean;
     editingCrosshair?: boolean;
     showCrosshairCursor?: boolean;
+    crosshairColor?: string;
     cursorMagnifier?: boolean;
     cursorMagnifierHover?: boolean;
     cursorMagnifierSize?: number;
@@ -468,6 +469,7 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
                 flashAnnotations: true,
                 editingCrosshair: true,
                 showCrosshairCursor: false,
+                crosshairColor: '',
                 cursorMagnifier: true,
                 cursorMagnifierHover: true,
                 cursorMagnifierSize: 32,
@@ -1070,6 +1072,9 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
         }
         if (typeof configuration.showCrosshairCursor === 'boolean') {
             this.data.configuration.showCrosshairCursor = configuration.showCrosshairCursor;
+        }
+        if (configuration.crosshairColor === '' || /^#[\da-f]{6}$/i.test(configuration.crosshairColor)) {
+            this.data.configuration.crosshairColor = configuration.crosshairColor;
         }
         if (typeof configuration.cursorMagnifier === 'boolean') {
             this.data.configuration.cursorMagnifier = configuration.cursorMagnifier;

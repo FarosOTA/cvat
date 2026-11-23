@@ -134,6 +134,47 @@ context('Drawing object type and cancellation shortcuts', () => {
         cy.request('DELETE', `/api/jobs/${jobId}/annotations`);
     });
 
+    it('saves a custom crosshair color without changing the label readout and resets to automatic', () => {
+        cy.openSidebarSettings();
+        startDrawing('rectangle', 'Shape', 'By 2 Points');
+        cy.get('.cvat-canvas-container').click(230, 170);
+        cy.get('.cvat-canvas-container').trigger('mousemove', 410, 290);
+        cy.get('.cvat-appearance-crosshair-color-button').click();
+        cy.get('.sketch-picker input').first().clear();
+        cy.get('.sketch-picker input').first().type('18bfff');
+        cy.get('.cvat-color-picker-submit-button').click();
+        cy.get('.cvat_canvas_crosshair').should('have.length', 2).each(($line) => {
+            cy.wrap($line).should('have.css', 'stroke', 'rgb(24, 191, 255)');
+        });
+        cy.get('.cvat_canvas_shape_drawing').should('have.length', 1);
+        cy.contains('#cvat_canvas_text_content text', /^object: /)
+            .should('have.css', 'fill', 'rgb(53, 201, 141)');
+        cy.get('body').type('{esc}');
+
+        cy.reload();
+        cy.get('.cvat-canvas-container').should('be.visible');
+        cy.openSidebarSettings();
+        cy.get('.cvat-appearance-crosshair-color-button').should('contain.text', '#18bfff');
+        startDrawing('rectangle', 'Shape', 'By 2 Points');
+        cy.get('.cvat_canvas_crosshair').each(($line) => {
+            cy.wrap($line).should('have.css', 'stroke', 'rgb(24, 191, 255)');
+        });
+        cy.get('.cvat-appearance-crosshair-color-button').click();
+        cy.get('.sketch-picker input').first().clear();
+        cy.get('.sketch-picker input').first().type('fa7020');
+        cy.get('.cvat-color-picker-cancel-button').click();
+        cy.get('.cvat_canvas_crosshair').each(($line) => {
+            cy.wrap($line).should('have.css', 'stroke', 'rgb(24, 191, 255)');
+        });
+        cy.get('.cvat-appearance-crosshair-color-button').click();
+        cy.get('.cvat-color-picker-reset-button').click();
+        cy.get('.cvat-appearance-crosshair-color-button').should('contain.text', 'Automatic');
+        cy.get('.cvat_canvas_crosshair').each(($line) => {
+            cy.wrap($line).should('have.css', 'stroke', 'rgb(53, 201, 141)');
+        });
+        cy.get('body').type('{esc}');
+    });
+
     it('always shows the class and prefers right and bottom readouts without overlapping the box', () => {
         cy.openSidebarSettings();
         cy.get('.cvat-appearance-drawing-dimensions-checkbox input').check();

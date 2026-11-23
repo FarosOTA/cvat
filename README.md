@@ -242,7 +242,7 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   with a 48-screen-pixel gap from the pointer. It skips positions that overlap the box or leave the
   canvas, using another outside edge when needed and space permits. This works for two-point and
   four-point rectangles and redraw.
-  The readout and drawing crosshairs use the selected class's color; redraw uses the original
+  The readout and, by default, drawing crosshairs use the selected class's color; redraw uses the original
   annotation's class. Placement follows zoom, pan, and image rotation, and the text keeps its dark
   shadow for legibility. Completed annotation labels and resize readouts keep their existing positions.
 - **Click to grab (off by default):** Hold the mouse button to drag or resize boxes by default.
@@ -288,6 +288,11 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   is saved with your workspace settings. When hidden, it returns when the interaction
   ends or is cancelled, the pointer leaves the canvas, or a frame starts loading; ordinary playback,
   seeking, keyboard shortcuts, and slash commands do not hide it.
+- **Custom crosshair color:** Use **Crosshair color** in the right sidebar's settings pane to select
+  a color or enter a hex value, then confirm with **Ok**. It applies immediately to drawing, editing,
+  and assisted-tool crosshairs and is saved with your workspace settings. **Reset** restores automatic
+  colors: the selected class for drawing and red for editing and assisted tools. Class names, dimensions,
+  and annotation colors are unchanged.
 - **Drawing with an annotation in the chamber:** While a box tool is engaged (for example after `N`),
   a click places a corner, and pressing and dragging on empty image pans it. Before the first corner
   is placed, pressing and dragging an existing unlocked, unrotated box moves it, or resizes it from

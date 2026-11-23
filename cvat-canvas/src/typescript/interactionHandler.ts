@@ -610,6 +610,7 @@ export class InteractionHandlerImpl implements InteractionHandler {
                     this.lastMousePosition.x,
                     this.lastMousePosition.y,
                     this.geometry.scale,
+                    this.configuration.crosshairColor || undefined,
                 );
             } else {
                 this.crosshair.hide();
@@ -647,6 +648,12 @@ export class InteractionHandlerImpl implements InteractionHandler {
         this.configuration = config;
         this.effectivePointSize = (config.controlPointsSize ?? consts.BASE_POINT_SIZE) / this.geometry.scale;
         this.effectiveShapeOpacity = config.selectedShapeOpacity ?? 0.5;
+        if (this.enabled && this.settings.crosshair) {
+            this.crosshair.show(
+                this.container, this.lastMousePosition.x, this.lastMousePosition.y,
+                this.geometry.scale, config.crosshairColor || undefined,
+            );
+        }
     }
 
     public destroy(): void {

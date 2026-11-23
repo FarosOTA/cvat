@@ -364,7 +364,9 @@ export class DrawHandlerImpl implements DrawHandler {
 
     private addCrosshair(): void {
         const { x, y } = this.cursorPosition;
-        this.crosshair.show(this.canvas, x, y, this.geometry.scale, this.drawData.labelColor);
+        this.crosshair.show(
+            this.canvas, x, y, this.geometry.scale, this.configuration.crosshairColor || this.drawData.labelColor,
+        );
     }
 
     private removeCrosshair(): void {
@@ -1408,6 +1410,9 @@ export class DrawHandlerImpl implements DrawHandler {
         this.controlPointsSize = configuration.controlPointsSize;
         this.selectedShapeOpacity = configuration.selectedShapeOpacity;
         this.outlinedBorders = configuration.outlinedBorders || 'black';
+        if (this.initialized && this.drawData.crosshair) {
+            this.addCrosshair();
+        }
         if (this.initialized && this.drawData.shapeType === 'rectangle') {
             this.updateShapeSize();
         } else if (configuration.drawingDimensions === false && this.shapeSizeElement) {

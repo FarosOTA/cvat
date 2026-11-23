@@ -48,6 +48,7 @@ const defaultState: SettingsState = {
         flashAnnotations: true,
         editingCrosshair: true,
         showCrosshairCursor: false,
+        crosshairColor: '',
         cursorMagnifier: true,
         cursorMagnifierHover: true,
         cursorMagnifierSize: 32,
@@ -477,6 +478,15 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 workspace: {
                     ...state.workspace,
                     nextFrameAfterPlacing: action.payload.nextFrameAfterPlacing,
+                },
+            };
+        }
+        case SettingsActionTypes.CHANGE_CROSSHAIR_COLOR: {
+            return {
+                ...state,
+                workspace: {
+                    ...state.workspace,
+                    crosshairColor: action.payload.crosshairColor,
                 },
             };
         }

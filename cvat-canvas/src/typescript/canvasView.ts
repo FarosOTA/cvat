@@ -2169,8 +2169,9 @@ export class CanvasViewImpl implements CanvasView, Listener {
             const {
                 x, y, x2, y2,
             } = rectangle.rbox(this.adoptedContent);
-            this.editingCrosshairs[0].show(this.adoptedContent, x, y, this.geometry.scale);
-            this.editingCrosshairs[1].show(this.adoptedContent, x2, y2, this.geometry.scale);
+            const color = this.configuration.crosshairColor || undefined;
+            this.editingCrosshairs[0].show(this.adoptedContent, x, y, this.geometry.scale, color);
+            this.editingCrosshairs[1].show(this.adoptedContent, x2, y2, this.geometry.scale, color);
         } else {
             this.editingCrosshairs.forEach((crosshair) => crosshair.hide());
         }
