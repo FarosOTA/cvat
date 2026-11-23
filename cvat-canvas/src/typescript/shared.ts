@@ -10,7 +10,7 @@ import consts from './consts';
 
 export interface ShapeSizeElement {
     sizeElement: any;
-    update(shape: SVG.Shape): void;
+    update(shape: SVG.Shape, pointer?: Point, labelName?: string): void;
     rm(): void;
 }
 
@@ -127,10 +127,20 @@ export function displayShapeSize(shapesContainer: SVG.Container, textContainer: 
             })
             .fill('white')
             .addClass('cvat_canvas_text'),
-        update(shape: SVG.Shape): void {
+        update(shape: SVG.Shape, pointer?: Point, labelName?: string): void {
             const rotation = shape.type === 'rect' || shape.type === 'ellipse' ?
                 getRoundedRotation(shape) : null;
             const text = composeShapeDimensions(shape.width(), shape.height(), rotation);
+            if (pointer) {
+                // Offset in screen pixels so zoom and image rotation never bring text onto the crosshairs.
+                const [x, y] = translateToSVG(textContainer.node as any as SVGSVGElement, [
+                    pointer.x - 48, pointer.y + 48,
+                ]);
+                this.sizeElement.clear().plain(labelName ? `${labelName}: ${text}` : text);
+                this.sizeElement.move(x - this.sizeElement.bbox().width, y);
+                return;
+            }
+
             const [x, y, cx, cy]: number[] = translateToSVG(
                 (textContainer.node as any) as SVGSVGElement,
                 translateFromSVG((shapesContainer.node as any) as SVGSVGElement, [

@@ -214,6 +214,12 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 - **Transparent drawing preview:** While drawing or redrawing a 2D rectangle, only its border is
   shown, with no fill obscuring the image, even when settings such as **Smooth image** change
   mid-draw. Completed boxes retain the configured fill opacity.
+- **Pointer-following drawing readout:** While drawing a two-point rectangle or redrawing a box,
+  its selected class and width × height appear **48 screen pixels left and below the pointer**,
+  with the text's right edge kept clear of the crosshairs. The readout and drawing crosshairs use
+  the selected class's color; redraw uses the original annotation's class. The gap stays fixed when
+  zooming, panning, or rotating the image, and the text keeps its dark shadow for legibility.
+  Completed annotation labels and resize readouts keep their existing positions.
 - **Click to grab (off by default):** Hold the mouse button to drag or resize boxes by default.
   Enable **right sidebar → Settings → Click to grab bounding boxes** to click an active box body to
   pick it up, move the pointer without holding the mouse button, and click again to place it.
@@ -306,7 +312,8 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
 - **Optional handles and dimensions:** Sidebar **Settings → Show corner control points** (on by default)
   hides the corner resize handles of active boxes when off, but keeps an invisible grab area centered
   on each corner for resizing. **Show dimensions while drawing** (on by
-  default) hides the width × height label of a box, ellipse, or cuboid while it is being drawn.
+  default) controls the drawing readout: turn it off to hide the box's class and dimensions, or the
+  dimensions of an ellipse or cuboid.
 - **Magnified borders:** Hover over a box or its resize handles to inspect magnified image strips
   along **all four edges**, with a configurable gap outside the box (36 screen pixels by default),
   without clicking or dragging. The strips disappear when the pointer leaves the box and remain

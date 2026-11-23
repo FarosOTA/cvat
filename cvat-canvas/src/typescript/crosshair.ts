@@ -16,7 +16,7 @@ export default class Crosshair {
         this.canvas = null;
     }
 
-    public show(canvas: SVG.Container, x: number, y: number, scale: number): void {
+    public show(canvas: SVG.Container, x: number, y: number, scale: number, color: string = 'red'): void {
         if (this.canvas && this.canvas !== canvas) {
             if (this.x) this.x.remove();
             if (this.y) this.y.remove();
@@ -25,6 +25,8 @@ export default class Crosshair {
         }
 
         if (this.x && this.y) {
+            this.x.style('stroke', color);
+            this.y.style('stroke', color);
             this.move(x, y);
             return;
         }
@@ -35,6 +37,7 @@ export default class Crosshair {
             .attr({
                 'stroke-width': consts.BASE_STROKE_WIDTH / (2 * scale),
             })
+            .style('stroke', color)
             .addClass('cvat_canvas_crosshair');
 
         this.y = this.canvas
@@ -42,6 +45,7 @@ export default class Crosshair {
             .attr({
                 'stroke-width': consts.BASE_STROKE_WIDTH / (2 * scale),
             })
+            .style('stroke', color)
             .addClass('cvat_canvas_crosshair');
     }
 

@@ -21,7 +21,9 @@ context('Drawing object type and cancellation shortcuts', () => {
         cy.prepareUserSession();
         cy.headlessCreateTask({
             name: 'Drawing shortcut regressions',
-            labels: [{ name: 'object', type: 'any', attributes: [] }],
+            labels: [{
+                name: 'object', color: '#35c98d', type: 'any', attributes: [],
+            }],
             project_id: null,
             source_storage: { location: 'local' },
             target_storage: { location: 'local' },
@@ -78,6 +80,45 @@ context('Drawing object type and cancellation shortcuts', () => {
                 .to.equal(true);
         });
         cy.request('DELETE', `/api/jobs/${jobId}/annotations`);
+    });
+
+    it('uses class-colored guides and keeps the readout southwest in every drawing direction', () => {
+        cy.openSidebarSettings();
+        cy.get('.cvat-appearance-drawing-dimensions-checkbox input').check();
+        startDrawing('rectangle', 'Shape', 'By 2 Points');
+        cy.get('.cvat_canvas_crosshair').should('have.length', 2).each(($line) => {
+            cy.wrap($line).should('have.css', 'stroke', 'rgb(53, 201, 141)');
+        });
+        cy.get('.cvat-canvas-container').click(330, 270);
+
+        for (const [x, y] of [[510, 390], [210, 190], [510, 190], [210, 390]]) {
+            cy.get('.cvat-canvas-container').trigger('mousemove', x, y);
+            cy.get('.cvat-canvas-container').then(([container]) => {
+                const bounds = container.getBoundingClientRect();
+                const matrix = container.ownerDocument.querySelector('#cvat_canvas_content').getScreenCTM();
+                const scale = Math.hypot(matrix.a, matrix.b);
+                cy.contains('#cvat_canvas_text_content text', /^object: [\d.]+x[\d.]+px$/)
+                    .should(([text]) => {
+                        expect(text.ownerDocument.defaultView.getComputedStyle(text).fill).to.equal('rgb(53, 201, 141)');
+                        const [, width, height] = text.textContent.match(/: ([\d.]+)x([\d.]+)px$/);
+                        expect(+width).to.be.closeTo(Math.abs(x - 330) / scale, 0.2);
+                        expect(+height).to.be.closeTo(Math.abs(y - 270) / scale, 0.2);
+                        const readout = text.getBoundingClientRect();
+                        expect((bounds.left + x) - readout.right).to.be.closeTo(48, 1);
+                        expect(readout.top - (bounds.top + y)).to.be.closeTo(48, 1);
+                    });
+            });
+        }
+
+        cy.get('body').type('{esc}');
+        cy.get('#cvat_canvas_text_content text').should('not.exist');
+        cy.get('.cvat-appearance-drawing-dimensions-checkbox input').uncheck();
+        startDrawing('rectangle', 'Shape', 'By 2 Points');
+        cy.get('.cvat-canvas-container').click(330, 270);
+        cy.get('.cvat-canvas-container').trigger('mousemove', 510, 390);
+        cy.get('#cvat_canvas_text_content text').should('not.exist');
+        cy.get('body').type('{esc}');
+        cy.get('.cvat-appearance-drawing-dimensions-checkbox input').check();
     });
 
     it('hides the pointer only with rectangle crosshairs and restores it after leaving or cancelling', () => {

@@ -137,6 +137,8 @@ export interface DrawData {
     enabled: boolean;
     continue?: boolean;
     shapeType?: string;
+    labelName?: string;
+    labelColor?: string;
     rectDrawingMethod?: RectDrawingMethod;
     cuboidDrawingMethod?: CuboidDrawingMethod;
     skeletonSVG?: SVGSVGElement;
@@ -850,6 +852,8 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
             if (state) {
                 this.data.drawData = { ...drawData };
                 this.data.drawData.shapeType = state.shapeType;
+                this.data.drawData.labelName = state.label.name;
+                this.data.drawData.labelColor = state.label.color;
             } else {
                 return;
             }

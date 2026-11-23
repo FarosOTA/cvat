@@ -1937,6 +1937,8 @@ export function repeatDrawShapeAsync(): ThunkAction {
             const effectiveSimplifyPoly = typeof activeNumOfPoints !== 'undefined' ? false : activeSimplifyPoly;
             canvasInstance.draw({
                 enabled: true,
+                labelName: activeLabel.name,
+                labelColor: activeLabel.color,
                 rectDrawingMethod: activeRectDrawingMethod,
                 cuboidDrawingMethod: activeCuboidDrawingMethod,
                 numberOfPoints: activeNumOfPoints,

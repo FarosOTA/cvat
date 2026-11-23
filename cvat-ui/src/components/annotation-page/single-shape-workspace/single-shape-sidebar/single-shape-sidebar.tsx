@@ -269,6 +269,8 @@ function SingleShapeSidebar(): JSX.Element {
                 enabled: true,
                 crosshair: true,
                 shapeType: state.labelType,
+                labelName: state.label.name,
+                labelColor: state.label.color,
                 numberOfPoints: state.pointsCountIsPredefined ? state.pointsCount : undefined,
             });
         }

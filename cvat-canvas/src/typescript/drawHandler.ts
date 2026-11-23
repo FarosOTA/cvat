@@ -106,6 +106,7 @@ export class DrawHandlerImpl implements DrawHandler {
         x: number;
         y: number;
     };
+    private cursorClientPosition: Point | undefined;
     private crosshair: Crosshair;
     private drawData: DrawData | null;
     private geometry: Geometry;
@@ -362,7 +363,7 @@ export class DrawHandlerImpl implements DrawHandler {
 
     private addCrosshair(): void {
         const { x, y } = this.cursorPosition;
-        this.crosshair.show(this.canvas, x, y, this.geometry.scale);
+        this.crosshair.show(this.canvas, x, y, this.geometry.scale, this.drawData.labelColor);
     }
 
     private removeCrosshair(): void {
@@ -421,6 +422,7 @@ export class DrawHandlerImpl implements DrawHandler {
         if (this.shapeSizeElement) {
             this.shapeSizeElement.rm();
             this.shapeSizeElement = null;
+            this.text.removeClass('cvat_canvas_drawing_readout');
         }
 
         if (this.crosshair) {
@@ -458,8 +460,10 @@ export class DrawHandlerImpl implements DrawHandler {
                     this.onDrawDone(null);
                 }
             })
-            .on('drawupdate', (): void => {
-                this.shapeSizeElement?.update(this.drawInstance);
+            .on('drawupdate', (e: CustomEvent): void => {
+                const { clientX: x, clientY: y } = e.detail.event as MouseEvent;
+                this.cursorClientPosition = { x, y };
+                this.updateShapeSize();
             })
             .addClass('cvat_canvas_shape_drawing')
             .attr({
@@ -1314,7 +1318,23 @@ export class DrawHandlerImpl implements DrawHandler {
     }
 
     private createShapeSizeElement(): ShapeSizeElement | null {
-        return this.configuration.drawingDimensions === false ? null : displayShapeSize(this.canvas, this.text);
+        if (this.configuration.drawingDimensions === false) return null;
+        const element = displayShapeSize(this.canvas, this.text);
+        if (this.drawData.shapeType === 'rectangle') {
+            element.sizeElement.style('fill', this.drawData.labelColor || 'white');
+            this.text.addClass('cvat_canvas_drawing_readout');
+        }
+        return element;
+    }
+
+    private updateShapeSize(): void {
+        const rectangle = this.drawData.shapeType === 'rectangle';
+        if (rectangle && !this.started) return;
+        this.shapeSizeElement?.update(
+            this.drawInstance,
+            rectangle ? this.cursorClientPosition : undefined,
+            rectangle ? this.drawData.labelName : undefined,
+        );
     }
 
     public constructor(
@@ -1352,9 +1372,11 @@ export class DrawHandlerImpl implements DrawHandler {
             y: 0,
         };
 
-        this.canvas.on('mousemove.crosshair', (e: MouseEvent): void => {
+        // Pointer events arrive before middle-button panning consumes mousemove.
+        this.canvas.on('pointermove.crosshair mousemove.crosshair', (e: MouseEvent): void => {
             const [x, y] = translateToSVG((this.canvas.node as any) as SVGSVGElement, [e.clientX, e.clientY]);
             this.cursorPosition = { x, y };
+            this.cursorClientPosition = { x: e.clientX, y: e.clientY };
             if (this.crosshair) {
                 this.crosshair.move(x, y);
             }
@@ -1384,6 +1406,7 @@ export class DrawHandlerImpl implements DrawHandler {
         if (configuration.drawingDimensions === false && this.shapeSizeElement) {
             this.shapeSizeElement.rm();
             this.shapeSizeElement = null;
+            this.text.removeClass('cvat_canvas_drawing_readout');
         }
         if (this.isHidden !== configuration.hideEditedObject) {
             this.updateHidden(configuration.hideEditedObject);
@@ -1434,7 +1457,7 @@ export class DrawHandlerImpl implements DrawHandler {
         this.geometry = geometry;
 
         if (this.shapeSizeElement && this.drawInstance && ['rectangle', 'ellipse'].includes(this.drawData.shapeType)) {
-            this.shapeSizeElement?.update(this.drawInstance);
+            this.updateShapeSize();
         }
 
         if (this.crosshair) {

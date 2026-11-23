@@ -148,6 +148,8 @@ class DrawShapePopoverContainer extends React.PureComponent<Props, State> {
         if (selectedLabel) {
             canvasInstance.draw({
                 enabled: true,
+                labelName: selectedLabel.name,
+                labelColor: selectedLabel.color,
                 rectDrawingMethod,
                 cuboidDrawingMethod,
                 numberOfPoints,

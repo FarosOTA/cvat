@@ -198,6 +198,8 @@ export default function RectangleLabelBar(): JSX.Element {
         canvas.draw({
             enabled: true,
             shapeType: ShapeType.RECTANGLE,
+            labelName: label.name,
+            labelColor: label.color,
             rectDrawingMethod: RectDrawingMethod.CLASSIC,
             crosshair: true,
         });
