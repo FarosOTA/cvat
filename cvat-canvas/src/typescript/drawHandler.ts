@@ -1281,9 +1281,8 @@ export class DrawHandlerImpl implements DrawHandler {
                     this.drawBoxBy4Points(); // draw box by extreme clicking
                 } else {
                     this.drawBox(); // default box drawing
-                    // draw instance was initialized after drawBox();
-                    this.shapeSizeElement = this.createShapeSizeElement();
                 }
+                this.shapeSizeElement = this.createShapeSizeElement();
             } else if (this.drawData.shapeType === 'polygon') {
                 this.drawPolygon();
             } else if (this.drawData.shapeType === 'polyline') {
@@ -1311,6 +1310,7 @@ export class DrawHandlerImpl implements DrawHandler {
 
         this.startTimestamp = Date.now();
         this.initialized = true;
+        if (this.drawData.shapeType === 'rectangle') this.updateShapeSize();
     }
 
     public get started(): boolean {
@@ -1318,7 +1318,7 @@ export class DrawHandlerImpl implements DrawHandler {
     }
 
     private createShapeSizeElement(): ShapeSizeElement | null {
-        if (this.configuration.drawingDimensions === false) return null;
+        if (this.configuration.drawingDimensions === false && this.drawData.shapeType !== 'rectangle') return null;
         const element = displayShapeSize(this.canvas, this.text);
         if (this.drawData.shapeType === 'rectangle') {
             element.sizeElement.style('fill', this.drawData.labelColor || 'white');
@@ -1329,11 +1329,12 @@ export class DrawHandlerImpl implements DrawHandler {
 
     private updateShapeSize(): void {
         const rectangle = this.drawData.shapeType === 'rectangle';
-        if (rectangle && !this.started) return;
+        if (rectangle && !this.cursorClientPosition) return;
         this.shapeSizeElement?.update(
-            this.drawInstance,
+            rectangle && !this.started ? null : this.drawInstance,
             rectangle ? this.cursorClientPosition : undefined,
             rectangle ? this.drawData.labelName : undefined,
+            this.configuration.drawingDimensions !== false,
         );
     }
 
@@ -1380,6 +1381,7 @@ export class DrawHandlerImpl implements DrawHandler {
             if (this.crosshair) {
                 this.crosshair.move(x, y);
             }
+            if (this.initialized && this.drawData.shapeType === 'rectangle') this.updateShapeSize();
         });
     }
 
@@ -1403,7 +1405,9 @@ export class DrawHandlerImpl implements DrawHandler {
         this.controlPointsSize = configuration.controlPointsSize;
         this.selectedShapeOpacity = configuration.selectedShapeOpacity;
         this.outlinedBorders = configuration.outlinedBorders || 'black';
-        if (configuration.drawingDimensions === false && this.shapeSizeElement) {
+        if (this.initialized && this.drawData.shapeType === 'rectangle') {
+            this.updateShapeSize();
+        } else if (configuration.drawingDimensions === false && this.shapeSizeElement) {
             this.shapeSizeElement.rm();
             this.shapeSizeElement = null;
             this.text.removeClass('cvat_canvas_drawing_readout');

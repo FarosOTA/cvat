@@ -82,16 +82,18 @@ context('Drawing object type and cancellation shortcuts', () => {
         cy.request('DELETE', `/api/jobs/${jobId}/annotations`);
     });
 
-    it('uses class-colored guides and keeps the readout southwest in every drawing direction', () => {
+    it('always shows the class and places the readout away from the box in every drawing direction', () => {
         cy.openSidebarSettings();
         cy.get('.cvat-appearance-drawing-dimensions-checkbox input').check();
         startDrawing('rectangle', 'Shape', 'By 2 Points');
         cy.get('.cvat_canvas_crosshair').should('have.length', 2).each(($line) => {
             cy.wrap($line).should('have.css', 'stroke', 'rgb(53, 201, 141)');
         });
-        cy.get('.cvat-canvas-container').click(330, 270);
+        cy.get('.cvat-canvas-container').trigger('mousemove', 480, 320);
+        cy.contains('#cvat_canvas_text_content text', /^object$/).should('be.visible');
+        cy.get('.cvat-canvas-container').click(480, 320);
 
-        for (const [x, y] of [[510, 390], [210, 190], [510, 190], [210, 390]]) {
+        for (const [x, y] of [[620, 410], [300, 210], [620, 210], [300, 410]]) {
             cy.get('.cvat-canvas-container').trigger('mousemove', x, y);
             cy.get('.cvat-canvas-container').then(([container]) => {
                 const bounds = container.getBoundingClientRect();
@@ -101,24 +103,57 @@ context('Drawing object type and cancellation shortcuts', () => {
                     .should(([text]) => {
                         expect(text.ownerDocument.defaultView.getComputedStyle(text).fill).to.equal('rgb(53, 201, 141)');
                         const [, width, height] = text.textContent.match(/: ([\d.]+)x([\d.]+)px$/);
-                        expect(+width).to.be.closeTo(Math.abs(x - 330) / scale, 0.2);
-                        expect(+height).to.be.closeTo(Math.abs(y - 270) / scale, 0.2);
+                        expect(+width).to.be.closeTo(Math.abs(x - 480) / scale, 0.2);
+                        expect(+height).to.be.closeTo(Math.abs(y - 320) / scale, 0.2);
                         const readout = text.getBoundingClientRect();
-                        expect((bounds.left + x) - readout.right).to.be.closeTo(48, 1);
-                        expect(readout.top - (bounds.top + y)).to.be.closeTo(48, 1);
+                        expect(x > 480 ? readout.left - (bounds.left + x) : (bounds.left + x) - readout.right)
+                            .to.be.closeTo(48, 1);
+                        expect(y > 320 ? readout.top - (bounds.top + y) : (bounds.top + y) - readout.bottom)
+                            .to.be.closeTo(48, 1);
                     });
             });
         }
 
+        cy.get('.cvat-canvas-container').then(([container]) => {
+            const { width, height } = container.getBoundingClientRect();
+            cy.wrap(container).trigger('mousemove', width - 10, height - 10);
+            cy.contains('#cvat_canvas_text_content text', /^object: /).should(([text]) => {
+                const readout = text.getBoundingClientRect();
+                const viewport = container.ownerDocument.querySelector('#cvat_canvas_wrapper').getBoundingClientRect();
+                const box = container.querySelector('.cvat_canvas_shape_drawing').getBoundingClientRect();
+                expect(readout.left).to.be.at.least(viewport.left - 1);
+                expect(readout.right).to.be.at.most(viewport.right + 1);
+                expect(readout.top).to.be.at.least(viewport.top - 1);
+                expect(readout.bottom).to.be.at.most(viewport.bottom + 1);
+                expect(readout.right <= box.left || readout.left >= box.right ||
+                    readout.bottom <= box.top || readout.top >= box.bottom).to.equal(true);
+            });
+        });
+
+        cy.get('.cvat-appearance-drawing-dimensions-checkbox input').uncheck();
+        cy.contains('#cvat_canvas_text_content text', /^object$/).should('be.visible');
+        cy.get('.cvat-appearance-drawing-dimensions-checkbox input').check();
+        cy.contains('#cvat_canvas_text_content text', /^object: [\d.]+x[\d.]+px$/).should('be.visible');
         cy.get('body').type('{esc}');
         cy.get('#cvat_canvas_text_content text').should('not.exist');
         cy.get('.cvat-appearance-drawing-dimensions-checkbox input').uncheck();
         startDrawing('rectangle', 'Shape', 'By 2 Points');
+        cy.get('.cvat-canvas-container').trigger('mousemove', 330, 270);
+        cy.contains('#cvat_canvas_text_content text', /^object$/).should('be.visible');
         cy.get('.cvat-canvas-container').click(330, 270);
         cy.get('.cvat-canvas-container').trigger('mousemove', 510, 390);
-        cy.get('#cvat_canvas_text_content text').should('not.exist');
+        cy.contains('#cvat_canvas_text_content text', /^object$/).should('be.visible');
         cy.get('body').type('{esc}');
+        cy.get('#cvat_canvas_text_content text').should('not.exist');
         cy.get('.cvat-appearance-drawing-dimensions-checkbox input').check();
+        startDrawing('rectangle', 'Shape', 'By 4 Points');
+        cy.get('.cvat-canvas-container').trigger('mousemove', 330, 270);
+        cy.contains('#cvat_canvas_text_content text', /^object$/).should('be.visible');
+        cy.get('.cvat-canvas-container').click(330, 270);
+        cy.get('.cvat-canvas-container').trigger('mousemove', 510, 390);
+        cy.contains('#cvat_canvas_text_content text', /^object: [\d.]+x[\d.]+px$/).should('be.visible');
+        cy.get('body').type('{esc}');
+        cy.get('#cvat_canvas_text_content text').should('not.exist');
     });
 
     it('hides the pointer only with rectangle crosshairs and restores it after leaving or cancelling', () => {

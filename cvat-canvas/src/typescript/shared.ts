@@ -10,7 +10,7 @@ import consts from './consts';
 
 export interface ShapeSizeElement {
     sizeElement: any;
-    update(shape: SVG.Shape, pointer?: Point, labelName?: string): void;
+    update(shape: SVG.Shape | null, pointer?: Point, labelName?: string, showDimensions?: boolean): void;
     rm(): void;
 }
 
@@ -118,6 +118,10 @@ export function getRoundedRotation(shape: SVG.Shape, defaultValue: number = 0): 
     return +rotation.toFixed(5);
 }
 
+export function clamp(x: number, min: number, max: number): number {
+    return Math.min(Math.max(x, min), max);
+}
+
 export function displayShapeSize(shapesContainer: SVG.Container, textContainer: SVG.Container): ShapeSizeElement {
     const shapeSize: ShapeSizeElement = {
         sizeElement: textContainer
@@ -127,20 +131,41 @@ export function displayShapeSize(shapesContainer: SVG.Container, textContainer: 
             })
             .fill('white')
             .addClass('cvat_canvas_text'),
-        update(shape: SVG.Shape, pointer?: Point, labelName?: string): void {
-            const rotation = shape.type === 'rect' || shape.type === 'ellipse' ?
+        update(shape: SVG.Shape | null, pointer?: Point, labelName?: string, showDimensions = true): void {
+            const rotation = shape && (shape.type === 'rect' || shape.type === 'ellipse') ?
                 getRoundedRotation(shape) : null;
-            const text = composeShapeDimensions(shape.width(), shape.height(), rotation);
+            const text = shape && showDimensions ? composeShapeDimensions(shape.width(), shape.height(), rotation) : '';
             if (pointer) {
-                // Offset in screen pixels so zoom and image rotation never bring text onto the crosshairs.
-                const [x, y] = translateToSVG(textContainer.node as any as SVGSVGElement, [
-                    pointer.x - 48, pointer.y + 48,
-                ]);
-                this.sizeElement.clear().plain(labelName ? `${labelName}: ${text}` : text);
-                this.sizeElement.move(x - this.sizeElement.bbox().width, y);
+                this.sizeElement.clear().plain([labelName, text].filter(Boolean).join(': '));
+                const bounds = shape?.node.getBoundingClientRect();
+                const right = bounds ? pointer.x >= bounds.left + bounds.width / 2 : false;
+                const below = bounds ? pointer.y >= bounds.top + bounds.height / 2 : true;
+                const { width, height } = this.sizeElement.node.getBoundingClientRect();
+                const viewport = textContainer.node.parentElement.getBoundingClientRect();
+                // Prefer the quadrant away from the box. At canvas edges, keep the label visible
+                // on another outside edge when there is room, rather than clipping its class name.
+                const positions = [[right, below], [!right, below], [right, !below], [!right, !below]]
+                    .map(([toRight, toBottom]) => ({
+                        x: toRight ? Math.max(pointer.x, bounds?.right ?? pointer.x) + 48 :
+                            Math.min(pointer.x, bounds?.left ?? pointer.x) - 48 - width,
+                        y: toBottom ? Math.max(pointer.y, bounds?.bottom ?? pointer.y) + 48 :
+                            Math.min(pointer.y, bounds?.top ?? pointer.y) - 48 - height,
+                    }));
+                const clampedPositions = positions.map(({ x, y }) => ({
+                    x: clamp(x, viewport.left, Math.max(viewport.left, viewport.right - width)),
+                    y: clamp(y, viewport.top, Math.max(viewport.top, viewport.bottom - height)),
+                }));
+                const position = positions.find(({ x, y }) => x >= viewport.left && x + width <= viewport.right &&
+                    y >= viewport.top && y + height <= viewport.bottom) ??
+                    clampedPositions.find(({ x, y }) => !bounds || x >= bounds.right ||
+                        x + width <= bounds.left || y >= bounds.bottom || y + height <= bounds.top) ??
+                    clampedPositions[0];
+                const [x, y] = translateToSVG(textContainer.node as any as SVGSVGElement, [position.x, position.y]);
+                this.sizeElement.move(x, y);
                 return;
             }
 
+            if (!shape) return;
             const [x, y, cx, cy]: number[] = translateToSVG(
                 (textContainer.node as any) as SVGSVGElement,
                 translateFromSVG((shapesContainer.node as any) as SVGSVGElement, [
@@ -252,10 +277,6 @@ export function stringifyPoints(points: Point[] | ArrayLike<number>): string {
         return tmp.join(' ');
     }
     return (points as Point[]).map((point: Point): string => `${point.x},${point.y}`).join(' ');
-}
-
-export function clamp(x: number, min: number, max: number): number {
-    return Math.min(Math.max(x, min), max);
 }
 
 export function scalarProduct(a: Vector2D, b: Vector2D): number {
