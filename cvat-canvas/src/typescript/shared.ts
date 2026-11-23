@@ -138,27 +138,28 @@ export function displayShapeSize(shapesContainer: SVG.Container, textContainer: 
             if (pointer) {
                 this.sizeElement.clear().plain([labelName, text].filter(Boolean).join(': '));
                 const bounds = shape?.node.getBoundingClientRect();
-                const right = bounds ? pointer.x >= bounds.left + bounds.width / 2 : false;
-                const below = bounds ? pointer.y >= bounds.top + bounds.height / 2 : true;
                 const { width, height } = this.sizeElement.node.getBoundingClientRect();
                 const viewport = textContainer.node.parentElement.getBoundingClientRect();
-                // Prefer the quadrant away from the box. At canvas edges, keep the label visible
-                // on another outside edge when there is room, rather than clipping its class name.
-                const positions = [[right, below], [!right, below], [right, !below], [!right, !below]]
-                    .map(([toRight, toBottom]) => ({
-                        x: toRight ? Math.max(pointer.x, bounds?.right ?? pointer.x) + 48 :
-                            Math.min(pointer.x, bounds?.left ?? pointer.x) - 48 - width,
-                        y: toBottom ? Math.max(pointer.y, bounds?.bottom ?? pointer.y) + 48 :
-                            Math.min(pointer.y, bounds?.top ?? pointer.y) - 48 - height,
-                    }));
+                const outsideBox = ({ x, y }: Point): boolean => !bounds || x >= bounds.right ||
+                    x + width <= bounds.left || y >= bounds.bottom || y + height <= bounds.top;
+                // Try below-right, above-right, below-left, then above-left near the pointer.
+                // If the box or canvas blocks these, try the same order beyond the box's edges.
+                const positions = [undefined, bounds].flatMap((box) => (
+                    [[true, true], [true, false], [false, true], [false, false]]
+                        .map(([toRight, toBottom]) => ({
+                            x: toRight ? Math.max(pointer.x, box?.right ?? pointer.x) + 48 :
+                                Math.min(pointer.x, box?.left ?? pointer.x) - 48 - width,
+                            y: toBottom ? Math.max(pointer.y, box?.bottom ?? pointer.y) + 48 :
+                                Math.min(pointer.y, box?.top ?? pointer.y) - 48 - height,
+                        }))
+                ));
                 const clampedPositions = positions.map(({ x, y }) => ({
                     x: clamp(x, viewport.left, Math.max(viewport.left, viewport.right - width)),
                     y: clamp(y, viewport.top, Math.max(viewport.top, viewport.bottom - height)),
                 }));
-                const position = positions.find(({ x, y }) => x >= viewport.left && x + width <= viewport.right &&
-                    y >= viewport.top && y + height <= viewport.bottom) ??
-                    clampedPositions.find(({ x, y }) => !bounds || x >= bounds.right ||
-                        x + width <= bounds.left || y >= bounds.bottom || y + height <= bounds.top) ??
+                const position = positions.find(({ x, y }) => outsideBox({ x, y }) &&
+                    x >= viewport.left && x + width <= viewport.right &&
+                    y >= viewport.top && y + height <= viewport.bottom) ?? clampedPositions.find(outsideBox) ??
                     clampedPositions[0];
                 const [x, y] = translateToSVG(textContainer.node as any as SVGSVGElement, [position.x, position.y]);
                 this.sizeElement.move(x, y);

@@ -162,13 +162,12 @@ context('Quick rectangle classes', () => {
             cy.realPress('W');
             cy.get('.cvat-objects-sidebar-state-item').should('contain.text', 'bus');
             cy.get(classButton('bus')).should('have.attr', 'aria-pressed', 'true');
-            // Drawing has its own undo stack; stop it before undoing the object edit.
-            cy.realPress('Escape');
             cy.realPress(['Control', 'Z']);
             cy.get('.cvat-objects-sidebar-state-item').should('contain.text', 'car');
+            cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
             cy.realPress(['Control', 'Y']);
             cy.get('.cvat-objects-sidebar-state-item').should('contain.text', 'bus');
-            cy.get(classButton('bus')).click();
+            cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
             pointAtObject();
 
             cy.realPress('Q');

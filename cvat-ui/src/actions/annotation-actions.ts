@@ -1957,12 +1957,12 @@ export function advanceAndDrawAsync(): ThunkAction {
             annotation: {
                 job: { instance: job, labels },
                 player: { frame, playing },
-                canvas: { activeControl, ready },
+                canvas: { activeControl, ready, instance },
             },
             settings: { player: { showDeletedFrames, reverseAnnotation } },
         } = getState();
         if (!job || !labels.length || !ready || frame.fetching || playing ||
-            activeControl !== ActiveControl.CURSOR ||
+            (activeControl !== ActiveControl.CURSOR && (!(instance instanceof Canvas) || instance.isBusy())) ||
             !isAbleToChangeFrame()) return;
         const direction = reverseAnnotation ? -1 : 1;
         const candidate = frame.number + direction;
@@ -1975,7 +1975,8 @@ export function advanceAndDrawAsync(): ThunkAction {
 
         const current = getState().annotation;
         if (current.player.frame.number !== frame.number || current.player.frame.fetching ||
-            current.player.playing || current.canvas.activeControl !== ActiveControl.CURSOR ||
+            current.player.playing || (current.canvas.activeControl !== ActiveControl.CURSOR &&
+                (!(current.canvas.instance instanceof Canvas) || current.canvas.instance.isBusy())) ||
             !current.canvas.ready) return;
 
         await dispatch(changeFrameAsync(nextFrame));

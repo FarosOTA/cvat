@@ -125,6 +125,7 @@ export class DrawHandlerImpl implements DrawHandler {
     private drawInstance: any;
     private initialized: boolean;
     private canceled: boolean;
+    private ellipseDrawingStarted = false;
     private pointsGroup: SVG.G | null;
     private shapeSizeElement: ShapeSizeElement | null;
 
@@ -387,6 +388,7 @@ export class DrawHandlerImpl implements DrawHandler {
 
         this.autoborderHandler.autoborder(false);
         this.initialized = false;
+        this.ellipseDrawingStarted = false;
         this.canvas.off('mousedown.draw');
         this.canvas.off('mousemove.draw');
 
@@ -495,6 +497,7 @@ export class DrawHandlerImpl implements DrawHandler {
                 if (initialPoint.x === null || initialPoint.y === null) {
                     const translated = translateToSVG(this.canvas.node as any as SVGSVGElement, [e.clientX, e.clientY]);
                     [initialPoint.x, initialPoint.y] = translated;
+                    this.ellipseDrawingStarted = true;
                 } else {
                     this.drawInstance.fire('drawstop');
                 }
@@ -1314,7 +1317,7 @@ export class DrawHandlerImpl implements DrawHandler {
     }
 
     public get started(): boolean {
-        return !!this.drawInstance?.remember('_paintHandler');
+        return this.ellipseDrawingStarted || !!this.drawInstance?.remember('_paintHandler');
     }
 
     private createShapeSizeElement(): ShapeSizeElement | null {

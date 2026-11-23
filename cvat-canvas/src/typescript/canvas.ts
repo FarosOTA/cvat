@@ -50,6 +50,7 @@ interface Canvas {
     zoomCanvas(enable: boolean): void;
 
     mode(): Mode;
+    isBusy(): boolean;
     undo(): boolean;
     redo(): boolean;
     cancel(): void;
@@ -177,6 +178,10 @@ class CanvasImpl implements Canvas {
 
     public mode(): Mode {
         return this.model.mode;
+    }
+
+    public isBusy(): boolean {
+        return this.view.isBusy();
     }
 
     public undo(): boolean {

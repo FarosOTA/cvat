@@ -117,8 +117,16 @@ using the last drawing tool, label, and parameters (the same action as **N** on 
 Customize it as **Advance and draw** in shortcut settings. Browsers may reserve **Ctrl + N** for opening
 a new window; choose another binding if the browser intercepts it. It skips deleted frames when they are hidden,
 ignores annotation-search navigation modes and the configured frame step, and does nothing at the end
-of the job. It does not interrupt drawing, editing, playback, or frame loading, and does not fire while
+of the job. It does not interrupt unfinished drawing, editing, playback, or frame loading, and does not fire while
 typing or while a modal is open. If deleted frames are shown, advancing to one does not start drawing.
+
+An armed manual drawing tool (for example, **N** before placing the first point) does not block
+**Undo**, **Redo**, **Redraw shape**, or **Advance and draw**. Undo/redo leave the tool armed;
+redraw replaces the object beneath the pointer, and advance starts drawing on the destination frame.
+These actions use their configured bindings. Once the first point is placed, unfinished drawings
+remain protected; mask drawing/editing keeps its own undo/redo history, and paste/redraw operations
+retain their existing safeguards. Object shortcuts such as copy, delete, lock, hide, relabel, and
+occlusion continue to target the object beneath the pointer while a drawing tool is armed.
 
 In the **Standard 2D workspace**, placing a new annotation automatically restarts the last drawing
 or interaction tool, as **N** would, with the same label, parameters, and Shape/Track choice.
@@ -230,9 +238,10 @@ Existing `Ctrl` + digit label shortcuts remain unchanged.
   mid-draw. Completed boxes retain the configured fill opacity.
 - **Pointer-following drawing readout:** The selected class appears beside the pointer as soon as
   the rectangle tool is engaged, before placing the first corner. Once drawing starts, width × height
-  join the class name. The readout switches to the quadrant **away from the box**, with a 48-screen-pixel
-  gap from the pointer; near canvas edges it stays within the canvas and uses another outside edge
-  when needed and space permits. This works for two-point and four-point rectangles and redraw.
+  join the class name. The readout prefers **below-right**, then above-right, below-left, and above-left,
+  with a 48-screen-pixel gap from the pointer. It skips positions that overlap the box or leave the
+  canvas, using another outside edge when needed and space permits. This works for two-point and
+  four-point rectangles and redraw.
   The readout and drawing crosshairs use the selected class's color; redraw uses the original
   annotation's class. Placement follows zoom, pan, and image rotation, and the text keeps its dark
   shadow for legibility. Completed annotation labels and resize readouts keep their existing positions.

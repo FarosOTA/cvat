@@ -82,7 +82,59 @@ context('Drawing object type and cancellation shortcuts', () => {
         cy.request('DELETE', `/api/jobs/${jobId}/annotations`);
     });
 
-    it('always shows the class and places the readout away from the box in every drawing direction', () => {
+    it('uses history and redraw while armed, but protects drawings after the first point', () => {
+        startDrawing('rectangle', 'Shape', 'By 2 Points');
+        cy.get('.cvat-canvas-container').click(230, 170);
+        cy.get('.cvat-canvas-container').click(410, 310);
+        cy.get('.cvat-objects-sidebar-state-item').should('have.length', 1);
+        cy.realPress('Escape');
+        cy.realPress('N');
+        cy.realPress(['Control', 'Z']);
+        cy.get('.cvat-objects-sidebar-state-item').should('not.exist');
+        cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
+        cy.realPress(['Control', 'Shift', 'Z']);
+        cy.get('.cvat-objects-sidebar-state-item').should('have.length', 1);
+
+        for (const tool of ['rectangle', 'ellipse', 'polygon']) {
+            cy.realPress('Escape');
+            startDrawing(tool, 'Shape', tool === 'rectangle' ? 'By 2 Points' : undefined);
+            cy.realPress(['Control', 'Z']);
+            cy.get('.cvat-objects-sidebar-state-item').should('not.exist');
+            cy.realPress(['Control', 'Y']);
+            cy.get('.cvat-objects-sidebar-state-item').should('have.length', 1);
+            cy.get('.cvat-canvas-container').click(500, 180);
+            cy.realPress(['Control', 'Z']);
+            cy.get('.cvat-objects-sidebar-state-item').should('have.length', 1);
+            cy.realPress(['Control', 'N']);
+            cy.checkFrameNum(0);
+            cy.get(`.cvat-draw-${tool}-control`).should('have.class', 'cvat-active-canvas-control');
+        }
+
+        cy.realPress('Escape');
+        startDrawing('rectangle', 'Shape', 'By 2 Points');
+        cy.get('.cvat-canvas-container').realMouseMove(320, 240, { position: 'topLeft' });
+        cy.realPress(['Shift', 'N']);
+        cy.get('.cvat-canvas-container').click(450, 340);
+        cy.get('.cvat-canvas-container').click(610, 460);
+        // Redraw replaces the object rather than merely stopping the armed tool.
+        cy.get('.cvat-objects-sidebar-state-item').should('have.length', 1);
+        cy.get('.cvat_canvas_shape').should('have.length', 1).then(([$shape]) => {
+            const bounds = $shape.getBoundingClientRect();
+            cy.get('.cvat-canvas-container').then(([$container]) => {
+                const container = $container.getBoundingClientRect();
+                expect(bounds.left - container.left).to.be.closeTo(450, 2);
+                expect(bounds.top - container.top).to.be.closeTo(340, 2);
+            });
+        });
+        cy.realPress('N');
+        cy.realPress(['Control', 'N']);
+        cy.checkFrameNum(1);
+        cy.get('.cvat-draw-rectangle-control').should('have.class', 'cvat-active-canvas-control');
+        cy.realPress('Escape');
+        cy.request('DELETE', `/api/jobs/${jobId}/annotations`);
+    });
+
+    it('always shows the class and prefers right and bottom readouts without overlapping the box', () => {
         cy.openSidebarSettings();
         cy.get('.cvat-appearance-drawing-dimensions-checkbox input').check();
         startDrawing('rectangle', 'Shape', 'By 2 Points');
@@ -90,10 +142,24 @@ context('Drawing object type and cancellation shortcuts', () => {
             cy.wrap($line).should('have.css', 'stroke', 'rgb(53, 201, 141)');
         });
         cy.get('.cvat-canvas-container').trigger('mousemove', 480, 320);
-        cy.contains('#cvat_canvas_text_content text', /^object$/).should('be.visible');
+        cy.contains('#cvat_canvas_text_content text', /^object$/).should(([text]) => {
+            const container = text.closest('.cvat-canvas-container').getBoundingClientRect();
+            const readout = text.getBoundingClientRect();
+            expect(readout.left - (container.left + 480)).to.be.closeTo(48, 1);
+            expect(readout.top - (container.top + 320)).to.be.closeTo(48, 1);
+        });
+        cy.get('.cvat-canvas-container').then(([container]) => {
+            const bounds = container.getBoundingClientRect();
+            cy.wrap(container).trigger('mousemove', bounds.width - 10, 320);
+            cy.contains('#cvat_canvas_text_content text', /^object$/).should(([text]) => {
+                const readout = text.getBoundingClientRect();
+                expect(bounds.right - 10 - readout.right).to.be.closeTo(48, 1);
+                expect(readout.top - (bounds.top + 320)).to.be.closeTo(48, 1);
+            });
+        });
         cy.get('.cvat-canvas-container').click(480, 320);
 
-        for (const [x, y] of [[620, 410], [300, 210], [620, 210], [300, 410]]) {
+        for (const [x, y, below] of [[620, 410, true], [300, 210, false], [620, 210, true], [300, 410, true]]) {
             cy.get('.cvat-canvas-container').trigger('mousemove', x, y);
             cy.get('.cvat-canvas-container').then(([container]) => {
                 const bounds = container.getBoundingClientRect();
@@ -106,10 +172,12 @@ context('Drawing object type and cancellation shortcuts', () => {
                         expect(+width).to.be.closeTo(Math.abs(x - 480) / scale, 0.2);
                         expect(+height).to.be.closeTo(Math.abs(y - 320) / scale, 0.2);
                         const readout = text.getBoundingClientRect();
-                        expect(x > 480 ? readout.left - (bounds.left + x) : (bounds.left + x) - readout.right)
+                        const box = container.querySelector('.cvat_canvas_shape_drawing').getBoundingClientRect();
+                        expect(readout.left - (bounds.left + x)).to.be.closeTo(48, 1);
+                        expect(below ? readout.top - (bounds.top + y) : (bounds.top + y) - readout.bottom)
                             .to.be.closeTo(48, 1);
-                        expect(y > 320 ? readout.top - (bounds.top + y) : (bounds.top + y) - readout.bottom)
-                            .to.be.closeTo(48, 1);
+                        expect(readout.right <= box.left || readout.left >= box.right ||
+                            readout.bottom <= box.top || readout.top >= box.bottom).to.equal(true);
                     });
             });
         }

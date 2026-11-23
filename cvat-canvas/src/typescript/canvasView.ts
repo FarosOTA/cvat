@@ -50,6 +50,7 @@ export interface CanvasView {
     setupConflictRegions(clientID: number): number[];
     translateFromSVG(points: number[]): number[];
     translateToSVG(points: number[]): number[];
+    isBusy(): boolean;
     undo(): boolean;
     redo(): boolean;
 }
@@ -3322,6 +3323,18 @@ export class CanvasViewImpl implements CanvasView, Listener {
 
     public html(): HTMLDivElement {
         return this.canvas;
+    }
+
+    public isBusy(): boolean {
+        // An armed vector tool has no input to protect yet. Mask drawing/editing owns its
+        // own history, and paste/redraw must not fall through to unrelated object actions.
+        if (this.mode === Mode.DRAW) {
+            const { redraw, initialState } = this.controller.drawData;
+            return this.masksHandler.enabled || this.drawHandler.started || this.drawPress !== null ||
+                typeof redraw === 'number' || !!initialState;
+        }
+
+        return this.mode !== Mode.IDLE;
     }
 
     public undo(): boolean {

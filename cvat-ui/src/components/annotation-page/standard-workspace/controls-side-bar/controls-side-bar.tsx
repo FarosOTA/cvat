@@ -321,7 +321,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
         ].includes(activeControl);
         const editing = canvasInstance.mode() === CanvasMode.EDIT;
 
-        if (!drawing) {
+        if (!drawing || (action === 'redraw' && !canvasInstance.isBusy())) {
             if (editing) {
                 // users probably will press N as they are used to do when they want to finish editing
                 // in this case, if a mask or polyline is being edited we probably want to finish editing first
