@@ -1011,8 +1011,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
 
     private shouldFlash(state: any): boolean {
         const { previousFrameBoxes } = this.controller.renderData;
-        if (state.shapeType !== 'rectangle' || !previousFrameBoxes ||
-            (state.objectType === 'track' && state.keyframes?.first !== state.frame)) {
+        if (state.shapeType !== 'rectangle' || !previousFrameBoxes) {
             return false;
         }
 

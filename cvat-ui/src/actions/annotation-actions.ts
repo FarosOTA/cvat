@@ -92,6 +92,7 @@ export enum AnnotationActionTypes {
     UPDATE_JOB_SUCCESS = 'UPDATE_CURRENT_SUCCESS',
     CLOSE_JOB = 'CLOSE_JOB',
     CHANGE_FRAME = 'CHANGE_FRAME',
+    CHANGE_FRAME_CANCELED = 'CHANGE_FRAME_CANCELED',
     CHANGE_FRAME_SUCCESS = 'CHANGE_FRAME_SUCCESS',
     CHANGE_FRAME_FAILED = 'CHANGE_FRAME_FAILED',
     SAVE_ANNOTATIONS = 'SAVE_ANNOTATIONS',
@@ -348,8 +349,17 @@ async function fetchAnnotations(predefinedFrame?: number): Promise<{
 
     const fetchFrame = typeof predefinedFrame === 'undefined' ? frame : predefinedFrame;
     let states = await jobInstance.annotations.get(fetchFrame, showAllInterpolationTracks, filters);
-    const previousStates = jobInstance.dimension === DimensionType.DIMENSION_2D && fetchFrame > jobInstance.startFrame ?
-        await jobInstance.annotations.get(fetchFrame - 1, false, filters) : [];
+    const { reverseAnnotation, showDeletedFrames } = getStore().getState().settings.player;
+    const previousCandidate = fetchFrame + (reverseAnnotation ? 1 : -1);
+    const previousFrame = jobInstance.dimension === DimensionType.DIMENSION_2D &&
+        previousCandidate >= jobInstance.startFrame && previousCandidate <= jobInstance.stopFrame ?
+        await jobInstance.frames.search(
+            { notDeleted: !showDeletedFrames },
+            previousCandidate,
+            reverseAnnotation ? jobInstance.stopFrame : jobInstance.startFrame,
+        ) : null;
+    const previousStates = previousFrame !== null ?
+        await jobInstance.annotations.get(previousFrame, false, filters) : [];
 
     if (jobInstance.type !== JobType.GROUND_TRUTH && showGroundTruth && groundTruthInstance) {
         let gtFrame: number | null = fetchFrame;
@@ -368,9 +378,9 @@ async function fetchAnnotations(predefinedFrame?: number): Promise<{
             states.push(...gtStates);
         }
 
-        if (jobInstance.dimension === DimensionType.DIMENSION_2D && fetchFrame > jobInstance.startFrame) {
+        if (previousFrame !== null) {
             const previousGTFrame = validationLayout ?
-                await validationLayout.getRealFrame(fetchFrame - 1) : fetchFrame - 1;
+                await validationLayout.getRealFrame(previousFrame) : previousFrame;
             if (previousGTFrame !== null && previousGTFrame >= groundTruthInstance.startFrame &&
                 previousGTFrame <= groundTruthInstance.stopFrame) {
                 previousStates.push(...await groundTruthInstance.annotations.get(previousGTFrame, false, filters));
@@ -397,11 +407,16 @@ async function fetchAnnotations(predefinedFrame?: number): Promise<{
 }
 
 export function fetchAnnotationsAsync(): ThunkAction {
-    return async (dispatch: ThunkDispatch): Promise<void> => {
+    return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<void> => {
+        const initial = getState();
         try {
             const {
                 states, previousFrameBoxes, intervals, history,
             } = await fetchAnnotations();
+            const current = getState();
+            if (current.annotation.job.instance !== initial.annotation.job.instance ||
+                current.annotation.player.frame.number !== initial.annotation.player.frame.number ||
+                current.settings.player.reverseAnnotation !== initial.settings.player.reverseAnnotation) return;
 
             await dispatch({
                 type: AnnotationActionTypes.FETCH_ANNOTATIONS_SUCCESS,
@@ -609,7 +624,9 @@ export function propagateObjectAsync(from: number, to: number): ThunkAction {
                 throw new Error('SessionInstance is not defined, propagation is not possible');
             }
 
-            const states = cvat.utils.propagateShapes<ObjectState>([objectState], from, to, frameNumbers);
+            const availableFrames = frameNumbers.filter((frame) => state.settings.player.showDeletedFrames ||
+                !state.annotation.job.meta?.deletedFrames[frame]);
+            const states = cvat.utils.propagateShapes<ObjectState>([objectState], from, to, availableFrames);
             if (states.length) {
                 await sessionInstance.logger.log(EventScope.propagateObject, { count: states.length });
                 await sessionInstance.annotations.put(states);
@@ -841,6 +858,8 @@ export function changeFrameAsync(
             }
 
             const data = await job.frames.get(toFrame, fillBuffer, frameStep);
+            if (getState().annotation.job.instance !== job ||
+                getState().settings.player.reverseAnnotation !== state.settings.player.reverseAnnotation) return;
 
             dispatch({
                 type: AnnotationActionTypes.CHANGE_FRAME,
@@ -878,6 +897,12 @@ export function changeFrameAsync(
             await waitForRepeatAction();
             if (receiveAnnotationsParameters().jobInstance !== job) return;
             const { states, previousFrameBoxes, history } = await fetchAnnotations(toFrame);
+            if (getState().settings.player.reverseAnnotation !== state.settings.player.reverseAnnotation) {
+                await changeFrameEvent.close();
+                dispatch({ type: AnnotationActionTypes.CHANGE_FRAME_CANCELED });
+                dispatch(fetchAnnotationsAsync());
+                return;
+            }
 
             if (state.annotation.workspace === Workspace.REVIEW) {
                 userUnlockedInReviewMode.clear();
@@ -1133,7 +1158,7 @@ export function getJobAsync({
 
             const {
                 settings: {
-                    player: { showDeletedFrames },
+                    player: { showDeletedFrames, reverseAnnotation },
                 },
             } = state;
 
@@ -1163,11 +1188,14 @@ export function getJobAsync({
             }
 
             // frame query parameter does not work for GT job
+            const reverse = reverseAnnotation && job.dimension !== DimensionType.DIMENSION_1D;
             const frameNumber = Number.isInteger(initialFrame) && gtJob?.id !== job.id ?
                 initialFrame as number :
                 (await job.frames.search(
-                    { notDeleted: !showDeletedFrames }, job.startFrame, job.stopFrame,
-                )) || job.startFrame;
+                    { notDeleted: !showDeletedFrames },
+                    reverse ? job.stopFrame : job.startFrame,
+                    reverse ? job.startFrame : job.stopFrame,
+                )) ?? (reverse ? job.stopFrame : job.startFrame);
 
             const isAudio = job.dimension === DimensionType.DIMENSION_1D;
             const frameData = isAudio ? null : await job.frames.get(frameNumber);
@@ -1370,8 +1398,9 @@ async function updateObjectsLayers(
 }
 
 export function updateAnnotationsAsync(statesToUpdate: ObjectState[], batch = false): ThunkAction<Promise<boolean>> {
-    return async (dispatch: ThunkDispatch): Promise<boolean> => {
+    return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<boolean> => {
         const { jobInstance, workspace, frame } = receiveAnnotationsParameters();
+        const { reverseAnnotation } = getState().settings.player;
         try {
             if (statesToUpdate.some((state): boolean => state.updateFlags.zOrder)) {
                 // deactivate object to visualize changes immediately (UX)
@@ -1383,9 +1412,9 @@ export function updateAnnotationsAsync(statesToUpdate: ObjectState[], batch = fa
                 return true;
             }
 
-            if (batch) {
-                await jobInstance.annotations.bulkSave(statesToSave);
-                dispatch(fetchAnnotationsAsync());
+            if (batch || reverseAnnotation) {
+                await jobInstance.annotations.bulkSave(statesToSave, reverseAnnotation);
+                await dispatch(fetchAnnotationsAsync());
                 return true;
             }
 
@@ -1429,14 +1458,17 @@ export function transformRectangleTrackAsync(
     objectState: ObjectState,
     request: RectangleTrackTransformRequest,
 ): ThunkAction {
-    return async (dispatch: ThunkDispatch): Promise<void> => {
+    return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<void> => {
         const { jobInstance, workspace } = receiveAnnotationsParameters();
         try {
             if (workspace !== Workspace.STANDARD) {
                 throw new Error('Rectangle track transforms are only available in the standard workspace');
             }
 
-            const result = await jobInstance.annotations.transformRectangleTrack(objectState, request);
+            const directionalRequest = request.kind === 'canvas-edit' &&
+                request.propagation.direction === 'forward' && getState().settings.player.reverseAnnotation ?
+                { ...request, propagation: { ...request.propagation, direction: 'backward' as const } } : request;
+            const result = await jobInstance.annotations.transformRectangleTrack(objectState, directionalRequest);
             dispatchAnnotationsUpdate(dispatch, [result.state], await jobInstance.actions.get());
         } catch (error) {
             dispatch({
@@ -1492,10 +1524,12 @@ export function createAnnotationsAsync(
     statesToCreate: (ObjectState | AudioIntervalState)[],
     source: AnnotationSource = AnnotationSource.OTHER,
 ): ThunkAction<Promise<number[]>> {
-    return async (dispatch: ThunkDispatch): Promise<number[]> => {
+    return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<number[]> => {
         try {
             const { jobInstance } = receiveAnnotationsParameters();
-            const clientIds = await jobInstance.annotations.put(statesToCreate);
+            const clientIds = await jobInstance.annotations.put(
+                statesToCreate, getState().settings.player.reverseAnnotation,
+            );
             // Reveal layers after creation so newly created objects are immediately visible.
             const createdZLayers = Array.from(new Set(statesToCreate.flatMap((state) => (
                 'zOrder' in state && typeof state.zOrder === 'number' ? [state.zOrder] : []
@@ -1655,7 +1689,7 @@ export function searchAnnotationsAsync(
         try {
             const {
                 settings: {
-                    player: { showDeletedFrames },
+                    player: { showDeletedFrames, reverseAnnotation },
                 },
                 annotation: {
                     annotations: { filters },
@@ -1687,7 +1721,7 @@ export function searchAnnotationsAsync(
                         ),
                     },
                 );
-            if (frame !== null) {
+            if (frame !== null && getState().settings.player.reverseAnnotation === reverseAnnotation) {
                 dispatch(changeFrameAsync(frame));
             }
         } catch (error) {
@@ -1710,20 +1744,20 @@ export function searchChaptersAsync(
         try {
             const {
                 settings: {
-                    player: { showDeletedFrames },
+                    player: { showDeletedFrames, reverseAnnotation },
                 },
             } = getState();
 
             const frame = await sessionInstance.frames
                 .search(
                     {
-                        notDeleted: showDeletedFrames,
-                        chapterMark: true,
+                        notDeleted: !showDeletedFrames,
+                        chapterMark: reverseAnnotation ? 'stop' : true,
                     },
                     frameFrom,
                     frameTo,
                 );
-            if (frame !== null) {
+            if (frame !== null && getState().settings.player.reverseAnnotation === reverseAnnotation) {
                 dispatch(changeFrameAsync(frame));
             }
         } catch (error) {
@@ -1971,7 +2005,7 @@ export function advanceAndDrawAsync(): ThunkAction {
         const nextFrame = await job.frames.search(
             { notDeleted: !showDeletedFrames }, candidate, reverseAnnotation ? job.startFrame : job.stopFrame,
         );
-        if (nextFrame === null) return;
+        if (nextFrame === null || getState().settings.player.reverseAnnotation !== reverseAnnotation) return;
 
         const current = getState().annotation;
         if (current.player.frame.number !== frame.number || current.player.frame.fetching ||
@@ -2028,7 +2062,9 @@ async function autoAdvance(dispatch: ThunkDispatch, getState: () => CombinedStat
     const nextFrame = await job.frames.search(
         { notDeleted: !showDeletedFrames }, candidate, reverseAnnotation ? job.startFrame : job.stopFrame,
     );
-    if (nextFrame === null || nextFrame === frame) return null;
+    if (nextFrame === null || nextFrame === frame ||
+        getState().settings.player.reverseAnnotation !== reverseAnnotation ||
+        getState().annotation.player.frame.number !== frame) return null;
     await dispatch(changeFrameAsync(nextFrame));
     return getState().annotation.player.frame.number === nextFrame ? nextFrame : null;
 }
@@ -2085,13 +2121,27 @@ export function placeAnnotationsAsync(
 
         let trackID: number | null = null;
         if (enabled && drawnTrack && continuedTrack?.frame === frame) {
-            // Reverse annotation continues before the first keyframe, where the track is outside.
+            // Continuation may reactivate an existing track outside its current visible interval.
             const states: ObjectState[] = await job.annotations.get(frame, true, []);
             const track = states.find((state) => state.clientID === continuedTrack.clientID);
             if (track && !track.lock && track.objectType === ObjectType.TRACK &&
-                track.shapeType === drawn.shapeType && track.shapeType !== ShapeType.SKELETON &&
+                track.shapeType === drawn.shapeType &&
                 track.label.id === drawn.label.id) {
-                track.points = drawn.points;
+                if (track.shapeType === ShapeType.SKELETON) {
+                    track.elements.forEach((element) => {
+                        const placed = drawn.elements.find((candidate) => candidate.label.id === element.label.id);
+                        if (placed) {
+                            element.points = placed.points;
+                            element.occluded = placed.occluded;
+                            element.outside = placed.outside;
+                            element.attributes = placed.attributes;
+                        }
+                    });
+                } else {
+                    track.points = drawn.points;
+                }
+                track.occluded = drawn.occluded;
+                track.attributes = drawn.attributes;
                 if ((track.rotation || 0) !== (drawn.rotation || 0)) track.rotation = drawn.rotation || 0;
                 if (track.outside) track.outside = false;
                 await dispatch(updateAnnotationsAsync([track]));
@@ -2234,7 +2284,7 @@ export function deleteFrameAsync(frame: number): ThunkAction {
                 },
             },
             settings: {
-                player: { showDeletedFrames },
+                player: { showDeletedFrames, reverseAnnotation },
             },
         } = state;
 
@@ -2254,12 +2304,14 @@ export function deleteFrameAsync(frame: number): ThunkAction {
                 },
             });
             dispatch(fetchAnnotationsAsync());
+            const boundary = reverseAnnotation ? jobInstance.startFrame : jobInstance.stopFrame;
+            const otherBoundary = reverseAnnotation ? jobInstance.stopFrame : jobInstance.startFrame;
             let notDeletedFrame = await jobInstance.frames.search(
-                { notDeleted: !showDeletedFrames }, frame, jobInstance.stopFrame,
+                { notDeleted: !showDeletedFrames }, frame, boundary,
             );
-            if (notDeletedFrame === null && jobInstance.startFrame !== frame) {
+            if (notDeletedFrame === null && otherBoundary !== frame) {
                 notDeletedFrame = await jobInstance.frames.search(
-                    { notDeleted: !showDeletedFrames }, frame, jobInstance.startFrame,
+                    { notDeleted: !showDeletedFrames }, frame, otherBoundary,
                 );
             }
             if (notDeletedFrame !== null) {

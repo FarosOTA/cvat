@@ -42,6 +42,7 @@ import withVisibilityHandling from './handle-popover-visibility';
 
 interface Props {
     labels: any[];
+    reverseAnnotation: boolean;
     drawing: CombinedState['annotation']['drawing'];
     canvasInstance: Canvas;
     canvasReady: boolean;
@@ -101,6 +102,7 @@ function mapStateToProps(state: CombinedState): Props {
 
     return {
         drawing,
+        reverseAnnotation: state.settings.player.reverseAnnotation,
         isActivated: activeControl === ActiveControl.OPENCV_TOOLS,
         activeControl,
         canvasInstance: canvasInstance as Canvas,
@@ -563,7 +565,8 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
                         <Button
                             type='primary'
                             className='cvat-tools-opencv-track-button'
-                            disabled={!activeTracker || frame === jobInstance.stopFrame}
+                            disabled={!activeTracker || frame ===
+                                (this.props.reverseAnnotation ? jobInstance.startFrame : jobInstance.stopFrame)}
                             onClick={() => {
                                 if (activeTracker) {
                                     canvasInstance.cancel();

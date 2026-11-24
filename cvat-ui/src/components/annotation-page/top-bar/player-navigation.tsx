@@ -173,7 +173,7 @@ function PlayerNavigation(props: Props): JSX.Element {
     const marks: SliderMarks = (chapters ?? []).reduce<SliderMarks>((acc, chapter) => {
         const active = hoveredChapter === chapter.id;
         const innerAcc = acc ?? {};
-        innerAcc[chapter.start] = {
+        innerAcc[reverseAnnotation ? chapter.stop : chapter.start] = {
             label:
                     <Tooltip title={`${chapter.metadata.title}`}>
                         <span className={`ant-slider-mark-chapter ${active ? 'active' : ''}`} />

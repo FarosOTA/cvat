@@ -73,11 +73,12 @@ function buildDuplicatedAPI(prototype): void {
                     return result;
                 },
 
-                async put(arrayOfObjects = []) {
+                async put(arrayOfObjects = [], reverse = false) {
                     const result = await PluginRegistry.apiWrapper.call(
                         this,
                         prototype.annotations.put,
                         arrayOfObjects,
+                        reverse,
                     );
                     return result;
                 },
@@ -157,11 +158,12 @@ function buildDuplicatedAPI(prototype): void {
                     return result;
                 },
 
-                async bulkSave(states) {
+                async bulkSave(states, reverse = false) {
                     const result = await PluginRegistry.apiWrapper.call(
                         this,
                         prototype.annotations.bulkSave,
                         states,
+                        reverse,
                     );
                     return result;
                 },
@@ -436,7 +438,7 @@ export class Session {
         ) => Promise<RectangleTrackTransformResult>;
         rectangleTrackMetadata: (clientID?: number) => Promise<RectangleTrackMetadata[]>;
         rectangleMetadata: () => Promise<RectangleMetadata[]>;
-        put: (objectStates: (ObjectState | AudioIntervalState)[]) => Promise<number[]>;
+        put: (objectStates: (ObjectState | AudioIntervalState)[], reverse?: boolean) => Promise<number[]>;
         merge: (objectStates: ObjectState[]) => Promise<void>;
         split: (objectState: ObjectState, frame: number) => Promise<void>;
         group: (objectStates: ObjectState[], reset: boolean) => Promise<number>;
@@ -487,7 +489,7 @@ export class Session {
             state: AudioIntervalState | null,
             distance: number | null,
         }>;
-        bulkSave: (states: (ObjectState | AudioIntervalState)[]) => Promise<void>;
+        bulkSave: (states: (ObjectState | AudioIntervalState)[], reverse?: boolean) => Promise<void>;
         import: (data: SerializedCollection) => Promise<void>;
         export: () => Promise<SerializedCollection>;
         commit: (
@@ -531,7 +533,7 @@ export class Session {
             filters: {
                 offset?: number,
                 notDeleted: boolean,
-                chapterMark?: boolean,
+                chapterMark?: boolean | 'stop',
             },
             frameFrom: number,
             frameTo: number,

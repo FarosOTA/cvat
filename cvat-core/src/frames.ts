@@ -1162,7 +1162,7 @@ export async function findFrame(
     jobID: number,
     frameFrom: number,
     frameTo: number,
-    filters: { offset?: number, notDeleted: boolean, chapterMark?: boolean },
+    filters: { offset?: number, notDeleted: boolean, chapterMark?: boolean | 'stop' },
 ): Promise<number | null> {
     const offset = filters.offset || 1;
     const chapterMark = filters.chapterMark || false;
@@ -1173,25 +1173,12 @@ export async function findFrame(
     const update = sign > 0 ? (frame) => frame + 1 : (frame) => frame - 1;
     let framesCounter = 0;
     let lastUndeletedFrame = null;
-    const check = (frame): boolean => {
-        if (meta.includedFrames) {
-            // meta.includedFrames contains absolute frame numbers
-            const jobStartFrame = 0; // this is only true when includedFrames is set
-            return (
-                meta.includedFrames.includes(meta.getDataFrameNumber(frame - jobStartFrame))
-            ) && (!filters.notDeleted || !(frame in meta.deletedFrames));
-        }
-
-        if (filters.notDeleted) {
-            return !(frame in meta.deletedFrames);
-        }
-
-        if (chapterMark) {
-            return meta.chapters.some((chapter) => chapter.start === frame);
-        }
-
-        return true;
-    };
+    // Included frames use absolute data coordinates; such jobs start at zero in job coordinates.
+    const check = (frame): boolean => (
+        (!meta.includedFrames || meta.includedFrames.includes(meta.getDataFrameNumber(frame))) &&
+            (!filters.notDeleted || !(frame in meta.deletedFrames)) &&
+            (!chapterMark || meta.chapters.some((chapter) => chapter[chapterMark === 'stop' ? 'stop' : 'start'] === frame))
+    );
     for (let frame = frameFrom; predicate(frame); frame = update(frame)) {
         if (check(frame)) {
             lastUndeletedFrame = frame;

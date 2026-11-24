@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 import React from 'react';
+import { useSelector } from 'react-redux';
+import { CombinedState } from 'reducers';
 import Icon from '@ant-design/icons';
 import Popover from 'antd/lib/popover';
 import List from 'antd/lib/list';
@@ -17,6 +19,7 @@ interface Props {
 }
 
 function ChapterMenu(props: Readonly<Props>): JSX.Element {
+    const reverse = useSelector((state: CombinedState) => state.settings.player.reverseAnnotation);
     const {
         chapters,
         onSelectChapter,
@@ -28,7 +31,7 @@ function ChapterMenu(props: Readonly<Props>): JSX.Element {
             <List
                 className='cvat-player-chapter-menu-list'
                 size='small'
-                dataSource={chapters}
+                dataSource={reverse ? [...chapters].reverse() : chapters}
                 renderItem={(chapter: Chapter) => {
                     const itemClass = 'cvat-player-chapter-menu-list-item';
 

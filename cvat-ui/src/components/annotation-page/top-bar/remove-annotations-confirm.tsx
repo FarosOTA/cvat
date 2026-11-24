@@ -13,6 +13,7 @@ import CVATTooltip from 'components/common/cvat-tooltip';
 
 export interface RemoveAnnotationsConfirmProps {
     open: boolean;
+    startFrame: number;
     stopFrame: number;
     onClose(): void;
     onRemove(from: number | undefined, to: number | undefined, removeOnlyKeyframes: boolean): void;
@@ -21,6 +22,7 @@ export interface RemoveAnnotationsConfirmProps {
 function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Element {
     const {
         open,
+        startFrame,
         stopFrame,
         onClose,
         onRemove,
@@ -50,7 +52,13 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
             okText='Remove'
             onCancel={onClose}
             onOk={() => {
-                onRemove(removeFrom, removeUpTo, removeOnlyKeyframes);
+                onRemove(
+                    removeFrom === undefined && removeUpTo === undefined ? undefined :
+                        Math.min(removeFrom ?? startFrame, removeUpTo ?? stopFrame),
+                    removeFrom === undefined && removeUpTo === undefined ? undefined :
+                        Math.max(removeFrom ?? startFrame, removeUpTo ?? stopFrame),
+                    removeOnlyKeyframes,
+                );
                 onClose();
             }}
         >
@@ -68,17 +76,17 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
                         label: <Text>Select Range</Text>,
                         children: (
                             <>
-                                <Text>From: </Text>
+                                <Text>Lower frame: </Text>
                                 <InputNumber
-                                    min={0}
+                                    min={startFrame}
                                     max={stopFrame}
                                     onChange={(value) => {
                                         setRemoveFrom(value ?? undefined);
                                     }}
                                 />
-                                <Text>  To: </Text>
+                                <Text>  Upper frame: </Text>
                                 <InputNumber
-                                    min={0}
+                                    min={startFrame}
                                     max={stopFrame}
                                     onChange={(value) => {
                                         setRemoveUpTo(value ?? undefined);

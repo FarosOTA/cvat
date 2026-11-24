@@ -146,8 +146,8 @@ export class RectangleTrack extends Track {
         checkNumberOfPoints(ShapeType.RECTANGLE, request.after);
         request.before.forEach((coordinate) => finiteNumber(coordinate, 'Before coordinate'));
         request.after.forEach((coordinate) => finiteNumber(coordinate, 'After coordinate'));
-        if (!['forward', 'both'].includes(request.propagation.direction)) {
-            throw new ArgumentError('Propagation direction must be forward or both');
+        if (!['forward', 'backward', 'both'].includes(request.propagation.direction)) {
+            throw new ArgumentError('Propagation direction must be forward, backward or both');
         }
         if (!Number.isInteger(request.propagation.radius) || request.propagation.radius < 1) {
             throw new ArgumentError('Propagation radius must be a positive integer');
@@ -209,9 +209,10 @@ export class RectangleTrack extends Track {
             x: after.width / before.width,
             y: after.height / before.height,
         };
-        const minIndex = request.propagation.direction === 'both' ?
+        const minIndex = request.propagation.direction !== 'forward' ?
             Math.max(0, currentIndex - request.propagation.radius) : currentIndex;
-        const maxIndex = Math.min(frames.length - 1, currentIndex + request.propagation.radius);
+        const maxIndex = request.propagation.direction === 'backward' ? currentIndex :
+            Math.min(frames.length - 1, currentIndex + request.propagation.radius);
         const frameIndexes = new Map(frames.map((frame, index) => [frame, index]));
         const candidateFrames = request.propagation.createKeyframes ?
             frames.slice(minIndex, maxIndex + 1) :

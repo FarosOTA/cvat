@@ -28,34 +28,35 @@ function PropagateConfirmComponent(): JSX.Element {
         visible,
         frameNumber,
         frameNumbers,
+        reverseAnnotation,
     } = useSelector((state: CombinedState) => ({
         visible: state.annotation.propagate.visible,
         frameNumber: state.annotation.player.frame.number,
-        frameNumbers: state.annotation.job.frameNumbers,
+        frameNumbers: state.annotation.job.frameNumbers.filter((frame) => state.settings.player.showDeletedFrames ||
+            !state.annotation.job.meta?.deletedFrames[frame]),
+        reverseAnnotation: state.settings.player.reverseAnnotation,
     }), shallowEqual);
 
     const [targetFrame, setTargetFrame] = useState<number>(frameNumber);
-    const startFrame = frameNumbers[0];
-    const stopFrame = frameNumbers[frameNumbers.length - 1];
-    const propagateFrames = Math.abs(targetFrame - frameNumber);
-    const propagateDirection = targetFrame >= frameNumber ? PropagateDirection.FORWARD : PropagateDirection.BACKWARD;
+    const startFrame = frameNumbers[0] ?? frameNumber;
+    const stopFrame = frameNumbers[frameNumbers.length - 1] ?? frameNumber;
+    const propagateFrames = frameNumbers.filter((frame) => frame !== frameNumber &&
+        frame >= Math.min(frameNumber, targetFrame) && frame <= Math.max(frameNumber, targetFrame)).length;
+    const propagateDirection = (targetFrame >= frameNumber) !== reverseAnnotation ?
+        PropagateDirection.FORWARD : PropagateDirection.BACKWARD;
+    const forwardBoundary = reverseAnnotation ? startFrame : stopFrame;
+    const backwardBoundary = reverseAnnotation ? stopFrame : startFrame;
 
     useEffect(() => {
-        const propagateForwardAvailable = stopFrame - frameNumber >= 1;
-        const propagateBackwardAvailable = frameNumber - startFrame >= 1;
-        if (propagateForwardAvailable) {
-            setTargetFrame(stopFrame);
-        } else if (propagateBackwardAvailable) {
-            setTargetFrame(startFrame);
-        }
-    }, [visible]);
+        setTargetFrame(forwardBoundary !== frameNumber ? forwardBoundary : backwardBoundary);
+    }, [visible, reverseAnnotation, frameNumber, forwardBoundary, backwardBoundary]);
 
     const updateTargetFrame = (direction: PropagateDirection, _propagateFrames: number): void => {
-        if (direction === PropagateDirection.FORWARD) {
-            setTargetFrame(clamp(frameNumber + _propagateFrames, startFrame, stopFrame));
-        } else {
-            setTargetFrame(clamp(frameNumber - _propagateFrames, startFrame, stopFrame));
-        }
+        const increasing = (direction === PropagateDirection.FORWARD) !== reverseAnnotation;
+        const candidates = frameNumbers.filter((frame) => (increasing ? frame > frameNumber : frame < frameNumber));
+        if (!increasing) candidates.reverse();
+        const count = Math.min(candidates.length, Math.max(0, Math.round(_propagateFrames)));
+        setTargetFrame(count ? candidates[count - 1] : frameNumber);
     };
 
     return (
@@ -84,10 +85,13 @@ function PropagateConfirmComponent(): JSX.Element {
                             value={propagateDirection}
                             onChange={(e: RadioChangeEvent) => updateTargetFrame(e.target.value, propagateFrames)}
                         >
-                            <Radio.Button disabled={frameNumber === startFrame} value={PropagateDirection.BACKWARD}>
+                            <Radio.Button
+                                disabled={frameNumber === backwardBoundary}
+                                value={PropagateDirection.BACKWARD}
+                            >
                                 <ArrowLeftOutlined />
                             </Radio.Button>
-                            <Radio.Button disabled={frameNumber === stopFrame} value={PropagateDirection.FORWARD}>
+                            <Radio.Button disabled={frameNumber === forwardBoundary} value={PropagateDirection.FORWARD}>
                                 <ArrowRightOutlined />
                             </Radio.Button>
                         </Radio.Group>
@@ -117,6 +121,7 @@ function PropagateConfirmComponent(): JSX.Element {
                     <Col className='cvat-propagate-slider-wrapper' span={12} offset={1}>
                         <Slider
                             range
+                            reverse={reverseAnnotation}
                             min={startFrame}
                             max={stopFrame}
                             marks={frameNumber !== targetFrame ? {
@@ -131,7 +136,7 @@ function PropagateConfirmComponent(): JSX.Element {
                                     setTargetFrame(clamp(value, frameNumber, stopFrame));
                                 }
                             }}
-                            value={[frameNumber, targetFrame] as [number, number]}
+                            value={[Math.min(frameNumber, targetFrame), Math.max(frameNumber, targetFrame)]}
                         />
                     </Col>
                     <Col span={4}>

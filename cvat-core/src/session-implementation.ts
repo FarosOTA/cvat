@@ -557,8 +557,9 @@ export function implementJob(Job: typeof JobClass): typeof JobClass {
         value: function bulkSaveImplementation(
             this: JobClass,
             states: Parameters<typeof JobClass.prototype.annotations.bulkSave>[0],
+            reverse = false,
         ): ReturnType<typeof JobClass.prototype.annotations.bulkSave> {
-            getCollection(this).bulkSave(states);
+            getCollection(this).bulkSave(states, reverse);
             return Promise.resolve();
         },
     });
@@ -575,8 +576,9 @@ export function implementJob(Job: typeof JobClass): typeof JobClass {
         value: function putAnnotationsImplementation(
             this: JobClass,
             objectStates: Parameters<typeof JobClass.prototype.annotations.put>[0],
+            reverse = false,
         ): ReturnType<typeof JobClass.prototype.annotations.put> {
-            return Promise.resolve(getCollection(this).put(objectStates));
+            return Promise.resolve(getCollection(this).put(objectStates, reverse));
         },
     });
 
@@ -1393,8 +1395,9 @@ export function implementTask(Task: typeof TaskClass): typeof TaskClass {
         value: function bulkSaveImplementation(
             this: TaskClass,
             states: Parameters<typeof TaskClass.prototype.annotations.bulkSave>[0],
+            reverse = false,
         ): ReturnType<typeof TaskClass.prototype.annotations.bulkSave> {
-            getCollection(this).bulkSave(states);
+            getCollection(this).bulkSave(states, reverse);
             return Promise.resolve();
         },
     });
@@ -1411,8 +1414,9 @@ export function implementTask(Task: typeof TaskClass): typeof TaskClass {
         value: function putAnnotationsImplementation(
             this: TaskClass,
             objectStates: Parameters<typeof TaskClass.prototype.annotations.put>[0],
+            reverse = false,
         ): ReturnType<typeof TaskClass.prototype.annotations.put> {
-            return Promise.resolve(getCollection(this).put(objectStates));
+            return Promise.resolve(getCollection(this).put(objectStates, reverse));
         },
     });
 

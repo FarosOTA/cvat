@@ -252,7 +252,8 @@ function ActionParameterComponent(props: ActionParameterProps & {
     const store = getCVATStore();
 
     const job = store.getState().annotation.job.instance as Job;
-    const computedDefaultValue = typeof defaultValue === 'function' ? defaultValue({ instance: job }) : defaultValue;
+    const computedDefaultValue = typeof defaultValue === 'function' ?
+        defaultValue({ instance: job, reverse: store.getState().settings.player.reverseAnnotation }) : defaultValue;
 
     const [value, setValue] = useState(computedDefaultValue);
     useEffect(() => {
@@ -520,8 +521,14 @@ function AnnotationsActionsModalContent(props: Props): JSX.Element {
                                             <Button
                                                 onClick={() => {
                                                     const current = storage.getState().annotation.player.frame.number;
-                                                    dispatch(reducerActions.updateFrameFrom(current));
-                                                    dispatch(reducerActions.updateFrameTo(jobInstance.stopFrame));
+                                                    const { reverseAnnotation: reverse } =
+                                                        storage.getState().settings.player;
+                                                    dispatch(reducerActions.updateFrameFrom(
+                                                        reverse ? jobInstance.startFrame : current,
+                                                    ));
+                                                    dispatch(reducerActions.updateFrameTo(
+                                                        reverse ? current : jobInstance.stopFrame,
+                                                    ));
                                                 }}
                                             >
                                                 From current
@@ -529,8 +536,14 @@ function AnnotationsActionsModalContent(props: Props): JSX.Element {
                                             <Button
                                                 onClick={() => {
                                                     const current = storage.getState().annotation.player.frame.number;
-                                                    dispatch(reducerActions.updateFrameFrom(jobInstance.startFrame));
-                                                    dispatch(reducerActions.updateFrameTo(current));
+                                                    const { reverseAnnotation: reverse } =
+                                                        storage.getState().settings.player;
+                                                    dispatch(reducerActions.updateFrameFrom(
+                                                        reverse ? current : jobInstance.startFrame,
+                                                    ));
+                                                    dispatch(reducerActions.updateFrameTo(
+                                                        reverse ? jobInstance.stopFrame : current,
+                                                    ));
                                                 }}
                                             >
                                                 Up to current

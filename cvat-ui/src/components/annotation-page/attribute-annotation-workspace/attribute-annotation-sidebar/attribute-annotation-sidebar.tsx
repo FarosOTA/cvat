@@ -33,6 +33,7 @@ import ObjectSwitcher from './object-switcher';
 
 interface StateToProps {
     activatedStateID: number | null;
+    reverseAnnotation: boolean;
     activatedAttributeID: number | null;
     states: any[];
     labels: any[];
@@ -115,6 +116,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
     return {
         labels,
+        reverseAnnotation: state.settings.player.reverseAnnotation,
         activatedStateID,
         activatedAttributeID,
         states,
@@ -296,8 +298,7 @@ function AttributeAnnotationSidebar(props: StateToProps & DispatchToProps): JSX.
         NEXT_KEY_FRAME: (event: KeyboardEvent | undefined) => {
             preventDefault(event);
             if (activeObjectState && activeObjectState.objectType === ObjectType.TRACK) {
-                const frame =
-                    typeof activeObjectState.keyframes.next === 'number' ? activeObjectState.keyframes.next : null;
+                const frame = activeObjectState.keyframes[props.reverseAnnotation ? 'prev' : 'next'];
                 if (frame !== null && isAbleToChangeFrame(frame)) {
                     changeFrame(frame);
                 }
@@ -306,8 +307,7 @@ function AttributeAnnotationSidebar(props: StateToProps & DispatchToProps): JSX.
         PREV_KEY_FRAME: (event: KeyboardEvent | undefined) => {
             preventDefault(event);
             if (activeObjectState && activeObjectState.objectType === ObjectType.TRACK) {
-                const frame =
-                    typeof activeObjectState.keyframes.prev === 'number' ? activeObjectState.keyframes.prev : null;
+                const frame = activeObjectState.keyframes[props.reverseAnnotation ? 'next' : 'prev'];
                 if (frame !== null && isAbleToChangeFrame(frame)) {
                     changeFrame(frame);
                 }

@@ -18,6 +18,7 @@ function createSession({
     getImageFrame = async (number) => ({ number }),
     width = 32, height = 24,
     frameBufferMultiplier = 10,
+    meta = {},
 } = {}) {
     class Bitmap {
         closed = false;
@@ -63,6 +64,7 @@ function createSession({
         stop_frame: size - 1,
         frame_filter: '',
         chunks_updated_date: '2026-01-01T00:00:00Z',
+        ...meta,
     }) } };
     function load(filename) {
         if (modules.has(filename)) return modules.get(filename).exports;
@@ -109,6 +111,21 @@ function createSession({
 }
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+test('frame search combines sparse membership, deleted frames, chapter edges, and reverse offsets', async () => {
+    const session = createSession({ size: 11, meta: {
+        start_frame: 100, stop_frame: 110, included_frames: [100, 103, 107, 110],
+        deleted_frames: [7],
+        chapters: [{ start: 0, stop: 3 }, { start: 7, stop: 10 }],
+    } });
+    assert.equal(await session.findFrame(1, 9, 0, { notDeleted: true }), 3);
+    assert.equal(await session.findFrame(1, 10, 0, { notDeleted: true, offset: 2 }), 3);
+    assert.equal(await session.findFrame(1, 9, 0, { notDeleted: false }), 7);
+    assert.equal(await session.findFrame(1, 1, 10, { notDeleted: false, chapterMark: true }), 7);
+    assert.equal(await session.findFrame(1, 1, 10, { notDeleted: true, chapterMark: true }), null);
+    assert.equal(await session.findFrame(1, 9, 0, { notDeleted: true, chapterMark: 'stop' }), 3);
+    assert.equal(await session.findFrame(1, 4, 10, { notDeleted: true, chapterMark: 'stop' }), 10);
+});
 
 test('lookaround retains compressed chunks on both sides and reuses a backward boundary', async () => {
     const requested = [];

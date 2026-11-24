@@ -441,6 +441,13 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
         }
     };
 
+    private async findFrame(...args: Parameters<Job['frames']['search']>): Promise<number | null> {
+        const { jobInstance, frameNumber, reverseAnnotation } = this.props;
+        const frame = await jobInstance.frames.search(...args);
+        return this.props.jobInstance === jobInstance && this.props.frameNumber === frameNumber &&
+            this.props.reverseAnnotation === reverseAnnotation ? frame : null;
+    }
+
     private onFirstFrame = async (): Promise<void> => {
         const {
             frameNumber, jobInstance, playing,
@@ -448,7 +455,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
         } = this.props;
 
         const newFrame =
-            await jobInstance.frames.search({ notDeleted: !showDeletedFrames }, jobInstance.startFrame, frameNumber);
+            await this.findFrame({ notDeleted: !showDeletedFrames }, jobInstance.startFrame, frameNumber);
         if (newFrame !== frameNumber && newFrame !== null) {
             if (playing) {
                 onSwitchPlay(false);
@@ -463,7 +470,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
             onSwitchPlay, showDeletedFrames,
         } = this.props;
 
-        const newFrame = await jobInstance.frames.search(
+        const newFrame = await this.findFrame(
             { notDeleted: !showDeletedFrames, offset: frameStep },
             Math.max(jobInstance.startFrame, frameNumber - 1),
             jobInstance.startFrame,
@@ -485,7 +492,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
         const { startFrame } = jobInstance;
 
         const frameFrom = Math.max(jobInstance.startFrame, frameNumber - 1);
-        const newFrame = await jobInstance.frames.search(
+        const newFrame = await this.findFrame(
             { notDeleted: !showDeletedFrames },
             frameFrom,
             jobInstance.startFrame,
@@ -516,7 +523,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
         const { stopFrame } = jobInstance;
 
         const frameFrom = Math.min(jobInstance.stopFrame, frameNumber + 1);
-        const newFrame = await jobInstance.frames.search(
+        const newFrame = await this.findFrame(
             { notDeleted: !showDeletedFrames },
             frameFrom,
             jobInstance.stopFrame,
@@ -544,7 +551,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
             onSwitchPlay, showDeletedFrames,
         } = this.props;
 
-        const newFrame = await jobInstance.frames.search(
+        const newFrame = await this.findFrame(
             { notDeleted: !showDeletedFrames, offset: frameStep },
             Math.min(jobInstance.stopFrame, frameNumber + 1),
             jobInstance.stopFrame,
@@ -565,7 +572,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
         } = this.props;
 
         const newFrame =
-            await jobInstance.frames.search({ notDeleted: !showDeletedFrames }, jobInstance.stopFrame, frameNumber);
+            await this.findFrame({ notDeleted: !showDeletedFrames }, jobInstance.stopFrame, frameNumber);
         if (newFrame !== frameNumber && newFrame !== null) {
             if (playing) {
                 onSwitchPlay(false);
@@ -608,7 +615,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
 
     private readonly selectChapter = async (id: number): Promise<void> => {
         const {
-            chapters, playing, onSwitchPlay,
+            chapters, playing, onSwitchPlay, reverseAnnotation, showDeletedFrames,
         } = this.props;
 
         const selectedChapter = chapters.find((chapter: Chapter) => chapter.id === id) ?? null;
@@ -617,7 +624,10 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
             if (playing) {
                 onSwitchPlay(false);
             }
-            this.changeFrame(selectedChapter.start);
+            const frame = await this.findFrame({ notDeleted: !showDeletedFrames },
+                reverseAnnotation ? selectedChapter.stop : selectedChapter.start,
+                reverseAnnotation ? selectedChapter.start : selectedChapter.stop);
+            if (frame !== null) this.changeFrame(frame);
         }
     };
 
@@ -628,7 +638,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
         if (playing) {
             onSwitchPlay(false);
         }
-        const newFrame = await jobInstance.frames.search(
+        const newFrame = await this.findFrame(
             { notDeleted: !showDeletedFrames },
             Math.min(jobInstance.stopFrame, value),
             reverseAnnotation ? jobInstance.startFrame : jobInstance.stopFrame,
@@ -640,17 +650,17 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
 
     private onChangePlayerInputValue = async (value: number): Promise<void> => {
         const {
-            frameNumber, onSwitchPlay, playing, jobInstance, showDeletedFrames,
+            frameNumber, onSwitchPlay, playing, jobInstance, showDeletedFrames, reverseAnnotation,
         } = this.props;
 
         if (value !== frameNumber) {
             if (playing) {
                 onSwitchPlay(false);
             }
-            const newFrame = await jobInstance.frames.search(
+            const newFrame = await this.findFrame(
                 { notDeleted: !showDeletedFrames },
-                Math.min(jobInstance.stopFrame, value),
-                jobInstance.stopFrame,
+                Math.max(jobInstance.startFrame, Math.min(jobInstance.stopFrame, value)),
+                reverseAnnotation ? jobInstance.startFrame : jobInstance.stopFrame,
             );
             if (newFrame !== null) {
                 this.changeFrame(newFrame);

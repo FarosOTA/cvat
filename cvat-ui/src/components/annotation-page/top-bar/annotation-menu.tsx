@@ -195,6 +195,7 @@ function AnnotationMenuComponent(props: Props): JSX.Element {
         <>
             <RemoveAnnotationsConfirmComponent
                 open={removeAnnotationsConfirmOpen}
+                startFrame={jobInstance.startFrame}
                 stopFrame={stopFrame}
                 onClose={() => setRemoveAnnotationsConfirmOpen(false)}
                 onRemove={(removeFrom, removeUpTo, removeOnlyKeyframes) => {

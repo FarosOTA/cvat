@@ -11,7 +11,7 @@ const vm = require('node:vm');
 const { transformSync } = require('@babel/core');
 
 // Load the real annotation models without a browser or an API server.
-function editor() {
+function editor(frameNumbers = [0, 1, 2], { deleted = [], dimension = '2d' } = {}) {
     const modules = new Map();
     function load(filename) {
         if (modules.has(filename)) return modules.get(filename).exports;
@@ -45,10 +45,11 @@ function editor() {
     const { default: config } = core('config');
     const canvas = load(path.resolve(__dirname, '../../cvat-canvas/src/typescript/canvasModel.ts'));
     const history = new History();
-    const label = new Label({ id: 1, name: 'object', color: '#ffffff', type: 'any', attributes: [] });
     const attribute = (id, mutable) => ({
         id, name: `attribute ${id}`, mutable, input_type: 'text', default_value: '', values: [],
     });
+    const label = new Label({ id: 1, name: 'object', color: '#ffffff', type: 'any',
+        attributes: [attribute(1, true)] });
     const skeleton = new Label({
         id: 2, name: 'skeleton', type: 'skeleton', color: '#ffffff',
         attributes: [attribute(10, false)],
@@ -56,17 +57,165 @@ function editor() {
             attributes: [attribute(20, false), attribute(21, true)] }],
     });
     const collection = new Collection({
-        labels: [label, skeleton], history, stopFrame: 2, dimension: '2d', jobType: 'annotation',
-        framesInfo: { 0: { width: 100, height: 100 }, 1: { width: 100, height: 100 },
-            2: { width: 100, height: 100 }, isFrameDeleted: () => false },
+        labels: [label, skeleton], history, stopFrame: frameNumbers.at(-1), dimension, jobType: 'annotation',
+        framesInfo: { ...Object.fromEntries(frameNumbers.map((frame) => [frame, { width: 100, height: 100 }])),
+            isFrameDeleted: (frame) => deleted.includes(frame) },
     });
     const shape = (type, points, extra = {}) => ({
         type, points, frame: 0, label_id: 1, attributes: [], group: 0, source: 'manual',
         z_order: 0, rotation: 0, occluded: false, outside: false, ...extra,
     });
     const states = () => collection.get(0, false, []);
-    return { collection, history, config, shape, states, ObjectState, canvas, rle: core('rle-utils') };
+    return { collection, history, config, shape, states, ObjectState, label, skeleton, canvas, rle: core('rle-utils') };
 }
+
+test('reverse tracks extend toward the job start, retain their upper boundary, and survive reload and undo', async () => {
+    const { collection, history, ObjectState, label } = editor([50, 53, 57, 60, 63]);
+    collection.put([new ObjectState({ objectType: 'track', shapeType: 'rectangle', label,
+        frame: 60, points: [10, 10, 30, 30] })], true);
+    const at = (frame) => collection.get(frame, false, []).filter((object) => !object.outside);
+    assert.equal(at(50).length, 1);
+    assert.equal(at(57).length, 1);
+    assert.equal(at(63).length, 0, 'the seed must not extend into higher frames');
+    const initial = collection.export();
+    const [state] = at(57);
+    state.points = [15, 15, 25, 25];
+    collection.bulkSave([state], true);
+    assert.deepEqual(at(50)[0].points, [15, 15, 25, 25], 'the unannotated lower tail follows the edit');
+    assert.deepEqual(at(60)[0].points, [10, 10, 30, 30], 'the earlier placement in annotation order stays intact');
+    await history.undo(1);
+    assert.deepEqual(collection.export(), initial);
+    await history.redo(1);
+    const saved = collection.export();
+    const reloaded = editor([50, 53, 57, 60, 63]).collection;
+    reloaded.import(saved);
+    assert.deepEqual(reloaded.get(50, false, [])[0].points, [15, 15, 25, 25]);
+    assert.equal(reloaded.get(63, false, []).filter((object) => !object.outside).length, 0);
+    const [finished] = at(53);
+    finished.outside = true;
+    collection.bulkSave([finished], true);
+    assert.equal(at(50).length, 0);
+    assert.equal(at(53).filter((object) => !object.outside).length, 0);
+    assert.equal(at(57).filter((object) => !object.outside).length, 1);
+    await history.undo(1);
+    assert.deepEqual(collection.export(), saved);
+});
+
+test('backward annotation search returns the nearest interpolated visible frame', () => {
+    const { collection, shape } = editor();
+    collection.import({ tracks: [{ frame: 0, label_id: 1, group: 0, source: 'manual', attributes: [],
+        shapes: [shape('rectangle', [10, 10, 30, 30]),
+            shape('rectangle', [10, 10, 30, 30], { frame: 2, outside: true })] }] });
+    assert.equal(collection.search(2, 0, { allowDeletedFrames: false, annotationsFilters: [] }), 1);
+});
+
+test('reverse interval properties preserve higher frames and permit reappearance across deleted frames', async () => {
+    const { collection, history, ObjectState, label } = editor([50, 51, 53, 55, 57, 60, 63], { deleted: [55] });
+    collection.put([new ObjectState({ objectType: 'track', shapeType: 'rectangle', label,
+        frame: 60, points: [10, 10, 30, 30], attributes: { 1: 'far' } })], true);
+    const at = (frame) => collection.get(frame, true, [])[0];
+    const original = collection.export();
+    const changed = at(53);
+    changed.occluded = true;
+    changed.attributes = { 1: 'near' };
+    collection.bulkSave([changed], true);
+    for (const frame of [50, 51, 53]) {
+        assert.equal(at(frame).occluded, true);
+        assert.equal(at(frame).attributes[1], 'near');
+    }
+    for (const frame of [57, 60]) {
+        assert.equal(at(frame).occluded, false);
+        assert.equal(at(frame).attributes[1], 'far');
+    }
+    await history.undo(1);
+    assert.deepEqual(collection.export(), original);
+    const finished = at(53);
+    finished.outside = true;
+    collection.bulkSave([finished], true);
+    assert.equal(at(50).outside, true);
+    assert.equal(at(57).outside, false);
+    const reappeared = at(51);
+    reappeared.outside = false;
+    reappeared.points = [15, 15, 25, 25];
+    collection.bulkSave([reappeared], true);
+    assert.equal(at(50).outside, false);
+    assert.deepEqual(at(50).points, [15, 15, 25, 25]);
+    assert.equal(at(53).outside, true);
+    assert.equal(at(57).outside, false);
+    const edited = collection.export();
+    collection.bulkSave([at(51)], true);
+    assert.deepEqual(collection.export(), edited, 'no-op reverse saves do not add boundaries');
+});
+
+test('editing an existing track in reverse preserves earlier authored geometry and extends an earliest seed', () => {
+    const { collection, shape } = editor([50, 53, 57, 60, 63]);
+    collection.import({ tracks: [{ frame: 53, label_id: 1, group: 0, source: 'manual', attributes: [],
+        shapes: [shape('rectangle', [10, 10, 30, 30], { frame: 53 }),
+            shape('rectangle', [20, 20, 40, 40], { frame: 60 })] }] });
+    const [state] = collection.get(57, false, []);
+    state.points = [17, 17, 37, 37];
+    collection.bulkSave([state], true);
+    assert.deepEqual(collection.get(53, false, [])[0].points, [10, 10, 30, 30]);
+    assert.deepEqual(collection.get(60, false, [])[0].points, [20, 20, 40, 40]);
+    const [seed] = collection.get(53, false, []);
+    seed.points = [12, 12, 32, 32];
+    collection.bulkSave([seed], true);
+    assert.deepEqual(collection.get(50, false, [])[0].points, [12, 12, 32, 32]);
+});
+
+test('reverse skeleton joints preserve attributes, visibility, geometry, and grouped undo', async () => {
+    const { collection, history, ObjectState, skeleton } = editor([50, 53, 57, 60, 63]);
+    collection.put([new ObjectState({ objectType: 'track', shapeType: 'skeleton', label: skeleton,
+        frame: 60, points: [], elements: [{ objectType: 'track', shapeType: 'points',
+            frame: 60, label: skeleton.structure.sublabels[0], points: [30, 40],
+            attributes: { 20: 'joint', 21: 'old' } }] })], true);
+    const at = (frame) => collection.get(frame, true, [])[0];
+    const before = collection.export();
+    const changed = at(57);
+    changed.elements[0].points = [15, 20];
+    changed.elements[0].attributes = { 20: 'joint', 21: 'new' };
+    collection.bulkSave([changed], true);
+    assert.deepEqual(at(50).elements[0].points, [15, 20]);
+    assert.equal(at(50).elements[0].attributes[21], 'new');
+    assert.deepEqual(at(60).elements[0].points, [30, 40]);
+    assert.equal(at(60).elements[0].attributes[21], 'old');
+    assert.equal(at(63).outside, true);
+    await history.undo(1);
+    assert.deepEqual(collection.export(), before);
+    const finished = at(53);
+    finished.outside = true;
+    collection.bulkSave([finished], true);
+    assert.equal(at(50).outside, true);
+    assert.equal(at(57).outside, false);
+});
+
+test('reverse 3D cuboid tracks extend to lower frames without changing higher poses', () => {
+    const { collection, ObjectState, label } = editor([50, 53, 57, 60, 63], { dimension: '3d' });
+    const points = [1, 2, 3, 0, 0, 0, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0];
+    collection.put([new ObjectState({ objectType: 'track', shapeType: 'cuboid', label,
+        frame: 60, points })], true);
+    const [changed] = collection.get(57, false, []);
+    changed.points = [2, ...points.slice(1)];
+    collection.bulkSave([changed], true);
+    assert.deepEqual(collection.get(50, false, [])[0].points, [2, ...points.slice(1)]);
+    assert.deepEqual(collection.get(60, false, [])[0].points, points);
+    assert.equal(collection.get(63, true, [])[0].outside, true);
+});
+
+test('backward edit propagation changes only the lower side and is undoable', async () => {
+    const { collection, shape, history } = editor();
+    collection.import({ tracks: [{ frame: 0, label_id: 1, group: 0, source: 'manual', attributes: [],
+        shapes: [0, 1, 2].map((frame) => shape('rectangle', [10, 10, 30, 30], { frame })) }] });
+    const [state] = collection.get(1, false, []);
+    collection.transformRectangleTrack(state, { kind: 'canvas-edit', frame: 1,
+        before: [10, 10, 30, 30], after: [14, 10, 34, 30],
+        propagation: { direction: 'backward', radius: 1, exponent: 1, createKeyframes: false } });
+    assert.deepEqual(collection.get(0, false, [])[0].points, [12, 10, 32, 30]);
+    assert.deepEqual(collection.get(1, false, [])[0].points, [14, 10, 34, 30]);
+    assert.deepEqual(collection.get(2, false, [])[0].points, [10, 10, 30, 30]);
+    await history.undo(1);
+    assert.deepEqual(collection.get(0, false, [])[0].points, [10, 10, 30, 30]);
+});
 
 test('mask-to-box covers every foreground pixel without including empty padding', () => {
     const { rle: { rle2Box, mask2Rle } } = editor();

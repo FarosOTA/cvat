@@ -63,17 +63,21 @@ export default class OpenCVTrackerMIL extends BaseCollectionAction {
             return noChanges;
         }
 
-        if (number >= this.#targetFrame) {
-            throw new Error('OpenCV tracking backward is not supported');
-        }
-
+        const reverse = this.#targetFrame < number;
         const frameNumbers = this.#instance instanceof Job ?
             await this.#instance.frames.frameNumbers() : range(0, this.#instance.size);
+        const firstAvailable = this.#instance instanceof Job ? await this.#instance.frames.search(
+            { notDeleted: true }, this.#instance.startFrame, this.#instance.stopFrame,
+        ) : frameNumbers[0];
+        const next = frameNumbers.find((frame) => frame > number);
+        const afterSeed = typeof next === 'number' && this.#instance instanceof Job ?
+            await this.#instance.frames.search({ notDeleted: true }, next, this.#instance.stopFrame) : next;
         const targetFrameNumbers = frameNumbers.filter(
             (frameNumber: number) => frameNumber >= Math.min(number, this.#targetFrame) &&
                 frameNumber <= Math.max(number, this.#targetFrame) &&
                 frameNumber !== number,
         );
+        if (reverse) targetFrameNumbers.reverse();
 
         if (targetFrameNumbers.length === 0) {
             return noChanges;
@@ -120,6 +124,13 @@ export default class OpenCVTrackerMIL extends BaseCollectionAction {
                     }],
                 };
 
+                // Bound a reverse-created track above its seed using ordinary chronological keys.
+                if (reverse && typeof afterSeed === 'number') {
+                    convertedTrack.shapes.push({
+                        ...cloneDeep(convertedTrack.shapes[0]), frame: afterSeed, outside: true,
+                    });
+                }
+
                 tracks.push(convertedTrack);
                 acc[1].push(convertedTrack);
                 acc[2].push(new Proxy(objectState, {
@@ -161,6 +172,14 @@ export default class OpenCVTrackerMIL extends BaseCollectionAction {
             const targetObject = targetObjects[i];
             const targetObjectState = targetObjectStates[i];
             const tracker = this.#openCVWrapper.tracking.trackerMIL.model();
+            const track = targetObjectState.objectType === ObjectType.TRACK ? targetObject as Track : null;
+            const firstShape = track?.shapes.reduce((first, shape) => (shape.frame < first.frame ? shape : first));
+            const hasEarlierKeys = track?.shapes.some(
+                (shape) => shape.frame > firstShape.frame && shape.frame < number,
+            );
+            const extendPrefix = reverse && firstShape && (firstShape.frame === number ||
+                (firstShape.frame === firstAvailable && !hasEarlierKeys &&
+                    firstShape.points.every((point, index) => point === initialShape[index])));
 
             try {
                 let frameData = await this.#instance.frames.get(number);
@@ -195,6 +214,7 @@ export default class OpenCVTrackerMIL extends BaseCollectionAction {
 
                             if (existingShape) {
                                 existingShape.points = points;
+                                existingShape.outside = false;
                             } else {
                                 castedObject.shapes.push({
                                     frame,
@@ -206,6 +226,18 @@ export default class OpenCVTrackerMIL extends BaseCollectionAction {
                                     z_order: targetObjectState.zOrder,
                                     type: targetObjectState.shapeType,
                                 });
+                            }
+                            if (extendPrefix && firstAvailable !== null && frame > firstAvailable) {
+                                const anchor = castedObject.shapes.find((shape) => shape.frame === firstAvailable);
+                                if (anchor) {
+                                    anchor.points = [...points];
+                                } else {
+                                    castedObject.shapes.push({
+                                        ...cloneDeep(firstShape),
+                                        frame: firstAvailable,
+                                        points: [...points],
+                                    });
+                                }
                             }
                         } else {
                             const castedObject = targetObject as Shape;
@@ -231,6 +263,10 @@ export default class OpenCVTrackerMIL extends BaseCollectionAction {
             }
         }
 
+        for (const track of tracks) {
+            track.shapes.sort((a, b) => a.frame - b.frame);
+            track.frame = track.shapes[0].frame;
+        }
         return {
             created: { shapes: trackedShapes, tags: [], tracks },
             deleted: {
@@ -296,11 +332,11 @@ export default class OpenCVTrackerMIL extends BaseCollectionAction {
                     }
                     return [0, instance.size - 1, 1].map((val) => val.toString());
                 },
-                defaultValue: ({ instance }) => {
+                defaultValue: ({ instance, reverse }) => {
                     if (instance instanceof Job) {
-                        return instance.stopFrame.toString();
+                        return (reverse ? instance.startFrame : instance.stopFrame).toString();
                     }
-                    return (instance.size - 1).toString();
+                    return (reverse ? 0 : instance.size - 1).toString();
                 },
             },
         };

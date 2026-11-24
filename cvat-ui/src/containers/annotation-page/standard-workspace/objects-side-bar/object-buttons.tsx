@@ -26,6 +26,7 @@ interface OwnProps {
 
 interface StateToProps {
     objectState: ObjectState;
+    reverseAnnotation: boolean;
     jobInstance: Job;
     frameNumber: number;
     normalizedKeyMap: Record<string, string>;
@@ -65,6 +66,7 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
 
     return {
         objectState,
+        reverseAnnotation: state.settings.player.reverseAnnotation,
         normalizedKeyMap,
         frameNumber,
         editedState,
@@ -218,6 +220,7 @@ class ItemButtonsWrapper extends React.PureComponent<StateToProps & DispatchToPr
         const {
             objectState,
             frameNumber,
+            reverseAnnotation,
             outsideDisabled,
             hiddenDisabled,
             keyframeDisabled,
@@ -237,6 +240,10 @@ class ItemButtonsWrapper extends React.PureComponent<StateToProps & DispatchToPr
             parentID, objectType, shapeType,
             occluded, outside, lock, pinned, hidden, keyframe,
         } = objectState;
+        const firstButton = first === null || first >= frameNumber ? null : this.navigateFirstKeyframe;
+        const previousButton = prev === null ? null : this.navigatePrevKeyframe;
+        const nextButton = next === null ? null : this.navigateNextKeyframe;
+        const lastButton = last === null || last <= frameNumber ? null : this.navigateLastKeyframe;
 
         return (
             <ItemButtonsComponent
@@ -260,10 +267,10 @@ class ItemButtonsWrapper extends React.PureComponent<StateToProps & DispatchToPr
                 outsideDisabled={outsideDisabled}
                 hiddenDisabled={hiddenDisabled}
                 keyframeDisabled={keyframeDisabled || (first === last && keyframe)}
-                navigateFirstKeyframe={first === null || first >= frameNumber ? null : this.navigateFirstKeyframe}
-                navigatePrevKeyframe={prev === null || prev === frameNumber ? null : this.navigatePrevKeyframe}
-                navigateNextKeyframe={next === null || next === frameNumber ? null : this.navigateNextKeyframe}
-                navigateLastKeyframe={last === null || last <= frameNumber ? null : this.navigateLastKeyframe}
+                navigateFirstKeyframe={reverseAnnotation ? lastButton : firstButton}
+                navigatePrevKeyframe={reverseAnnotation ? nextButton : previousButton}
+                navigateNextKeyframe={reverseAnnotation ? previousButton : nextButton}
+                navigateLastKeyframe={reverseAnnotation ? firstButton : lastButton}
                 setOccluded={this.setOccluded}
                 unsetOccluded={this.unsetOccluded}
                 setOutside={this.setOutside}

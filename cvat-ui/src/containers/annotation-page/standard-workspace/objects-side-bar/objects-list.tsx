@@ -53,6 +53,7 @@ import { OBJECTS_SIDEBAR_OPEN_Z_LAYER_EVENT } from 'utils/objects-sidebar';
 
 interface StateToProps {
     jobInstance: any;
+    reverseAnnotation: boolean;
     frameNumber: any;
     statesHidden: boolean;
     statesLocked: boolean;
@@ -289,6 +290,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
     return {
         statesHidden,
+        reverseAnnotation: state.settings.player.reverseAnnotation,
         statesLocked,
         statesCollapsedAll: collapsedAll,
         collapsedStates: collapsed,
@@ -792,7 +794,7 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
                 preventDefault(event);
                 const state = activatedState();
                 if (state && state.keyframes) {
-                    const frame = typeof state.keyframes.next === 'number' ? state.keyframes.next : null;
+                    const frame = state.keyframes[this.props.reverseAnnotation ? 'prev' : 'next'];
                     if (frame !== null && isAbleToChangeFrame(frame)) {
                         changeFrame(frame);
                     }
@@ -802,7 +804,7 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
                 preventDefault(event);
                 const state = activatedState();
                 if (state && state.keyframes) {
-                    const frame = typeof state.keyframes.prev === 'number' ? state.keyframes.prev : null;
+                    const frame = state.keyframes[this.props.reverseAnnotation ? 'next' : 'prev'];
                     if (frame !== null && isAbleToChangeFrame(frame)) {
                         changeFrame(frame);
                     }

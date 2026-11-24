@@ -73,11 +73,11 @@ export class PropagateShapes extends BaseCollectionAction {
                     }
                     return [0, instance.size - 1, 1].map((val) => val.toString());
                 },
-                defaultValue: ({ instance }) => {
+                defaultValue: ({ instance, reverse }) => {
                     if (instance instanceof Job) {
-                        return instance.stopFrame.toString();
+                        return (reverse ? instance.startFrame : instance.stopFrame).toString();
                     }
-                    return (instance.size - 1).toString();
+                    return (reverse ? 0 : instance.size - 1).toString();
                 },
             },
         };

@@ -477,10 +477,87 @@ export class Track extends Drawn {
         );
     }
 
-    public save(frame: number, data: ObjectState): ObjectState {
+    private saveBackward(frame: number, data: ObjectState): ObjectState {
+        const flags = { ...data.updateFlags };
+        this.readOnlyFields.forEach((field) => { delete flags[field]; });
+        const frames = Object.keys(this.framesInfo).map(Number)
+            .filter((value) => Number.isInteger(value) && !this.framesInfo.isFrameDeleted(value))
+            .sort((a, b) => a - b);
+        const before = this.get(frame);
+        const { first, prev } = this.boundedKeyframes(frame);
+        const firstState = this.get(first);
+        // A constant prefix at the job boundary represents backward extrapolation. Move its anchor
+        // with the earliest edit; leave genuine earlier geometry keyframes intact.
+        const prefix = first === frames[0] && (prev === first || frame === first || prev === null) &&
+            firstState.outside === before.outside && firstState.rotation === before.rotation &&
+            JSON.stringify(firstState.points) === JSON.stringify(before.points);
+        const lower = prefix || prev === null ? frames[0] : frames.find((value) => value > prev);
+        const higher = frames.find((value) => value > frame);
+        const higherState = typeof higher === 'number' ? this.get(higher) : null;
+        const lowerState = typeof lower === 'number' ? this.get(lower) : null;
+        const mutable = this.label.attributes.filter((attribute) => attribute.mutable && flags.attributes &&
+            before.attributes[attribute.id] !== data.attributes[attribute.id]).map((attribute) => attribute.id);
+        const ownsTransaction = this.history.beginTransaction(HistoryActions.CHANGED_OBJECTS);
+        try {
+            Track.prototype.save.call(this, frame, data);
+            const saved = this.get(frame);
+            const undo = { ...this.shapes };
+            const redo = { ...this.shapes };
+            if ((prefix || prev === null) && lowerState && lower < frame &&
+                (flags.points || flags.rotation) && !saved.outside) {
+                redo[lower] = copyShape(saved, {
+                    ...redo[lower],
+                    ...(flags.points ? { points: saved.points } : {}),
+                    ...(flags.rotation ? { rotation: saved.rotation } : {}),
+                });
+                if (!undo[lower]) {
+                    redo[lower].attributes = new Map(this.label.attributes.filter((attribute) => attribute.mutable)
+                        .map((attribute) => [attribute.id, saved.attributes[attribute.id]]));
+                }
+            }
+            if (flags.outside || flags.occluded || mutable.length) {
+                // Step-valued properties carry toward lower frames. Preserve the upper side at the
+                // next available frame, using its post-edit geometry so interpolation still works.
+                if (higherState) {
+                    const restore = copyShape(this.get(higher), {
+                        ...redo[higher],
+                        ...(flags.outside ? { outside: higherState.outside } : {}),
+                        ...(flags.occluded ? { occluded: higherState.occluded } : {}),
+                        attributes: new Map(redo[higher]?.attributes),
+                    });
+                    mutable.forEach((id) => restore.attributes.set(id, higherState.attributes[id]));
+                    redo[higher] = restore;
+                }
+                if (lowerState && lower < frame) {
+                    const changed = copyShape(lowerState, {
+                        ...redo[lower],
+                        ...(flags.outside ? { outside: saved.outside } : {}),
+                        ...(flags.occluded ? { occluded: saved.occluded } : {}),
+                        attributes: new Map(redo[lower]?.attributes),
+                    });
+                    mutable.forEach((id) => changed.attributes.set(id, saved.attributes[id]));
+                    redo[lower] = changed;
+                }
+            }
+            if (Object.keys(redo).some((key) => redo[key] !== undo[key])) {
+                this.shapes = redo;
+                this.history.do(HistoryActions.CHANGED_OBJECTS,
+                    () => { this.shapes = undo; this.updated = Date.now(); },
+                    () => { this.shapes = redo; this.updated = Date.now(); },
+                    [this.clientID], frame);
+            }
+            return new ObjectState(this.get(frame));
+        } finally {
+            if (ownsTransaction) this.history.endTransaction();
+        }
+    }
+
+    public save(frame: number, data: ObjectState, reverse = false): ObjectState {
         if (this.lock && data.lock) {
             return new ObjectState(this.get(frame));
         }
+
+        if (reverse) return this.saveBackward(frame, data);
 
         const updated = data.updateFlags;
         for (const readOnlyField of this.readOnlyFields) {

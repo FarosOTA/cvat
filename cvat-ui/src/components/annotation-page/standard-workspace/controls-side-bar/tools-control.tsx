@@ -60,6 +60,7 @@ import ToolsTooltips from './interactor-tooltips';
 
 interface StateToProps {
     canvasInstance: Canvas;
+    reverseAnnotation: boolean;
     drawing: CombinedState['annotation']['drawing'];
     labels: Label[];
     states: ObjectState[];
@@ -126,6 +127,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
     return {
         interactors,
+        reverseAnnotation: state.settings.player.reverseAnnotation,
         detectors,
         trackers,
         isActivated: activeControl === ActiveControl.AI_TOOLS,
@@ -158,6 +160,7 @@ const mapDispatchToProps = {
 type Props = StateToProps & DispatchToProps;
 interface TrackedShape {
     clientID: number;
+    frame: number;
     serverlessState: any;
     shapePoints: number[];
     trackerModel: MLModel;
@@ -323,6 +326,11 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
     }
 
     public componentDidUpdate(prevProps: Props, prevState: State): void {
+        if (prevProps.reverseAnnotation !== this.props.reverseAnnotation) {
+            this.setState(({ trackedShapes }) => ({
+                trackedShapes: trackedShapes.map((shape) => ({ ...shape, serverlessState: null })),
+            }));
+        }
         const {
             isActivated, defaultApproxPolyAccuracy, states, toolsBlockerState, jobInstance, drawing,
         } = this.props;
@@ -681,12 +689,13 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                 })
             ));
 
-            const clientIDs = await jobInstance.annotations.put(states);
+            const clientIDs = await jobInstance.annotations.put(states, this.props.reverseAnnotation);
             this.setState({
                 trackedShapes: [
                     ...trackedShapes,
                     ...clientIDs.map((clientID: number, index: number): TrackedShape => ({
                         clientID,
+                        frame,
                         serverlessState: null,
                         shapePoints: states[index].points!,
                         trackerModel: activeTracker,
@@ -842,7 +851,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
     }
 
     private collectTrackerPortals(): React.ReactPortal[] {
-        const { states, fetchAnnotations } = this.props;
+        const { states, fetchAnnotations, jobInstance } = this.props;
         const { trackedShapes, activeTracker } = this.state;
 
         const trackedClientIDs = trackedShapes.map((trackedShape: TrackedShape) => trackedShape.clientID);
@@ -886,12 +895,18 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                                             onClick={() => {
                                                 objectState.descriptions = [`Trackable (${activeTracker.name})`];
                                                 objectState.keyframe = true;
-                                                objectState.save().then(() => {
+                                                if (this.props.reverseAnnotation) {
+                                                    objectState.points = [...objectState.points];
+                                                }
+                                                jobInstance.annotations.bulkSave(
+                                                    [objectState], this.props.reverseAnnotation,
+                                                ).then(() => {
                                                     this.setState({
                                                         trackedShapes: [
                                                             ...trackedShapes,
                                                             {
                                                                 clientID,
+                                                                frame: objectState.frame,
                                                                 serverlessState: null,
                                                                 shapePoints: objectState.points,
                                                                 trackerModel: activeTracker,
@@ -919,6 +934,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
     private async checkTrackedStates(prevProps: Props): Promise<void> {
         const {
             frame,
+            reverseAnnotation,
             jobInstance,
             states: objectStates,
             trackers,
@@ -941,7 +957,14 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
             }>;
         };
 
-        if (prevProps.frame !== frame && trackedShapes.length) {
+        if (prevProps.frame !== frame && trackedShapes.length && prevProps.reverseAnnotation === reverseAnnotation) {
+            const candidate = prevProps.frame + (reverseAnnotation ? -1 : 1);
+            if (candidate < jobInstance.startFrame || candidate > jobInstance.stopFrame) return;
+            const adjacent = await jobInstance.frames.search(
+                { notDeleted: true }, candidate, reverseAnnotation ? jobInstance.startFrame : jobInstance.stopFrame,
+            );
+            if (adjacent !== frame || this.props.frame !== frame ||
+                this.props.reverseAnnotation !== reverseAnnotation) return;
             // 1. find all trackable objects on the current frame
             // 2. divide them into two groups: with relevant state, without relevant state
             const trackingData = trackedShapes.reduce<AccumulatorType>(
@@ -950,21 +973,21 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                         serverlessState, shapePoints, clientID, trackerModel,
                     } = trackedShape;
                     const clientState = objectStates.find((_state): boolean => _state.clientID === clientID);
-                    const keyframes = clientState?.keyframes;
+                    const sourceState = prevProps.states.find((_state): boolean => _state.clientID === clientID);
 
                     if (
-                        !clientState || !keyframes ||
-                        keyframes?.prev !== frame - 1 ||
-                        (typeof keyframes?.last === 'number' && keyframes?.last >= frame)
+                        !clientState || clientState.lock || !sourceState || sourceState.outside ||
+                        (clientState.keyframe && !(reverseAnnotation && frame === clientState.keyframes.first &&
+                            clientState.points.every((point, index) => point === sourceState.points[index])))
                     ) {
                         return acc;
                     }
 
                     if (clientState && !clientState.outside) {
-                        const points = clientState.points as number[];
+                        const points = sourceState.points as number[];
                         withServerRequest = true;
                         const stateIsRelevant =
-                            serverlessState !== null &&
+                            serverlessState !== null && trackedShape.frame === prevProps.frame &&
                             points.length === shapePoints.length &&
                             points.every((coord: number, i: number) => coord === shapePoints[i]);
                         if (stateIsRelevant) {
@@ -1020,7 +1043,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
 
                         const response = await core.lambda.call(jobInstance.taskId, tracker, {
                             type: 'init_tracking',
-                            frame: frame - 1,
+                            frame: prevProps.frame,
                             shapes: trackableObjects.shapes,
                             job: jobInstance.id,
                         }) as TrackerResults;
@@ -1049,6 +1072,8 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                 }
 
                 for (const [trackerID, trackableObjects] of trackingData.stateful) {
+                    if (this.props.jobInstance !== jobInstance || this.props.frame !== frame ||
+                        this.props.reverseAnnotation !== reverseAnnotation) break;
                     // 4. run tracking for all the objects
                     let hideMessage = null;
                     try {
@@ -1073,6 +1098,9 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                             job: jobInstance.id,
                         }) as TrackerResults;
 
+                        if (this.props.jobInstance !== jobInstance || this.props.frame !== frame ||
+                            this.props.reverseAnnotation !== reverseAnnotation) continue;
+
                         response.shapes = response.shapes.map(trackedRectangleMapper);
                         for (let i = 0; i < trackableObjects.clientIDs.length; i++) {
                             const clientID = trackableObjects.clientIDs[i];
@@ -1085,10 +1113,10 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                                 (_trackedShape: TrackedShape) => _trackedShape.clientID === clientID,
                             );
                             objectState.points = shape.points;
-                            objectState.save().then(() => {
-                                trackedShape.serverlessState = state;
-                                trackedShape.shapePoints = shape.points;
-                            });
+                            await jobInstance.annotations.bulkSave([objectState], reverseAnnotation);
+                            trackedShape.serverlessState = state;
+                            trackedShape.shapePoints = shape.points;
+                            trackedShape.frame = frame;
                         }
                     } catch (error: any) {
                         notification.error({
@@ -1297,7 +1325,8 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                             type='primary'
                             loading={fetching}
                             className='cvat-tools-track-button'
-                            disabled={!activeTracker || fetching || frame === jobInstance.stopFrame}
+                            disabled={!activeTracker || fetching || frame ===
+                                (this.props.reverseAnnotation ? jobInstance.startFrame : jobInstance.stopFrame)}
                             onClick={() => {
                                 if (activeTracker && activeLabelID) {
                                     const { onSwitchToolsBlockerState } = this.props;

@@ -1297,8 +1297,9 @@ export default class Collection {
         return new Statistics(labels, total);
     }
 
-    public put(annotationStates: AnnotationState[]): number[] {
+    public put(annotationStates: AnnotationState[], reverse = false): number[] {
         checkObjectType('shapes for put', annotationStates, null, { cls: Array, name: 'Array' });
+        checkObjectType('reverse', reverse, 'boolean');
         const constructed = {
             shapes: [],
             tracks: [],
@@ -1446,6 +1447,25 @@ export default class Collection {
                     throw new ArgumentError('Object type must be one of SHAPE, TRACK, or TAG');
                 }
             }
+        }
+
+        if (reverse) {
+            const frames = this.searchFrameNumbers(0, this.stopFrame, false);
+            const extendBackward = (track: SerializedTrack | SerializedTrack['elements'][0]): void => {
+                const [seed] = track.shapes;
+                const first = frames.find((frame) => frame <= seed.frame);
+                const after = frames.find((frame) => frame > seed.frame);
+                if (typeof first === 'number' && first < seed.frame) {
+                    track.shapes.unshift({ ..._.cloneDeep(seed), frame: first });
+                    // eslint-disable-next-line no-param-reassign
+                    track.frame = first;
+                }
+                if (typeof after === 'number') {
+                    track.shapes.push({ ..._.cloneDeep(seed), frame: after, outside: true });
+                }
+                if ('elements' in track) track.elements?.forEach(extendBackward);
+            };
+            constructed.tracks.forEach(extendBackward);
         }
 
         // Add constructed objects to a collection
@@ -1709,8 +1729,9 @@ export default class Collection {
         };
     }
 
-    public bulkSave(states: AnnotationState[]): void {
+    public bulkSave(states: AnnotationState[], reverse = false): void {
         checkObjectType('states', states, null, { cls: Array, name: 'Array' });
+        checkObjectType('reverse', reverse, 'boolean');
         states.forEach((state) => {
             if (!(state instanceof ObjectState || state instanceof AudioIntervalState)) {
                 throw new ArgumentError('Only annotation states can be saved');
@@ -1726,8 +1747,10 @@ export default class Collection {
                 const object = state.clientID === null ? null : this.objects[state.clientID];
                 if (state instanceof AudioIntervalState && object instanceof AudioInterval) {
                     object.save(state);
+                } else if (state instanceof ObjectState && object instanceof Track) {
+                    object.save(state.frame, state, reverse);
                 } else if (state instanceof ObjectState &&
-                    (object instanceof Shape || object instanceof Track || object instanceof Tag)) {
+                    (object instanceof Shape || object instanceof Tag)) {
                     object.save(state.frame, state);
                 } else {
                     throw new ArgumentError(`Invalid annotation state for client ID ${state.clientID}`);
@@ -1784,12 +1807,8 @@ export default class Collection {
             const filteredTracks = this.tracks.filter((track) => !track.removed);
             let found = false;
             for (const track of filteredTracks) {
-                const keyframes = track.boundedKeyframes(frame);
-                const { prev, first } = keyframes;
-                const last = prev === null ? first : prev;
-                const lastShape = track.shapes[last];
-                const isKeyfame = frame in track.shapes;
-                if (first <= frame && (!lastShape.outside || isKeyfame)) {
+                const state = track.get(frame);
+                if (!state.outside || state.keyframe) {
                     found = true;
                     break;
                 }
@@ -1834,18 +1853,9 @@ export default class Collection {
             return frameNumbers[0] ?? null;
         }
 
-        const filtersStr = JSON.stringify(annotationsFilters);
-        const linearSearch = filtersStr.match(/"var":"width"/) ||
-            filtersStr.match(/"var":"height"/) ||
-            filtersStr.match(/"var":"rotation"/) ||
-            filtersStr.match(/"var":"zOrder"/);
-        const firstFrame = frameNumbers[0];
-        const lastFrame = frameNumbers[frameNumbers.length - 1];
-
         for (const frame of frameNumbers) {
-            // First prepare all data for the frame
-            // Consider all shapes, tags, and not outside tracks that have keyframe here
-            // In particular consider first and last frame as keyframes for all tracks
+            // Visibility can change between stored keys when searching backward across an outside key.
+            // Evaluate actual states so both directions return the nearest qualifying frame.
             const statesData = [].concat(
                 (frame in this.shapes ? this.shapes[frame] : [])
                     .filter((shape) => !shape.removed)
@@ -1855,9 +1865,6 @@ export default class Collection {
                     .map((tag) => tag.get(frame)),
             );
             const tracks = Object.values(this.tracks)
-                .filter((track) => (
-                    frame in track.shapes || frame === firstFrame ||
-                    frame === lastFrame || linearSearch))
                 .filter((track) => !track.removed);
             statesData.push(...tracks.map((track) => track.get(frame)).filter((state) => !state.outside));
 

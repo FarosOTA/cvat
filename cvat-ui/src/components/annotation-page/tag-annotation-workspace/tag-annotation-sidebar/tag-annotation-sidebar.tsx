@@ -30,6 +30,7 @@ import { CombinedState } from 'reducers';
 import { filterApplicableForType } from 'utils/filter-applicable-labels';
 import LabelSelector from 'components/label-selector/label-selector';
 import isAbleToChangeFrame from 'utils/is-able-to-change-frame';
+import { getCVATStore } from 'cvat-store';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
 import { ShortcutScope } from 'utils/enums';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
@@ -47,6 +48,7 @@ interface StateToProps {
     normalizedKeyMap: Record<string, string>;
     frameData: FrameData;
     showDeletedFrames: boolean;
+    reverseAnnotation: boolean;
 }
 
 interface DispatchToProps {
@@ -80,6 +82,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         normalizedKeyMap,
         frameData,
         showDeletedFrames,
+        reverseAnnotation: state.settings.player.reverseAnnotation,
     };
 }
 
@@ -124,6 +127,7 @@ function TagAnnotationSidebar(props: StateToProps & DispatchToProps): JSX.Elemen
         keyMap,
         frameData,
         showDeletedFrames,
+        reverseAnnotation,
     } = props;
 
     const preventDefault = (event: KeyboardEvent | undefined): void => {
@@ -202,12 +206,16 @@ function TagAnnotationSidebar(props: StateToProps & DispatchToProps): JSX.Elemen
     }, [frameTags]);
 
     const onChangeFrame = async (): Promise<void> => {
+        const candidate = frameNumber + (reverseAnnotation ? -1 : 1);
+        if (candidate < jobInstance.startFrame || candidate > jobInstance.stopFrame) return;
         const frame = await jobInstance.frames.search(
             { notDeleted: !showDeletedFrames },
-            frameNumber + 1,
-            jobInstance.stopFrame,
+            candidate,
+            reverseAnnotation ? jobInstance.startFrame : jobInstance.stopFrame,
         );
-        if (frame !== null && isAbleToChangeFrame(frame)) {
+        const current = getCVATStore().getState();
+        if (frame !== null && current.annotation.player.frame.number === frameNumber &&
+            current.settings.player.reverseAnnotation === reverseAnnotation && isAbleToChangeFrame(frame)) {
             changeFrame(frame);
         }
     };
@@ -228,7 +236,7 @@ function TagAnnotationSidebar(props: StateToProps & DispatchToProps): JSX.Elemen
                 onChangeFrame();
             }
         }
-    }, [frameTags, skipFrame]);
+    }, [frameTags, skipFrame, reverseAnnotation, showDeletedFrames, frameNumber]);
 
     const onShortcutPress = useCallback((labelID: number) => {
         if (frameTags.some((tag: ObjectState) => tag.label.id === labelID)) {

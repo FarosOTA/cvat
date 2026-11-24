@@ -260,24 +260,37 @@ export class SkeletonTrack extends Track {
         return boundedKeyframes;
     }
 
-    public save(frame: number, data: ObjectState): ObjectState {
+    public save(frame: number, data: ObjectState, reverse = false): ObjectState {
         if (this.lock && data.lock) {
             return new ObjectState(this.get(frame));
         }
 
+        if (reverse && data.updateFlags.rotation) {
+            const points = data.elements.flatMap((element) => element.points);
+            const bbox = computeWrappingBox(points);
+            const [cx, cy] = [bbox.x + bbox.width / 2, bbox.y + bbox.height / 2];
+            data.elements.forEach((element) => {
+                element.points = rotatePoint(element.points[0], element.points[1], data.rotation, cx, cy);
+            });
+            // Rotation is represented by the joint coordinates, just as in forward mode.
+            // eslint-disable-next-line no-param-reassign
+            data.updateFlags.rotation = false;
+        }
+
         const updateElements = (affectedElements, action, property: 'hidden' | 'lock' | null = null): void => {
             const undoSkeletonProperties = this.elements.map((element) => element[property] || null);
-            const undoSkeletonShapes = this.elements.map((element) => element.shapes[frame]);
+            const undoSkeletonShapes = this.elements.map((element) => ({ ...element.shapes }));
+            const undoAttributes = this.elements.map((element) => new Map(element.attributes));
             const undoSource = this.source;
             const redoSource = this.readOnlyFields.includes('source') ? this.source : computeNewSource(this.source);
 
             const errors = [];
             try {
                 this.history.freeze(true);
-                affectedElements.forEach((element, idx) => {
+                affectedElements.forEach((element) => {
                     try {
-                        const annotationContext = this.elements[idx];
-                        annotationContext.save(frame, element);
+                        const annotationContext = this.elements.find((item) => item.clientID === element.clientID);
+                        annotationContext.save(frame, element, reverse);
                     } catch (error: any) {
                         errors.push(error);
                     }
@@ -287,7 +300,8 @@ export class SkeletonTrack extends Track {
             }
 
             const redoSkeletonProperties = this.elements.map((element) => element[property] || null);
-            const redoSkeletonShapes = this.elements.map((element) => element.shapes[frame]);
+            const redoSkeletonShapes = this.elements.map((element) => ({ ...element.shapes }));
+            const redoAttributes = this.elements.map((element) => new Map(element.attributes));
 
             this.history.do(
                 action,
@@ -295,11 +309,9 @@ export class SkeletonTrack extends Track {
                     for (let i = 0; i < this.elements.length; i++) {
                         if (property) {
                             this.elements[i][property] = undoSkeletonProperties[i];
-                        } if (undoSkeletonShapes[i]) {
-                            this.elements[i].shapes[frame] = undoSkeletonShapes[i];
-                        } else if (redoSkeletonShapes[i]) {
-                            delete this.elements[i].shapes[frame];
                         }
+                        this.elements[i].shapes = undoSkeletonShapes[i];
+                        this.elements[i].attributes = undoAttributes[i];
                         this.elements[i].updated = Date.now();
                     }
                     this.source = undoSource;
@@ -309,11 +321,9 @@ export class SkeletonTrack extends Track {
                     for (let i = 0; i < this.elements.length; i++) {
                         if (property) {
                             this.elements[i][property] = redoSkeletonProperties[i];
-                        } else if (redoSkeletonShapes[i]) {
-                            this.elements[i].shapes[frame] = redoSkeletonShapes[i];
-                        } else if (undoSkeletonShapes[i]) {
-                            delete this.elements[i].shapes[frame];
                         }
+                        this.elements[i].shapes = redoSkeletonShapes[i];
+                        this.elements[i].attributes = redoAttributes[i];
                         this.elements[i].updated = Date.now();
                     }
                     this.source = redoSource;
@@ -328,6 +338,10 @@ export class SkeletonTrack extends Track {
             }
         };
 
+        const updatedAttributes = data.elements.filter((el) => el.updateFlags.attributes);
+        if (updatedAttributes.length) {
+            updateElements(updatedAttributes, HistoryActions.CHANGED_ATTRIBUTES);
+        }
         const updatedPoints = data.elements.filter((el) => el.updateFlags.points);
         const updatedOccluded = data.elements.filter((el) => el.updateFlags.occluded);
         const updatedOutside = data.elements.filter((el) => el.updateFlags.outside);
@@ -375,7 +389,7 @@ export class SkeletonTrack extends Track {
             updateElements(updatedLock, HistoryActions.CHANGED_LOCK, 'lock');
         }
 
-        const result = Track.prototype.save.call(this, frame, data);
+        const result = Track.prototype.save.call(this, frame, data, reverse);
         return result;
     }
 

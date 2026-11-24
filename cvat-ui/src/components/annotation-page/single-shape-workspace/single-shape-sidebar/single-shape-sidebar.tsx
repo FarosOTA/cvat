@@ -91,7 +91,7 @@ export const actionCreators = {
             labelType: type,
         })
     ),
-    setNextFrame: (nextFrame: number | null) => (
+    setNextFrame: (nextFrame: number | null | undefined) => (
         createAction(ReducerActionType.SET_NEXT_FRAME, {
             nextFrame,
         })
@@ -103,7 +103,7 @@ export const actionCreators = {
 
 interface State {
     autoNextFrame: boolean;
-    nextFrame: number | null;
+    nextFrame: number | null | undefined;
     saveOnFinish: boolean;
     pointsCountIsPredefined: boolean;
     pointsCount: number;
@@ -219,10 +219,12 @@ function SingleShapeSidebar(): JSX.Element {
         editedState,
         activeControl,
         activeObjectHidden,
+        reverseAnnotation,
     } = useSelector((_state: CombinedState) => ({
         isCanvasReady: _state.annotation.canvas.ready,
         jobInstance: _state.annotation.job.instance as Job,
         frame: _state.annotation.player.frame.number,
+        reverseAnnotation: _state.settings.player.reverseAnnotation,
         normalizedKeyMap: _state.shortcuts.normalizedKeyMap,
         keyMap: _state.shortcuts.keyMap,
         defaultLabel: _state.annotation.job.queryParameters.defaultLabel,
@@ -237,7 +239,7 @@ function SingleShapeSidebar(): JSX.Element {
 
     const [state, dispatch] = useReducer(reducer, {
         autoNextFrame: true,
-        nextFrame: null,
+        nextFrame: undefined,
         saveOnFinish: true,
         pointsCountIsPredefined: defaultPointsCount !== null,
         pointsCount: defaultPointsCount ?? 1,
@@ -276,28 +278,40 @@ function SingleShapeSidebar(): JSX.Element {
         }
     };
 
-    const getNextFrame = useCallback(() => {
-        if (frame + 1 > jobInstance.stopFrame) {
+    const getNextFrame = useCallback(async (): Promise<number | null> => {
+        dispatch(actionCreators.setNextFrame(undefined));
+        const candidate = frame + (reverseAnnotation ? -1 : 1);
+        if (candidate < jobInstance.startFrame || candidate > jobInstance.stopFrame) {
             dispatch(actionCreators.setNextFrame(null));
-            return;
+            return null;
         }
 
-        jobInstance.annotations.search(frame + 1, jobInstance.stopFrame, {
-            allowDeletedFrames: false,
-            ...(navigationType === NavigationType.EMPTY ? {
-                generalFilters: {
-                    isEmptyFrame: true,
-                },
-            } : {}),
-        }).then((_frame: number | null) => {
-            dispatch(actionCreators.setNextFrame(_frame));
-        });
+        const nextFrame = await jobInstance.annotations.search(
+            candidate, reverseAnnotation ? jobInstance.startFrame : jobInstance.stopFrame, {
+                allowDeletedFrames: false,
+                ...(navigationType === NavigationType.EMPTY ? {
+                    generalFilters: {
+                        isEmptyFrame: true,
+                    },
+                } : {}),
+            },
+        );
+        const current = store.getState();
+        if (current.annotation.player.frame.number === frame &&
+            current.settings.player.reverseAnnotation === reverseAnnotation) {
+            dispatch(actionCreators.setNextFrame(nextFrame));
+        }
+        return nextFrame;
         // implicitly depends on annotations because may use notEmpty filter
-    }, [jobInstance, navigationType, frame, annotations]);
+    }, [jobInstance, navigationType, frame, annotations, reverseAnnotation]);
 
-    const finishOnThisFrame = useCallback((forceSave = false): void => {
-        if (typeof state.nextFrame === 'number') {
-            appDispatch(changeFrameAsync(state.nextFrame));
+    const finishOnThisFrame = useCallback(async (forceSave = false): Promise<void> => {
+        const nextFrame = await getNextFrame();
+        const current = store.getState();
+        if (unmountedRef.current || current.annotation.player.frame.number !== frame ||
+            current.settings.player.reverseAnnotation !== reverseAnnotation) return;
+        if (typeof nextFrame === 'number') {
+            appDispatch(changeFrameAsync(nextFrame));
         } else if ((forceSave || state.saveOnFinish) && !savingRef.current) {
             const finishDrawing = finishDrawAvailable(activeControl);
             if (finishDrawing) {
@@ -320,7 +334,7 @@ function SingleShapeSidebar(): JSX.Element {
                 savingRef.current = false;
             });
         }
-    }, [state.saveOnFinish, state.nextFrame, jobInstance, activeControl]);
+    }, [state.saveOnFinish, getNextFrame, jobInstance, activeControl, frame, reverseAnnotation]);
 
     useEffect(() => {
         const defaultLabelInstance = defaultLabel ? state.labels
@@ -466,8 +480,12 @@ function SingleShapeSidebar(): JSX.Element {
                         />
                         <Row justify='start' className='cvat-single-shape-annotation-sidebar-finish-frame-wrapper'>
                             <Col>
-                                {typeof state.nextFrame === 'number' ? (
-                                    <Button size='large' onClick={() => finishOnThisFrame(false)}>
+                                {state.nextFrame !== null ? (
+                                    <Button
+                                        size='large'
+                                        disabled={state.nextFrame === undefined}
+                                        onClick={() => finishOnThisFrame(false)}
+                                    >
                                         Skip
                                     </Button>
                                 ) : (
@@ -482,7 +500,7 @@ function SingleShapeSidebar(): JSX.Element {
                             className='cvat-single-shape-annotation-sidebar-ux-hints'
                             message={(
                                 <ul>
-                                    { typeof state.nextFrame === 'number' ? (
+                                    { state.nextFrame !== null ? (
                                         <li>
                                             <Text>
                                                 Click

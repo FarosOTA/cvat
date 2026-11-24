@@ -77,7 +77,7 @@ export type RectangleTrackTransformRequest =
         before: RectanglePoints;
         after: RectanglePoints;
         propagation: {
-            direction: 'forward' | 'both';
+            direction: 'forward' | 'backward' | 'both';
             radius: number;
             exponent: number;
             createKeyframes: boolean;

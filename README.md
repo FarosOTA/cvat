@@ -74,11 +74,11 @@ Default shortcuts (customizable through CVAT's shortcut settings):
 The annotation-frame shortcuts search annotations, not just rectangle-track keyframes.
 In the **2D canvas**, newly appearing small boxes receive a subtle **220 ms** brightness halo,
 without thickening their outlines or changing their geometry, selection, or saved styling.
-Both dimensions must be at most **32 screen pixels at the current zoom**. Tracks qualify only on
-their **first keyframe**; later frames and reappearances do not flash. A box does not flash if a
-similar box occupied the preceding video frame, even with a different annotation ID or label:
+Both dimensions must be at most **32 screen pixels at the current zoom**. Tracks can flash when
+first encountered or reappearing. A box does not flash if a similar box occupied the preceding
+available frame in annotation order, even with a different annotation ID or label:
 similarity means at least **50% intersection over union** of their rotation-aware bounding areas.
-The comparison uses the actual preceding frame, including when seeking or skipping frames.
+The comparison uses that neighbor even when seeking or skipping frames, respecting deleted-frame visibility.
 **Settings → Workspace → Flash annotations** enables this effect (**on by default**), and the
 preference is saved in the browser. Turning it off also cancels an active flash. Ordinary same-frame
 edits do not restart it; hidden and outside annotations and non-box shapes do not flash.
@@ -445,11 +445,32 @@ as an empty model catalog; other failures are reported rather than hidden.
   **F** advances to a lower frame number; **D** returns to a higher one. **V** jumps toward lower
   numbers by the configured Player step, and **C** jumps toward higher numbers. Their toolbar buttons,
   first/last controls, annotation/chapter searches, and annotation-frame timeline shortcuts follow
-  this order too. Numeric frame entry still goes to the original frame number.
+  this order too. **R/E**, object keyframe buttons, track start/end, and issue/conflict navigation also
+  follow annotation order. Chapter menus run in reverse and enter at the chapter's last available frame.
+  Numeric frame entry still uses original IDs; an unavailable target resolves toward lower frames.
   **Play / Space** plays toward lower numbers; **Shift + Space** plays in the opposite direction.
   Auto advance, Auto advance on modification, and **Ctrl + N** also follow the selected order.
   Navigation retains deleted-frame skipping and stops at the job boundaries; it does not wrap.
-  Use the first-frame button to start at the highest available frame. Audio is unchanged.
+  New sessions start at the highest available frame; explicit frame links and resume positions win.
+  Tag auto-next, Single shape drawing/Skip/completion, and deleting a frame prefer lower frames too.
+  Audio is unchanged.
+- **Reverse track authoring:** New tracks, including skeletons and 3D cuboids, extend toward the
+  earliest available job frame and are outside above their seed. Moving the earliest placement moves
+  the constant lower tail; existing earlier, differing geometry keys remain intact. Editing an existing
+  track's earliest placement in reverse also extends it backward. Outside, occlusion, and mutable
+  attributes apply toward lower frames up to the previous key boundary; higher frames retain their
+  prior values. Marking Outside therefore finishes the backward part, not the higher part already reviewed.
+  Auto advance can continue the same track, including skeleton joints and their attributes.
+  Switching direction clears continuation without rewriting saved annotations. Undo/redo, split/merge,
+  numeric annotation-removal ranges, and exports remain chronological; no server migration is needed.
+- **Reverse propagation and tracking:** **Forward** rectangle-edit propagation means lower frames in
+  reverse mode; **Both** still affects both sides. Copy propagation reverses its defaults, arrows, and
+  slider, and counts actual copies on available frames (including deleted frames only when shown).
+  Bulk action targets and “From current”/“Up to current” presets follow the selected order.
+  OpenCV MIL processes frames in descending order for lower targets. AI tracking initializes from the
+  actual previous available frame and tracks toward lower frames, including across deleted-frame gaps;
+  it requires a deployed compatible tracker. Changing direction discards pending old-direction movement
+  and tracker results. This mode does not reverse audio, spatial transforms, or annotation IDs.
 - **Reverse playback shortcut:** Without Reverse annotation, **Shift + Space** plays frames backward
   and **Space** starts forward playback at the configured player speed. Either shortcut pauses active
   playback; after pausing, use the shortcut for the desired direction to resume. Playback stops at the

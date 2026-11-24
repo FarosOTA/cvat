@@ -40,6 +40,10 @@ export default function IssuesListComponent(): JSX.Element {
         workspace,
         ready,
         activeControl,
+        reverseAnnotation,
+        availableFrames,
+        deletedFrames,
+        showDeletedFrames,
     } = useSelector((state: CombinedState) => ({
         frame: state.annotation.player.frame.number,
         frameIssues: state.review.frameIssues,
@@ -53,6 +57,10 @@ export default function IssuesListComponent(): JSX.Element {
         workspace: state.annotation.workspace,
         ready: state.annotation.canvas.ready,
         activeControl: state.annotation.canvas.activeControl,
+        reverseAnnotation: state.settings.player.reverseAnnotation,
+        availableFrames: state.annotation.job.frameNumbers,
+        deletedFrames: state.annotation.job.meta?.deletedFrames ?? {},
+        showDeletedFrames: state.settings.player.showDeletedFrames,
     }), shallowEqual);
 
     if (workspace === Workspace.AUDIO) {
@@ -72,7 +80,9 @@ export default function IssuesListComponent(): JSX.Element {
             .sort((a, b) => a - b);
         frames = [...new Set([...frames, ...conflictFrames])];
     }
-    const nearestLeft = frames.filter((_frame: number): boolean => _frame < frame).reverse()[0];
+    frames = frames.filter((value) => availableFrames.includes(value) && (showDeletedFrames || !deletedFrames[value]))
+        .sort((a, b) => (reverseAnnotation ? b - a : a - b));
+    const nearestLeft = frames.filter((value) => (reverseAnnotation ? value > frame : value < frame)).at(-1);
     const dynamicLeftProps: any = Number.isInteger(nearestLeft) ?
         {
             onClick: () => dispatch(changeFrameAsync(nearestLeft)),
@@ -84,7 +94,7 @@ export default function IssuesListComponent(): JSX.Element {
             },
         };
 
-    const nearestRight = frames.filter((_frame: number): boolean => _frame > frame)[0];
+    const nearestRight = frames.find((value) => (reverseAnnotation ? value < frame : value > frame));
     const dynamicRightProps: any = Number.isInteger(nearestRight) ?
         {
             onClick: () => dispatch(changeFrameAsync(nearestRight)),

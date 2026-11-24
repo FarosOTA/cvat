@@ -22,7 +22,9 @@ import {
 } from 'reducers';
 import { DimensionType, Job } from 'cvat-core-wrapper';
 import { OrientationVisibility } from 'cvat-canvas3d-wrapper';
-import { collapseAppearance as collapseAppearanceAction, switchPlay } from 'actions/annotation-actions';
+import {
+    collapseAppearance as collapseAppearanceAction, switchPlay, fetchAnnotationsAsync,
+} from 'actions/annotation-actions';
 import {
     changeShapesColorBy as changeShapesColorByAction,
     changeShapesOpacity as changeShapesOpacityAction,
@@ -430,6 +432,7 @@ function AppearanceBlock(props: Props): JSX.Element {
                             onChange={(event) => {
                                 dispatch(switchPlay(false));
                                 dispatch(switchReverseAnnotation(event.target.checked));
+                                dispatch(fetchAnnotationsAsync());
                             }}
                         >
                             Reverse annotation

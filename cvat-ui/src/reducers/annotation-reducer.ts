@@ -9,6 +9,7 @@ import { AnnotationActionTypes } from 'actions/annotation-actions';
 import { JobsActionTypes } from 'actions/jobs-actions';
 import { AuthActionTypes } from 'actions/auth-actions';
 import { BoundariesActionTypes } from 'actions/boundaries-actions';
+import { SettingsActionTypes } from 'actions/settings-actions';
 import { Canvas, CanvasMode, RenderData } from 'cvat-canvas-wrapper';
 import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import {
@@ -389,6 +390,20 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         fetching: false,
                     },
                 },
+            };
+        }
+        case SettingsActionTypes.SWITCH_REVERSE_ANNOTATION: {
+            return {
+                ...state,
+                player: { ...state.player, playing: false },
+                drawing: { ...state.drawing, continuedTrack: null },
+            };
+        }
+        case AnnotationActionTypes.CHANGE_FRAME_CANCELED: {
+            return {
+                ...state,
+                player: { ...state.player, frame: { ...state.player.frame, fetching: false } },
+                canvas: { ...state.canvas, ready: true },
             };
         }
         case AnnotationActionTypes.CHANGE_FRAME: {

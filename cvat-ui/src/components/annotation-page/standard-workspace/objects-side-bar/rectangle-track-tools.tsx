@@ -67,6 +67,7 @@ export default function RectangleTrackTools(): JSX.Element {
         keyMap,
         propagation,
         workspace,
+        reverseAnnotation,
     } = useSelector((state: CombinedState) => ({
         activeID: state.annotation.annotations.activatedStateID,
         states: state.annotation.annotations.states,
@@ -76,6 +77,7 @@ export default function RectangleTrackTools(): JSX.Element {
         keyMap: state.shortcuts.keyMap,
         propagation: state.annotation.rectangleTrack.propagation,
         workspace: state.annotation.workspace,
+        reverseAnnotation: state.settings.player.reverseAnnotation,
     }));
     const activeState = states.find((state: ObjectState) => state.clientID === activeID);
     const eligible = eligibleTrack(activeState, workspace);
@@ -105,18 +107,21 @@ export default function RectangleTrackTools(): JSX.Element {
 
     const visibleKeyframes = metadata?.keyframes.filter((keyframe) => !keyframe.outside) ?? [];
     const deletedKeyframes = visibleKeyframes.filter((keyframe) => keyframe.deleted).length;
-    const visibleStart = metadata?.visibleSegments[0]?.start ?? null;
-    const visibleStop = metadata?.visibleSegments[metadata.visibleSegments.length - 1]?.stop ?? null;
+    const lower = metadata?.visibleSegments[0]?.start ?? null;
+    const upper = metadata?.visibleSegments[metadata.visibleSegments.length - 1]?.stop ?? null;
+    const visibleStart = reverseAnnotation ? upper : lower;
+    const visibleStop = reverseAnnotation ? lower : upper;
     const createdKeyframesEstimate = useMemo(() => {
         if (!metadata || !propagation.createKeyframes) return 0;
         const currentIndex = frameNumbers.indexOf(frame);
-        const firstIndex = propagation.mode === 'both' ?
+        const firstIndex = propagation.mode === 'both' || reverseAnnotation ?
             Math.max(0, currentIndex - propagation.radius) : currentIndex;
-        const lastIndex = Math.min(frameNumbers.length - 1, currentIndex + propagation.radius);
+        const lastIndex = propagation.mode === 'both' || !reverseAnnotation ?
+            Math.min(frameNumbers.length - 1, currentIndex + propagation.radius) : currentIndex;
         const existing = new Set(metadata.keyframes.map((keyframe) => keyframe.frame));
         return frameNumbers.slice(firstIndex, lastIndex + 1)
             .filter((candidate) => !existing.has(candidate)).length;
-    }, [frame, frameNumbers, metadata, propagation]);
+    }, [frame, frameNumbers, metadata, propagation, reverseAnnotation]);
 
     const updatePropagation = (settings: Partial<RectangleTrackPropagationSettings>): void => {
         dispatch(setRectangleTrackPropagation(settings));
