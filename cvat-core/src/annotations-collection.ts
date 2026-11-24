@@ -13,6 +13,7 @@ import {
 } from './annotations-objects';
 import type {
     RectangleMetadata, RectangleTrackMetadata, RectangleTrackTransformRequest, RectangleTrackTransformResult,
+    DuplicateRectangleOptions,
 } from './annotations-objects/types';
 import {
     SerializedCollection, SerializedShape, SerializedTrack,
@@ -1068,6 +1069,75 @@ export default class Collection {
             [...imported.shapes.map((object) => object.clientID), slicedObject.clientID],
             slicedObject.frame,
         );
+    }
+
+    // Without expectedIDs this is a read-only preview. Apply rechecks the selection before committing.
+    public removeDuplicateRectangles(options: DuplicateRectangleOptions, expectedIDs?: number[]): number[] {
+        const {
+            from, to, labelIDs, iouThreshold, keep,
+        } = options;
+        const sources = [Source.AUTO, Source.SEMI_AUTO, Source.MANUAL];
+        if (this.injection.dimension !== DimensionType.DIMENSION_2D || this.injection.jobType !== JobType.ANNOTATION) {
+            throw new ArgumentError('Near-duplicate removal requires a 2D annotation job');
+        }
+        if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < from || to > this.stopFrame ||
+            !Number.isFinite(iouThreshold) || iouThreshold < 0.5 || iouThreshold > 1 ||
+            !Array.isArray(labelIDs) || labelIDs.some((id) => !Number.isInteger(id))) {
+            throw new ArgumentError('Invalid near-duplicate range, classes, or overlap threshold');
+        }
+        if (!keep || ('source' in keep ? !sources.includes(keep.source) :
+            !Number.isInteger(keep.attributeID) || typeof keep.value !== 'string' ||
+            !Object.values(this.labels).some((label) => label.attributes.some((attribute) => (
+                !attribute.deleted && attribute.id === keep.attributeID
+            ))))) {
+            throw new ArgumentError('Select a source or an existing attribute and exact value to keep');
+        }
+
+        const preferred = (shape: Shape): boolean => ('source' in keep ? shape.source === keep.source :
+            shape.attributes.get(keep.attributeID) === keep.value);
+        const removed: Shape[] = [];
+        for (const [frame, shapes] of Object.entries(this.shapes)) {
+            if (+frame < from || +frame > to || this.injection.framesInfo.isFrameDeleted(+frame)) continue;
+            const eligible = shapes.filter((shape) => (
+                shape instanceof RectangleShape && !shape.removed && !shape.lock && !shape.hidden && !shape.outside &&
+                shape.rotation === 0 && sources.includes(shape.source) &&
+                (!labelIDs.length || labelIDs.includes(shape.label.id)) &&
+                shape.points.length === 4 && shape.points.every(Number.isFinite) &&
+                shape.points[2] > shape.points[0] && shape.points[3] > shape.points[1] &&
+                ('source' in keep || shape.label.attributes.some((attribute) => attribute.id === keep.attributeID))
+            ));
+            const survivors = eligible.filter(preferred);
+            for (const candidate of eligible.filter((shape) => !preferred(shape))) {
+                const matches = survivors.some((survivor) => {
+                    if (candidate.label.id !== survivor.label.id || candidate.occluded !== survivor.occluded ||
+                        candidate.group !== survivor.group ||
+                        !_.isEqual(candidate.get(+frame).descriptions, survivor.get(+frame).descriptions)) return false;
+                    // The preferred attribute is the only metadata difference explicitly requested by the user.
+                    for (const attribute of candidate.label.attributes) {
+                        if (!('attributeID' in keep) || attribute.id !== keep.attributeID) {
+                            if (candidate.attributes.get(attribute.id) !== survivor.attributes.get(attribute.id)) {
+                                return false;
+                            }
+                        }
+                    }
+                    const [ax1, ay1, ax2, ay2] = candidate.points;
+                    const [bx1, by1, bx2, by2] = survivor.points;
+                    const intersection = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1)) *
+                        Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1));
+                    const union = (ax2 - ax1) * (ay2 - ay1) + (bx2 - bx1) * (by2 - by1) - intersection;
+                    return intersection / union >= iouThreshold;
+                });
+                if (matches) removed.push(candidate);
+            }
+        }
+        const ids = removed.map((shape) => shape.clientID).sort((a, b) => a - b);
+        if (expectedIDs !== undefined) {
+            if (!_.isEqual(ids, expectedIDs)) {
+                throw new ArgumentError('Annotations changed since the preview. Preview again before removing.');
+            }
+            this.commit({}, { shapes: removed.map((shape) => shape.toJSON() as SerializedShape) }, from);
+        }
+        return ids;
     }
 
     public clear(options?: {

@@ -61,6 +61,7 @@ import AboutData from 'cvat-core/src/about';
 import { MinimalShape, TrackerResults, InteractorResults } from 'cvat-core/src/lambda-manager';
 import { fetchAndAssembleAudio } from 'cvat-core/src/audio';
 import type {
+    DuplicateRectangleOptions,
     RectanglePoints,
     RectangleMetadata,
     RectangleTrackMetadata,
@@ -183,6 +184,7 @@ export type {
     SerializedImageFilter,
     SerializedInterval,
     WebhookEvent,
+    DuplicateRectangleOptions,
     RectanglePoints,
     RectangleMetadata,
     RectangleTrackMetadata,

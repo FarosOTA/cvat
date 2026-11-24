@@ -5,7 +5,9 @@
 
 import type AnnotationHistory from '../annotations-history';
 import type { Label } from '../labels';
-import type { DimensionType, JobType, ObjectType } from '../enums';
+import type {
+    DimensionType, JobType, ObjectType, Source,
+} from '../enums';
 import type { MaskShape } from './mask-shape';
 
 export type Constructor<T = object> = new (...args: any[]) => T;
@@ -108,6 +110,14 @@ export interface RectangleTrackMetadata {
 
 export interface RectangleMetadata extends RectangleTrackMetadata {
     objectType: ObjectType.SHAPE | ObjectType.TRACK;
+}
+
+export interface DuplicateRectangleOptions {
+    from: number;
+    to: number;
+    labelIDs: number[];
+    iouThreshold: number;
+    keep: { source: Source.AUTO | Source.SEMI_AUTO | Source.MANUAL } | { attributeID: number; value: string };
 }
 
 export interface Point2D {

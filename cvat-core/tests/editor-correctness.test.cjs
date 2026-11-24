@@ -69,6 +69,110 @@ function editor(frameNumbers = [0, 1, 2], { deleted = [], dimension = '2d' } = {
     return { collection, history, config, shape, states, ObjectState, label, skeleton, canvas, rle: core('rle-utils') };
 }
 
+test('near-duplicate source preferences preview without mutation and commit one undoable removal', async () => {
+    for (const source of ['manual', 'auto', 'semi-auto']) {
+        const { collection, history, shape } = editor();
+        collection.import({ shapes: ['manual', 'auto', 'semi-auto', source].map((value, index) => (
+            shape('rectangle', [10, 10, 30, 30], { id: index + 1, source: value })
+        )) });
+        const options = { from: 0, to: 2, labelIDs: [], iouThreshold: 0.9, keep: { source } };
+        const before = collection.export();
+        const ids = collection.removeDuplicateRectangles(options);
+        assert.equal(ids.length, 2);
+        assert.deepEqual(collection.export(), before, 'preview must not mutate annotations');
+        collection.removeDuplicateRectangles(options, ids);
+        assert.deepEqual(collection.export().shapes.map((item) => item.source), [source, source],
+            'keep every preferred box, without arbitrary tie breaking');
+        const after = collection.export();
+        await history.undo(1);
+        // CVAT invalidates server IDs on removal so a later undo/save can recreate deleted objects.
+        const withoutServerIDs = (data) => data.shapes.map(({ id, ...item }) => item);
+        assert.deepEqual(withoutServerIDs(collection.export()), withoutServerIDs(before));
+        await history.redo(1);
+        assert.deepEqual(collection.export(), after);
+        const reloaded = editor().collection;
+        reloaded.import(after);
+        assert.deepEqual(reloaded.export().shapes.map((item) => item.id), after.shapes.map((item) => item.id));
+        assert.deepEqual(collection.removeDuplicateRectangles(options), [], 'a second run is a no-op');
+    }
+});
+
+test('near-duplicates require direct overlap with a survivor, same class/frame, and an inclusive IoU threshold', () => {
+    const { collection, shape } = editor();
+    collection.import({ shapes: [
+        shape('rectangle', [0, 0, 10, 10], { id: 1, source: 'auto' }),
+        shape('rectangle', [1, 0, 11, 10], { id: 2 }),
+        shape('rectangle', [2, 0, 12, 10], { id: 3 }),
+        shape('rectangle', [0, 0, 10, 10], { id: 4, frame: 1 }),
+        shape('rectangle', [0, 0, 10, 10], { id: 5, label_id: 2 }),
+        shape('rectangle', [50, 50, 60, 60], { id: 6 }),
+    ] });
+    const options = { from: 0, to: 2, labelIDs: [], iouThreshold: 9 / 11, keep: { source: 'auto' } };
+    assert.deepEqual(collection.removeDuplicateRectangles({ ...options, iouThreshold: 9 / 11 + 0.00001 }), []);
+    assert.deepEqual(collection.removeDuplicateRectangles({ ...options, from: 1 }), []);
+    assert.deepEqual(collection.removeDuplicateRectangles({ ...options, labelIDs: [2] }), []);
+    const ids = collection.removeDuplicateRectangles(options);
+    assert.equal(ids.length, 1, 'B matches A, but C only matches B and must survive');
+    collection.removeDuplicateRectangles(options, ids);
+    assert.deepEqual(collection.export().shapes.map((item) => item.id), [1, 3, 5, 6, 4]);
+    for (const iouThreshold of [NaN, 0, 0.49, 1.01]) {
+        assert.throws(() => collection.removeDuplicateRectangles({ ...options, iouThreshold }));
+    }
+    assert.throws(() => collection.removeDuplicateRectangles({ ...options, from: 2, to: 1 }));
+});
+
+test('near-duplicate removal preserves protected objects and rejects a stale preview', () => {
+    const { collection, shape } = editor([0, 1, 2], { deleted: [1] });
+    collection.import({ shapes: [
+        shape('rectangle', [0, 0, 10, 10], { id: 1, source: 'auto' }),
+        ...[
+            {}, { rotation: 20 }, { occluded: true }, { group: 1 },
+            { attributes: [{ spec_id: 1, value: 'important' }] }, { descriptions: ['reviewed'] },
+            { source: 'file' }, { source: 'Ground truth' }, { source: 'consensus' },
+            { outside: true }, {}, {}, { frame: 1 },
+        ].map((extra, index) => shape('rectangle', [0, 0, 10, 10], { id: index + 2, ...extra })),
+        shape('rectangle', [0, 0, 10, 10], { id: 15, frame: 1, source: 'auto' }),
+    ], tracks: [{ frame: 0, label_id: 1, group: 0, source: 'manual', attributes: [],
+        shapes: [shape('rectangle', [0, 0, 10, 10])] }] });
+    const state = collection.get(0, false, []).find((item) => item.serverID === 12);
+    state.lock = true;
+    collection.bulkSave([state]);
+    const hidden = collection.get(0, false, []).find((item) => item.serverID === 13);
+    hidden.hidden = true;
+    collection.bulkSave([hidden]);
+    const options = { from: 0, to: 2, labelIDs: [], iouThreshold: 0.9, keep: { source: 'auto' } };
+    const ids = collection.removeDuplicateRectangles(options);
+    assert.equal(ids.length, 1);
+    const survivor = collection.get(0, false, []).find((item) => item.serverID === 1);
+    survivor.lock = true;
+    collection.bulkSave([survivor]);
+    const before = collection.export();
+    assert.throws(() => collection.removeDuplicateRectangles(options, ids), /Preview again/);
+    assert.deepEqual(collection.export(), before, 'stale previews cannot partially delete');
+    assert.deepEqual(collection.removeDuplicateRectangles(options), [], 'locked survivors cannot justify deletion');
+    assert.throws(() => editor([0, 1], { dimension: '3d' }).collection.removeDuplicateRectangles(options));
+});
+
+test('attribute preference matches exact class-specific values, including defaults, without source priority', () => {
+    const { collection, shape } = editor();
+    collection.import({ shapes: [
+        shape('rectangle', [0, 0, 10, 10], { id: 1, attributes: [{ spec_id: 1, value: 'yes' }] }),
+        shape('rectangle', [0, 0, 10, 10], { id: 2, source: 'auto', attributes: [{ spec_id: 1, value: 'YES' }] }),
+        shape('rectangle', [0, 0, 10, 10], { id: 3, source: 'semi-auto' }),
+        shape('rectangle', [0, 0, 10, 10], { id: 4, label_id: 2 }),
+    ] });
+    const options = { from: 0, to: 0, labelIDs: [], iouThreshold: 1, keep: { attributeID: 1, value: 'yes' } };
+    assert.deepEqual(collection.removeDuplicateRectangles({ ...options, keep: { source: 'manual' } }), [],
+        'source preference must not discard conflicting attribute values');
+    assert.equal(collection.removeDuplicateRectangles({ ...options, keep: { attributeID: 1, value: '' } }).length, 2,
+        'the default empty value is a real preference');
+    assert.deepEqual(collection.removeDuplicateRectangles({ ...options, keep: { attributeID: 1, value: 'absent' } }), []);
+    assert.throws(() => collection.removeDuplicateRectangles({ ...options, keep: { attributeID: 999, value: '' } }));
+    const ids = collection.removeDuplicateRectangles(options);
+    collection.removeDuplicateRectangles(options, ids);
+    assert.deepEqual(collection.export().shapes.map((item) => item.id), [1, 4]);
+});
+
 test('annotation tools combine class/source selections with inclusive ranges and preserve unmatched objects', () => {
     const { collection, shape } = editor([0, 1, 2, 3, 4]);
     const tags = [

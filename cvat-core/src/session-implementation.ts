@@ -400,6 +400,16 @@ export function implementJob(Job: typeof JobClass): typeof JobClass {
         },
     });
 
+    Object.defineProperty(Job.prototype.annotations.removeDuplicateRectangles, 'implementation', {
+        value: async function removeDuplicateRectanglesImplementation(
+            this: JobClass,
+            options: Parameters<typeof JobClass.prototype.annotations.removeDuplicateRectangles>[0],
+            expectedIDs: number[] | undefined,
+        ): Promise<number[]> {
+            return getCollection(this).removeDuplicateRectangles(options, expectedIDs);
+        },
+    });
+
     Object.defineProperty(Job.prototype.annotations.search, 'implementation', {
         value: function searchAnnotationsImplementation(
             this: JobClass,
@@ -1237,6 +1247,16 @@ export function implementTask(Task: typeof TaskClass): typeof TaskClass {
             this: TaskClass,
         ): ReturnType<typeof TaskClass.prototype.annotations.rectangleMetadata> {
             return getCollection(this).rectangleMetadata();
+        },
+    });
+
+    Object.defineProperty(Task.prototype.annotations.removeDuplicateRectangles, 'implementation', {
+        value: async function removeDuplicateRectanglesImplementation(
+            this: TaskClass,
+            options: Parameters<typeof TaskClass.prototype.annotations.removeDuplicateRectangles>[0],
+            expectedIDs: number[] | undefined,
+        ): Promise<number[]> {
+            return getCollection(this).removeDuplicateRectangles(options, expectedIDs);
         },
     });
 

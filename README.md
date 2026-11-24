@@ -57,9 +57,28 @@ the range from matching tracks, deleting a track if none remain. This can change
 outside the range; it does not trim tracks or cut gaps. Skeletons match their parent class and
 source. Source selection uses CVAT's stored source, not a guess about how an annotation was created.
 
-The dialog is the removal confirmation. **Remove** changes the local job and clears undo/redo
+For removal by criteria, the dialog is the confirmation. **Remove** changes the local job and clears undo/redo
 history, as the upstream removal command does; save the job to persist the deletion. Cancel
 leaves annotations unchanged. Audio jobs retain their existing time-range removal dialog.
+
+In 2D annotation jobs, select **Remove near-duplicate boxes** in the tool selector. Choose to keep
+`auto`, `semi-auto`, or `manual` boxes (default: `manual`), or boxes with an **exact attribute value**.
+Attribute selection is class-specific, matches case-sensitively, and includes stored default values;
+an empty value matches the empty string. It does not match similarly named attributes on other classes.
+Set the minimum intersection-over-union overlap (**90%** by default, adjustable from **50–100%**),
+classes, and inclusive frame bounds. **Preview** reports the removal count; **Remove duplicates**
+is enabled only after a nonempty preview. Changing settings requires another preview. Applying
+rechecks the candidates and rejects changed selections. This tool preserves existing undo history
+and records the entire removal as one undoable action; saving persists it.
+
+Every removed box must directly overlap a surviving preferred box of the same class and frame.
+All preferred boxes survive, including ties; no preferred match means no deletion. Overlap chains
+are not collapsed. Manual boxes may be removed when another source or attribute value is preferred.
+Conflicting attributes (other than the selected preference attribute), occlusion, group, or descriptions
+prevent removal. This initial tool supports **standalone, unrotated 2D rectangles only**: tracks,
+other shapes, hidden/locked/outside boxes, deleted frames, and sources other than auto/semi-auto/manual
+are excluded from both matching and removal. Ground-truth jobs are excluded. It never deletes a
+whole track based on one-frame overlap or changes interpolation.
 
 ## Track timeline and navigation
 

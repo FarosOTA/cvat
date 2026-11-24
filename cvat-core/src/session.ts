@@ -31,6 +31,7 @@ import { JobValidationLayout, TaskValidationLayout } from './validation-layout';
 import { UpdateStatusData } from './core-types';
 import type {
     RectangleMetadata, RectangleTrackMetadata, RectangleTrackTransformRequest, RectangleTrackTransformResult,
+    DuplicateRectangleOptions,
 } from './annotations-objects/types';
 
 function buildDuplicatedAPI(prototype): void {
@@ -124,6 +125,12 @@ function buildDuplicatedAPI(prototype): void {
 
                 async rectangleMetadata() {
                     return PluginRegistry.apiWrapper.call(this, prototype.annotations.rectangleMetadata);
+                },
+
+                async removeDuplicateRectangles(options, expectedIDs) {
+                    return PluginRegistry.apiWrapper.call(
+                        this, prototype.annotations.removeDuplicateRectangles, options, expectedIDs,
+                    );
                 },
 
                 async search(frameFrom, frameTo, searchParameters) {
@@ -438,6 +445,7 @@ export class Session {
         ) => Promise<RectangleTrackTransformResult>;
         rectangleTrackMetadata: (clientID?: number) => Promise<RectangleTrackMetadata[]>;
         rectangleMetadata: () => Promise<RectangleMetadata[]>;
+        removeDuplicateRectangles: (options: DuplicateRectangleOptions, expectedIDs?: number[]) => Promise<number[]>;
         put: (objectStates: (ObjectState | AudioIntervalState)[], reverse?: boolean) => Promise<number[]>;
         merge: (objectStates: ObjectState[]) => Promise<void>;
         split: (objectState: ObjectState, frame: number) => Promise<void>;
@@ -565,6 +573,7 @@ export class Session {
             transformRectangleTrack: Object.getPrototypeOf(this).annotations.transformRectangleTrack.bind(this),
             rectangleTrackMetadata: Object.getPrototypeOf(this).annotations.rectangleTrackMetadata.bind(this),
             rectangleMetadata: Object.getPrototypeOf(this).annotations.rectangleMetadata.bind(this),
+            removeDuplicateRectangles: Object.getPrototypeOf(this).annotations.removeDuplicateRectangles.bind(this),
             put: Object.getPrototypeOf(this).annotations.put.bind(this),
             save: Object.getPrototypeOf(this).annotations.save.bind(this),
             merge: Object.getPrototypeOf(this).annotations.merge.bind(this),

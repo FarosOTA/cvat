@@ -9,15 +9,17 @@ import InputNumber from 'antd/lib/input-number';
 import Checkbox from 'antd/lib/checkbox';
 import Collapse from 'antd/lib/collapse';
 import Select from 'antd/lib/select';
-import { Label, Source } from 'cvat-core-wrapper';
+import { DuplicateRectangleOptions, Label, Source } from 'cvat-core-wrapper';
 
 import CVATTooltip from 'components/common/cvat-tooltip';
+import RemoveDuplicateAnnotations from './remove-duplicate-annotations';
 
 export interface RemoveAnnotationsConfirmProps {
     open: boolean;
     startFrame: number;
     stopFrame: number;
     labels?: Label[];
+    onRemoveDuplicates?(options: DuplicateRectangleOptions, expectedIDs?: number[]): Promise<number[]>;
     onClose(): void;
     onRemove(
         from: number | undefined, to: number | undefined, removeOnlyKeyframes: boolean,
@@ -31,6 +33,7 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
         startFrame,
         stopFrame,
         labels = [],
+        onRemoveDuplicates,
         onClose,
         onRemove,
     } = props;
@@ -39,6 +42,7 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
     const [removeOnlyKeyframes, setRemoveOnlyKeyframes] = useState(false);
     const [labelIDs, setLabelIDs] = useState<number[]>([]);
     const [sources, setSources] = useState<Source[]>([]);
+    const [tool, setTool] = useState('remove');
 
     useEffect(() => {
         if (open) {
@@ -47,8 +51,22 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
             setRemoveOnlyKeyframes(false);
             setLabelIDs([]);
             setSources([]);
+            setTool('remove');
         }
     }, [open]);
+
+    if (open && tool === 'duplicates' && onRemoveDuplicates) {
+        return (
+            <RemoveDuplicateAnnotations
+                labels={labels}
+                startFrame={startFrame}
+                stopFrame={stopFrame}
+                onClose={onClose}
+                onBack={() => setTool('remove')}
+                onRemove={onRemoveDuplicates}
+            />
+        );
+    }
 
     return (
         <Modal
@@ -76,6 +94,18 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
             }}
         >
             <div>
+                {onRemoveDuplicates && (
+                    <Select
+                        aria-label='Annotation tool'
+                        style={{ width: '100%', marginBottom: 16 }}
+                        value={tool}
+                        onChange={setTool}
+                        options={[
+                            { value: 'remove', label: 'Remove annotations by criteria' },
+                            { value: 'duplicates', label: 'Remove near-duplicate boxes' },
+                        ]}
+                    />
+                )}
                 <Text strong>Remove annotations</Text>
                 <p>
                     Remove annotations matching all selected criteria. Multiple classes or sources match any

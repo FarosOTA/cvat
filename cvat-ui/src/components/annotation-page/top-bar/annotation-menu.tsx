@@ -14,13 +14,16 @@ import Icon from '@ant-design/icons';
 import { MenuProps } from 'antd/lib/menu';
 
 import { MainMenuIcon } from 'icons';
-import { DimensionType, Job, JobState } from 'cvat-core-wrapper';
+import {
+    DimensionType, Job, JobState, JobType,
+} from 'cvat-core-wrapper';
 import { usePlugins } from 'utils/hooks';
 
 import { openAnnotationsActionModal } from 'components/annotation-page/annotations-actions/annotations-actions-modal';
 import { CombinedState } from 'reducers';
 import {
     finishCurrentJobAsync,
+    fetchAnnotationsAsync,
     removeAnnotationsAsync as removeAnnotationsAsyncAction,
 } from 'actions/annotation-actions';
 import { exportActions } from 'actions/export-actions';
@@ -198,6 +201,12 @@ function AnnotationMenuComponent(props: Props): JSX.Element {
                 startFrame={jobInstance.startFrame}
                 stopFrame={stopFrame}
                 labels={jobInstance.labels}
+                onRemoveDuplicates={jobInstance.dimension === DimensionType.DIMENSION_2D &&
+                    jobInstance.type === JobType.ANNOTATION ? async (options, expectedIDs) => {
+                        const ids = await jobInstance.annotations.removeDuplicateRectangles(options, expectedIDs);
+                        if (expectedIDs !== undefined) dispatch(fetchAnnotationsAsync());
+                        return ids;
+                    } : undefined}
                 onClose={() => setRemoveAnnotationsConfirmOpen(false)}
                 onRemove={(removeFrom, removeUpTo, removeOnlyKeyframes, labelIDs, sources) => {
                     dispatch(removeAnnotationsAsyncAction(
