@@ -22,9 +22,23 @@
 .cvat-organizations-settings {
     width: calc(100% - 24px);
     height: max-content;
-    background: white;
+    background: $background-color-1;
     padding-top: 24px;
     padding-left: 24px;
+}
+
+.cvat-appearance-settings {
+    padding: $grid-unit-size * 3;
+    color: $text-color;
+
+    #cvat-dark-mode-label {
+        margin-left: $grid-unit-size;
+    }
+
+    p {
+        margin-top: $grid-unit-size * 2;
+        color: $text-color-secondary;
+    }
 }
 
 .cvat-shortcuts-settings {
@@ -134,13 +148,13 @@
 }
 
 .cvat-shortcuts-settings-collapse .ant-collapse-header {
-    background-color: white;
-    border-bottom: 1px solid #ccc;
+    background-color: $background-color-1;
+    border-bottom: 1px solid $border-color-1;
     margin-top: $grid-unit-size;
     padding: 0 0 $grid-unit-size !important;
 }
 
 .cvat-shortcuts-settings-collapse .ant-collapse-content-box {
-    background-color: white;
+    background-color: $background-color-1;
     padding: 0 !important;
 }

@@ -7,7 +7,7 @@
     box-shadow:
         0 1px 3px rgba(0, 0, 0, 8%),
         0 4px 12px rgba(0, 0, 0, 4%);
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--cvat-border-color, #e5e7eb);
     overflow: hidden;
     flex: 1 1 0;
     display: flex;
@@ -16,7 +16,7 @@
     > .cvat-audio-interval-header {
         padding: $grid-unit-size $grid-unit-size $grid-unit-size $grid-unit-size * 2;
         background-color: var(--region-item-color);
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid var(--cvat-border-color, #e5e7eb);
 
         .cvat-audio-interval-header-time {
             padding-left: $grid-unit-size * 3.75;
@@ -51,7 +51,7 @@
         background: transparent;
 
         .ant-collapse-item {
-            border: 1px solid #f0f0f0;
+            border: 1px solid $border-color-1;
             border-radius: $grid-unit-size !important;
             margin-bottom: $grid-unit-size * 0.75;
             overflow: hidden;
@@ -68,17 +68,17 @@
             .ant-collapse-header {
                 padding: $grid-unit-size $grid-unit-size * 1.75;
                 font-size: 13px;
-                color: #303030;
-                background-color: #f9fafb;
+                color: $text-color;
+                background-color: var(--cvat-background-color-1, #f9fafb);
                 transition: background-color 0.15s ease;
             }
 
             &.ant-collapse-item-active .ant-collapse-header {
-                background-color: #f1f1f1;
+                background-color: $background-color-2;
             }
 
             .ant-collapse-content {
-                border-top: 1px solid #f0f0f0;
+                border-top: 1px solid $border-color-1;
 
                 .ant-collapse-content-box {
                     padding: $grid-unit-size * 1.25 $grid-unit-size * 1.75;
@@ -101,7 +101,7 @@
     .cvat-audio-region-attr-type {
         font-size: 11px;
         font-style: italic;
-        color: rgba(0, 0, 0, 45%);
+        color: $text-color-secondary;
         margin-left: $grid-unit-size;
     }
 

@@ -7,7 +7,7 @@
 .cvat-rectangle-track-timeline {
     position: relative;
     margin: 0 $grid-unit-size $grid-unit-size;
-    background: rgba(255, 255, 255, 96%);
+    background: var(--cvat-background-color-1, rgba(255, 255, 255, 96%));
     border: 1px solid $border-color-1;
     border-radius: $border-radius-base;
     box-shadow: $box-shadow-base;
@@ -31,7 +31,7 @@
 
 .cvat-frame-timeline {
     padding: 10px 16px 6px;
-    background: linear-gradient(180deg, #fafafa, #f0f1f3);
+    background: var(--cvat-frame-timeline-background, linear-gradient(180deg, #fafafa, #f0f1f3));
 }
 
 .cvat-frame-timeline-toolbar {

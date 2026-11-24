@@ -108,5 +108,28 @@ context('Saving setting to local storage.', () => {
             cy.reload();
             testCheckedSettings(false);
         });
+
+        it('Save the interface theme independently of picture controls', () => {
+            cy.window().then((window) => window.localStorage.removeItem('cvatTheme'));
+            cy.reload();
+            cy.openSettings();
+            cy.contains('[role="tab"]', 'Appearance').click();
+            cy.get('#cvat-dark-mode').should('have.attr', 'aria-checked', 'false').click();
+            cy.get('html').should('have.attr', 'data-theme', 'dark');
+            cy.closeSettings();
+            cy.reload();
+            cy.get('html').should('have.attr', 'data-theme', 'dark');
+            cy.get('.cvat-canvas-image-setups-trigger').click();
+            cy.contains('Reset color settings').click();
+            cy.get('html').should('have.attr', 'data-theme', 'dark');
+            cy.get('.cvat-image-setups-invert-colors input').should('not.be.checked');
+            cy.get('.cvat-canvas-image-setups-trigger').click();
+            cy.openSettings();
+            cy.contains('[role="tab"]', 'Appearance').click();
+            cy.get('#cvat-dark-mode').should('have.attr', 'aria-checked', 'true').click();
+            cy.closeSettings();
+            cy.reload();
+            cy.get('html').should('have.attr', 'data-theme', 'light');
+        });
     });
 });

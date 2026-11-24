@@ -11,14 +11,18 @@ import Tabs from 'antd/lib/tabs';
 import Text from 'antd/lib/typography/Text';
 import Modal from 'antd/lib/modal/Modal';
 import Button from 'antd/lib/button';
+import Switch from 'antd/lib/switch';
 import notification from 'antd/lib/notification';
-import { PlayCircleOutlined, LaptopOutlined, BuildOutlined } from '@ant-design/icons';
+import {
+    PlayCircleOutlined, LaptopOutlined, BuildOutlined, BgColorsOutlined,
+} from '@ant-design/icons';
 
 import { restoreSettingsAsync, updateCachedSettings } from 'actions/settings-actions';
 import WorkspaceSettingsContainer from 'containers/header/settings-modal/workspace-settings';
 import PlayerSettingsContainer from 'containers/header/settings-modal/player-settings';
 import ShortcutsSettingsContainer from 'containers/header/settings-modal/shortcuts-settings';
 import { CombinedState } from 'reducers';
+import { useTheme } from 'components/theme-provider';
 
 interface SettingsModalProps {
     visible: boolean;
@@ -27,6 +31,7 @@ interface SettingsModalProps {
 
 function SettingsModal(props: SettingsModalProps): JSX.Element {
     const { visible, onClose } = props;
+    const { dark, setDark } = useTheme();
 
     const { settings, shortcuts } = useSelector((state: CombinedState) => ({
         settings: state.settings,
@@ -55,6 +60,23 @@ function SettingsModal(props: SettingsModalProps): JSX.Element {
     }, []);
 
     const tabItems = [
+        {
+            key: 'appearance',
+            label: <Text>Appearance</Text>,
+            icon: <BgColorsOutlined />,
+            children: (
+                <div className='cvat-appearance-settings'>
+                    <Switch
+                        id='cvat-dark-mode'
+                        checked={dark}
+                        onChange={setDark}
+                        aria-labelledby='cvat-dark-mode-label'
+                    />
+                    <Text id='cvat-dark-mode-label'>Dark mode</Text>
+                    <p>Use a dark interface without changing image or annotation colors.</p>
+                </div>
+            ),
+        },
         {
             key: 'player',
             label: <Text>Player</Text>,

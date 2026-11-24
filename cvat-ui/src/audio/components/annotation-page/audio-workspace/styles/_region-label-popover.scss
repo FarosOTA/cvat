@@ -27,14 +27,14 @@
         transition: background-color 0.15s ease;
 
         &:hover {
-            background-color: #f1f1f1;
+            background-color: $background-color-2;
         }
 
         &--active {
-            background-color: #e6f4ff;
+            background-color: var(--cvat-active-label-background-color, #e6f4ff);
 
             &:hover {
-                background-color: #bae0ff;
+                background-color: var(--cvat-active-label-background-color, #bae0ff);
             }
         }
 
@@ -55,6 +55,6 @@
 
     .cvat-audio-region-label-option-name {
         font-size: 13px;
-        color: #303030;
+        color: $text-color;
     }
 }

@@ -23,8 +23,10 @@ import {
     changeGridSize,
     resetImageFilters,
     changePictureLevels,
+    switchInvertColors,
 } from 'actions/settings-actions';
 import { clamp } from 'utils/math';
+import { MIN_BLACK_POINT, MAX_WHITE_POINT } from 'utils/image-processing';
 import { GridColor, CombinedState, PlayerSettingsState } from 'reducers';
 import GammaFilter from './gamma-filter';
 
@@ -39,6 +41,7 @@ export default function ImageSetupsContent(): JSX.Element {
         saturationLevel,
         blackPoint,
         whitePoint,
+        invertColors,
         gridOpacity,
         gridColor,
         gridSize,
@@ -180,8 +183,8 @@ export default function ImageSetupsContent(): JSX.Element {
                 const black = point === 'black';
                 const label = black ? 'Black point' : 'White point';
                 const value = black ? blackPoint : whitePoint;
-                const min = black ? 0 : blackPoint + 1;
-                const max = black ? whitePoint - 1 : 255;
+                const min = black ? MIN_BLACK_POINT : blackPoint + 1;
+                const max = black ? whitePoint - 1 : MAX_WHITE_POINT;
                 const onChange = (level: number | null): void => {
                     if (level !== null) {
                         const converted = Math.round(clamp(level, min, max));
@@ -207,6 +210,17 @@ export default function ImageSetupsContent(): JSX.Element {
                     </Row>
                 );
             })}
+            <Row>
+                <Checkbox
+                    className='cvat-text-color cvat-image-setups-invert-colors'
+                    checked={invertColors}
+                    onChange={(event: CheckboxChangeEvent): void => {
+                        dispatch(switchInvertColors(event.target.checked));
+                    }}
+                >
+                    Invert colors
+                </Checkbox>
+            </Row>
             <GammaFilter />
             <Row className='cvat-image-setups-reset-color-settings' justify='space-around'>
                 <Col>
@@ -218,6 +232,7 @@ export default function ImageSetupsContent(): JSX.Element {
                             dispatch(changeContrastLevel(defaultValue));
                             dispatch(changeSaturationLevel(defaultValue));
                             dispatch(changePictureLevels(0, 255));
+                            dispatch(switchInvertColors(false));
                             dispatch(resetImageFilters());
                         }}
                     >

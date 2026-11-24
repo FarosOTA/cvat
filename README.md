@@ -12,6 +12,7 @@ are not necessarily fork-specific. This checkout reports CVAT **2.74.1**.
 - [Annotation tools](#annotation-tools)
 - [Track timeline and navigation](#track-timeline-and-navigation)
 - [Picture controls](#picture-controls)
+- [Dark mode](#dark-mode)
 - [Cursor-targeted annotation shortcuts](#cursor-targeted-annotation-shortcuts)
 - [Quick bounding-box classes](#quick-bounding-box-classes)
 - [Precision bounding-box controls](#precision-bounding-box-controls)
@@ -136,18 +137,35 @@ fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
 In 2D annotation workspaces, the labeled **Picture controls** button stays at the bottom-left of
 the canvas, including in fullscreen and with the objects sidebar collapsed. Open it for upstream
 **Brightness**, **Contrast**, **Saturation**, **Gamma**, and grid controls, plus fork-added
-**Black point** and **White point** sliders and numeric inputs. The panel stays open while you
-annotate; click the button again to close it, or press **Escape** while focus is inside the controls.
+**Black point** and **White point** sliders and numeric inputs and an **Invert colors** checkbox.
+The panel stays open while you annotate; click the button again to close it, or press **Escape**
+while focus is inside the controls.
 On shorter windows the panel scrolls.
 
-Black and white points use input channel levels **0–255** (defaults **0** and **255**).
+Black and white points default to **0** and **255**, but the sliders and numeric inputs extend
+down to **−255** for black and up to **510** for white. Move the black point below 0 to lift dark
+tones or the white point above 255 to soften highlights. Moving both outward compresses the
+displayed tonal range; it does not recover detail already lost in the source.
 After brightness, contrast, and saturation, levels at or below the black point become black and
-levels at or above the white point become white; intermediate levels are stretched linearly.
+levels at or above the white point become white; intermediate levels are mapped linearly.
 The black point must remain below the white point. Adjustments affect only the displayed image,
-not annotations, source media, or exports. Preferences persist in this browser and across jobs;
-**Reset color settings** restores all color adjustments, including gamma and both points.
+not annotations, source media, or exports. **Invert colors** is off by default and inverts the
+displayed image after the other color adjustments, including in the cursor magnifier. It does not
+invert annotation or grid colors. Preferences persist in this browser and across jobs;
+**Reset color settings** restores all color adjustments, including gamma, both points, and inversion.
 Non-default black or white points use browser-side pixel processing to avoid SVG canvas-filter
 rendering issues in Safari. Processing large frames can reduce playback speed.
+
+## Dark mode
+
+Open **Settings → Appearance → Dark mode** to switch between light and dark interfaces.
+Light mode remains the default. The choice applies immediately to the application and its dialogs
+and is saved in this browser, including across reloads and sign-ins. If browser storage is
+unavailable, the choice applies only to the current session.
+
+Dark mode changes interface surfaces, text, and controls, not image pixels, canvas background
+preferences, or annotation/label colors. Use **Picture controls → Invert colors** independently
+when you want to invert the image itself. Resetting picture controls does not change the theme.
 
 ## Cursor-targeted annotation shortcuts
 

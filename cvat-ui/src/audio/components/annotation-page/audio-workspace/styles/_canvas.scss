@@ -8,7 +8,7 @@
     flex-direction: column;
     min-width: 0;
     overflow: hidden auto;
-    background-color: #fff;
+    background-color: $background-color-1;
     padding: 8px;
 }
 
@@ -49,11 +49,11 @@
 }
 
 .cvat-audio-waveform-wrapper {
-    $control-background: rgb(209, 208, 240, 80%);
-    $control-hover-background: rgb(209, 208, 240, 95%);
+    $control-background: var(--cvat-background-color-1, rgb(209, 208, 240, 80%));
+    $control-hover-background: var(--cvat-background-color-2, rgb(209, 208, 240, 95%));
 
     position: relative;
-    background-color: white;
+    background-color: $background-color-1;
     border-radius: 8px;
     margin-bottom: 20px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 10%);
@@ -129,8 +129,8 @@
     }
 
     .cvat-audio-minimap-section {
-        background-color: #f3f4f6;
-        border-top: 1px solid #e5e7eb;
+        background-color: var(--cvat-background-color-2, #f3f4f6);
+        border-top: 1px solid var(--cvat-border-color, #e5e7eb);
         padding: 0;
 
         #minimap {
@@ -141,14 +141,14 @@
 }
 
 .cvat-audio-timeline-wrapper {
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--cvat-border-color, #e5e7eb);
     overflow: hidden;
 }
 
 .cvat-audio-placeholder {
     text-align: center;
     padding: 60px 20px;
-    background-color: white;
+    background-color: $background-color-1;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 10%);
 }

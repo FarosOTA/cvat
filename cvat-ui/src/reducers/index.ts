@@ -1089,6 +1089,7 @@ export interface PlayerSettingsState {
     saturationLevel: number;
     blackPoint: number;
     whitePoint: number;
+    invertColors: boolean;
 }
 
 export interface WorkspaceSettingsState {

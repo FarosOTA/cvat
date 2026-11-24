@@ -17,7 +17,7 @@
 
         .cvat-audio-slider-popover-value {
             font-size: 11px;
-            color: #595959;
+            color: var(--cvat-text-color-secondary, #595959);
             min-width: 32px;
             text-align: center;
         }
@@ -34,13 +34,13 @@
         width: 100%;
         padding: 8px 0;
         font-size: 18px;
-        color: #595959;
+        color: var(--cvat-text-color-secondary, #595959);
         cursor: pointer;
         transition: color 0.2s ease, background-color 0.2s ease;
 
         &:hover {
-            background-color: #f0f0f0;
-            color: #262626;
+            background-color: var(--cvat-background-color-2, #f0f0f0);
+            color: var(--cvat-text-color, #262626);
         }
     }
 
@@ -76,15 +76,15 @@
             padding: 1px 6px;
             font-size: 8px;
             line-height: 1;
-            color: #595959;
-            border: 1px solid #d9d9d9;
+            color: var(--cvat-text-color-secondary, #595959);
+            border: 1px solid var(--cvat-border-color, #d9d9d9);
             border-radius: 4px;
-            background-color: #fff;
+            background-color: $background-color-1;
         }
 
         &:hover .cvat-audio-slider-value-badge {
-            color: #262626;
-            border-color: #bfbfbf;
+            color: var(--cvat-text-color, #262626);
+            border-color: var(--cvat-border-color, #bfbfbf);
         }
     }
 }

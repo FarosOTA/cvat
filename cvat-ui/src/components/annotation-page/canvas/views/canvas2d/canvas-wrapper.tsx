@@ -116,6 +116,7 @@ interface StateToProps {
     saturationLevel: number;
     blackPoint: number;
     whitePoint: number;
+    invertColors: boolean;
     resetZoom: boolean;
     bandwidthSavingPlayback: boolean;
     smoothImage: boolean;
@@ -238,6 +239,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 saturationLevel,
                 blackPoint,
                 whitePoint,
+                invertColors,
                 resetZoom,
                 bandwidthSavingPlayback,
                 smoothImage,
@@ -318,6 +320,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         saturationLevel: saturationLevel / 100,
         blackPoint,
         whitePoint,
+        invertColors,
         resetZoom,
         bandwidthSavingPlayback,
         smoothImage,
@@ -848,6 +851,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             saturationLevel,
             blackPoint,
             whitePoint,
+            invertColors,
             showObjectsTextAlways,
             textFontSize,
             controlPointsSize,
@@ -1016,11 +1020,13 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             brightnessLevel !== prevProps.brightnessLevel ||
             contrastLevel !== prevProps.contrastLevel ||
             saturationLevel !== prevProps.saturationLevel ||
+            invertColors !== prevProps.invertColors ||
             blackPoint !== prevProps.blackPoint || whitePoint !== prevProps.whitePoint
         ) {
             canvasInstance.configure({
                 CSSImageFilter: blackPoint !== 0 || whitePoint !== 255 ? '' :
-                    `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})`,
+                    `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})${
+                        invertColors ? ' invert(1)' : ''}`,
             });
             if (blackPoint !== 0 || whitePoint !== 255 || prevProps.blackPoint !== 0 || prevProps.whitePoint !== 255) {
                 // Levels and the preceding color adjustments are baked into display pixels.
@@ -1562,7 +1568,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const {
             hiddenZLayers, annotations, frameData,
             workspace, frame, imageFilters, renderData, playing, jobInstance, bandwidthSavingPlayback,
-            blackPoint, whitePoint, brightnessLevel, contrastLevel, saturationLevel,
+            blackPoint, whitePoint, brightnessLevel, contrastLevel, saturationLevel, invertColors,
         } = this.props;
         const levelsActive = blackPoint !== 0 || whitePoint !== 255;
 
@@ -1614,6 +1620,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                                             brightnessLevel,
                                             contrastLevel,
                                             saturationLevel,
+                                            invertColors,
                                         );
                                     }
                                     const newImageBitmap = await createImageBitmap(newImageData);
@@ -1657,6 +1664,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             saturationLevel,
             blackPoint,
             whitePoint,
+            invertColors,
         } = this.props;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
 
@@ -1674,7 +1682,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
 
         canvasInstance.configure({
             CSSImageFilter: blackPoint !== 0 || whitePoint !== 255 ? '' :
-                `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})`,
+                `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})${
+                    invertColors ? ' invert(1)' : ''}`,
         });
 
         canvasInstance.fitCanvas();

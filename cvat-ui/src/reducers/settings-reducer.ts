@@ -8,6 +8,7 @@ import { AnyAction } from 'redux';
 import { AuthActionTypes } from 'actions/auth-actions';
 import { SettingsActionTypes } from 'actions/settings-actions';
 import { AnnotationActionTypes } from 'actions/annotation-actions';
+import { validPictureLevels } from 'utils/image-processing';
 import {
     SettingsState, GridColor, FrameSpeed, ColorBy,
 } from 'reducers';
@@ -89,6 +90,7 @@ const defaultState: SettingsState = {
         saturationLevel: 100,
         blackPoint: 0,
         whitePoint: 255,
+        invertColors: false,
     },
     imageFilters: [],
     showDialog: false,
@@ -344,10 +346,15 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 },
             };
         }
+        case SettingsActionTypes.SWITCH_INVERT_COLORS: {
+            return {
+                ...state,
+                player: { ...state.player, invertColors: action.payload.invertColors },
+            };
+        }
         case SettingsActionTypes.CHANGE_PICTURE_LEVELS: {
             const { blackPoint, whitePoint } = action.payload;
-            if (!Number.isInteger(blackPoint) || !Number.isInteger(whitePoint) ||
-                blackPoint < 0 || whitePoint > 255 || blackPoint >= whitePoint) {
+            if (!validPictureLevels(blackPoint, whitePoint)) {
                 return state;
             }
             return {

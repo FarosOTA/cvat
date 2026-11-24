@@ -12,8 +12,8 @@
 .cvat-audio-regions-list-header {
     flex: 0 0 auto;
     padding: $grid-unit-size $grid-unit-size * 1.5;
-    border-bottom: 1px solid #e5e7eb;
-    background-color: #bebebe;
+    border-bottom: 1px solid var(--cvat-border-color, #e5e7eb);
+    background-color: $objects-bar-tabs-color;
 
     .cvat-audio-regions-list-header-actions {
         display: flex;
@@ -35,7 +35,7 @@
 
     .anticon {
         font-size: $grid-unit-size * 2;
-        color: #595959;
+        color: var(--cvat-text-color-secondary, #595959);
         cursor: pointer;
 
         &:hover {

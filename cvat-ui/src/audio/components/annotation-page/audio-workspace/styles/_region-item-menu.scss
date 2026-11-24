@@ -22,7 +22,7 @@
         width: 100%;
         height: $grid-unit-size * 3.5;
         text-align: left;
-        color: #303030;
+        color: $text-color;
         font-size: 14px;
         line-height: $grid-unit-size * 3.5;
         padding: $grid-unit-size * 0.5 $grid-unit-size * 2;
@@ -30,8 +30,8 @@
         box-shadow: none;
 
         &:hover {
-            background-color: #f5f5f5;
-            color: #303030;
+            background-color: var(--cvat-background-color-2, #f5f5f5);
+            color: $text-color;
         }
 
         &:disabled {

@@ -1,0 +1,36 @@
+// Copyright (C) 2026 CVAT.ai Corporation
+//
+// SPDX-License-Identifier: MIT
+
+html[data-theme='dark'] {
+    color-scheme: dark;
+
+    --cvat-header-color: #252525;
+    --cvat-text-color: #e8e8e8;
+    --cvat-text-color-secondary: #a6a6a6;
+    --cvat-hover-menu-color: rgba(24, 144, 255, 15%);
+    --cvat-border-color: #424242;
+    --cvat-background-color-1: #1f1f1f;
+    --cvat-background-color-2: #141414;
+    --cvat-notification-background-color: #152536;
+    --cvat-player-buttons-color: #e8e8e8;
+    --cvat-objects-bar-tabs-color: #595959;
+    --cvat-objects-bar-icons-color: #e8e8e8;
+    --cvat-active-label-background-color: #153450;
+    --cvat-object-item-border-color: #737373;
+    --cvat-scrollbar-thumb-color: #595959;
+    --cvat-frame-timeline-background: linear-gradient(180deg, #252525, #1b1b1b);
+
+    .cvat-header .cvat-logo-icon img {
+        filter: brightness(0) invert(1);
+    }
+}
+
+html[data-theme='light'] {
+    color-scheme: light;
+}
+
+body {
+    color: var(--cvat-text-color, #303030);
+    background: var(--cvat-background-color-2, #f1f1f1);
+}

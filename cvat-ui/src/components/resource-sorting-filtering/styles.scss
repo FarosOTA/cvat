@@ -38,7 +38,7 @@
 }
 
 .cvat-resource-page-filters-builder {
-    background: white;
+    background: $background-color-1;
     padding: $grid-unit-size;
     border-radius: $border-radius-base;
     box-shadow: $box-shadow-base;
@@ -50,7 +50,7 @@
 .cvat-resource-page-sorting-list,
 .cvat-resource-page-predefined-filters-list,
 .cvat-resource-page-recent-filters-list {
-    background: white;
+    background: $background-color-1;
     padding: $grid-unit-size;
     border-radius: $border-radius-base;
     display: flex;

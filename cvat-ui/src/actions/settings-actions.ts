@@ -12,7 +12,7 @@ import {
 } from 'reducers';
 import { OrientationVisibility } from 'cvat-canvas3d-wrapper';
 import { getCore, SerializedImageFilter } from 'cvat-core-wrapper';
-import { ImageFilter, ImageFilterAlias } from 'utils/image-processing';
+import { ImageFilter, ImageFilterAlias, validPictureLevels } from 'utils/image-processing';
 import GammaCorrection, { GammaFilterOptions } from 'utils/fabric-wrapper/gamma-correction';
 import { resolveConflicts } from 'utils/conflict-detector';
 import { shortcutsActions } from './shortcuts-actions';
@@ -45,6 +45,7 @@ export enum SettingsActionTypes {
     CHANGE_CONTRAST_LEVEL = 'CHANGE_CONTRAST_LEVEL',
     CHANGE_SATURATION_LEVEL = 'CHANGE_SATURATION_LEVEL',
     CHANGE_PICTURE_LEVELS = 'CHANGE_PICTURE_LEVELS',
+    SWITCH_INVERT_COLORS = 'SWITCH_INVERT_COLORS',
     SWITCH_AUTO_SAVE = 'SWITCH_AUTO_SAVE',
     CHANGE_AUTO_SAVE_INTERVAL = 'CHANGE_AUTO_SAVE_INTERVAL',
     CHANGE_FOCUSED_OBJECT_PADDING = 'CHANGE_FOCUSED_OBJECT_PADDING',
@@ -79,6 +80,13 @@ export function changePictureLevels(blackPoint: number, whitePoint: number): Any
     return {
         type: SettingsActionTypes.CHANGE_PICTURE_LEVELS,
         payload: { blackPoint, whitePoint },
+    };
+}
+
+export function switchInvertColors(invertColors: boolean): AnyAction {
+    return {
+        type: SettingsActionTypes.SWITCH_INVERT_COLORS,
+        payload: { invertColors },
     };
 }
 
@@ -568,8 +576,7 @@ export function restoreSettingsAsync(): ThunkAction {
         const loadedSettings = JSON.parse(settingsString);
         if (loadedSettings.player) {
             const { blackPoint = 0, whitePoint = 255 } = loadedSettings.player;
-            if (!Number.isInteger(blackPoint) || !Number.isInteger(whitePoint) ||
-                blackPoint < 0 || whitePoint > 255 || blackPoint >= whitePoint) {
+            if (!validPictureLevels(blackPoint, whitePoint)) {
                 delete loadedSettings.player.blackPoint;
                 delete loadedSettings.player.whitePoint;
             }

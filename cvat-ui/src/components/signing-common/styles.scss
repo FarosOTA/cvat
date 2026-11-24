@@ -58,13 +58,13 @@ $social-google-background: #4286f5;
 
 .cvat-credentials-link {
     a {
-        color: black;
+        color: $text-color;
         text-decoration: underline;
         text-decoration-thickness: 2px;
     }
 
     a:hover {
-        color: black;
+        color: $text-color;
         text-decoration: underline;
         text-decoration-thickness: 2px;
     }
@@ -107,11 +107,11 @@ $social-google-background: #4286f5;
     .ant-input-affix-wrapper-focused {
         @extend .cvat-input-floating-label-above;
 
-        box-shadow: 0 2px 0 0 black;
+        box-shadow: 0 2px 0 0 $text-color;
     }
 
     .ant-input-affix-wrapper-focused:hover {
-        box-shadow: 0 2px 0 0 black;
+        box-shadow: 0 2px 0 0 $text-color;
     }
 
     .ant-input {
@@ -121,7 +121,7 @@ $social-google-background: #4286f5;
         &:-webkit-autofill,
         &:-webkit-autofill:hover,
         &:-webkit-autofill:focus {
-            box-shadow: 0 0 0 1000px white inset !important;
+            box-shadow: 0 0 0 1000px $background-color-1 inset !important;
             transition: background-color 10s ease-in-out 0s;
         }
     }

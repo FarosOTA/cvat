@@ -22,8 +22,8 @@
         height: $grid-unit-size * 2.5;
         padding: $grid-unit-size * 0.75;
         border-radius: $grid-unit-size * 0.5;
-        background: rgba(255,255,255,72%);
-        color: #303030;
+        background: var(--cvat-background-color-1, rgba(255,255,255,72%));
+        color: $text-color;
         font-size: 12px;
         font-weight: 600;
     }
@@ -49,7 +49,7 @@
         border-radius: $grid-unit-size * 0.5;
         cursor: pointer;
 
-        &:hover { background: rgba(0, 0, 0, 6%); }
+        &:hover { background: var(--cvat-hover-menu-color, rgba(0, 0, 0, 6%)); }
 
         .cvat-audio-region-label-color {
             width: $grid-unit-size;
@@ -67,13 +67,13 @@
 
         .cvat-audio-region-label-edit-icon {
             flex: 0 0 auto;
-            color: rgba(0, 0, 0, 45%);
+            color: $text-color-secondary;
             font-size: 12px;
         }
     }
 
     .cvat-audio-interval-header-source {
-        color: rgba(0, 0, 0, 60%);
+        color: var(--cvat-text-color-secondary, rgba(0, 0, 0, 60%));
         font-size: 11px;
         text-transform: lowercase;
     }
@@ -92,7 +92,7 @@
             height: $grid-unit-size * 2.75;
             border: 1px solid transparent;
             border-radius: $border-radius-base;
-            color: rgba(0, 0, 0, 62%);
+            color: var(--cvat-text-color-secondary, rgba(0, 0, 0, 62%));
             font-size: 15px;
             line-height: $grid-unit-size * 2.75;
             cursor: pointer;
@@ -102,12 +102,12 @@
                 opacity $box-shadow-transition;
 
             &:hover {
-                background-color: rgba(0, 0, 0, 8%);
+                background-color: var(--cvat-hover-menu-color, rgba(0, 0, 0, 8%));
                 opacity: 0.82;
             }
 
             &.cvat-audio-region-item-action-btn-disabled {
-                color: rgba(0, 0, 0, 25%);
+                color: var(--cvat-text-color-secondary, rgba(0, 0, 0, 25%));
                 cursor: not-allowed;
                 opacity: 0.5;
 
@@ -121,7 +121,7 @@
 
     .cvat-audio-interval-header-time {
         margin-top: $grid-unit-size * 0.5;
-        color: rgba(0, 0, 0, 60%);
+        color: var(--cvat-text-color-secondary, rgba(0, 0, 0, 60%));
         font-size: 12px;
         line-height: $grid-unit-size * 2.25;
     }

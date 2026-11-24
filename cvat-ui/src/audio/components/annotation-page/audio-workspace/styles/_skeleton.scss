@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: MIT
 
-$skeleton-base: #e5e7eb;
-$skeleton-highlight: #f3f4f6;
-$skeleton-border: #e5e7eb;
+$skeleton-base: var(--cvat-border-color, #e5e7eb);
+$skeleton-highlight: var(--cvat-background-color-1, #f3f4f6);
+$skeleton-border: var(--cvat-border-color, #e5e7eb);
 $skeleton-radius: 4px;
 
 @keyframes cvat-audio-skeleton-shimmer {
@@ -37,7 +37,7 @@ $skeleton-radius: 4px;
     align-items: center;
     padding-top: 12px;
     gap: 16px;
-    background-color: #fff;
+    background-color: $background-color-1;
 
     .cvat-audio-skeleton-control {
         @extend %cvat-audio-skeleton-block;
@@ -55,7 +55,7 @@ $skeleton-radius: 4px;
 }
 
 .cvat-audio-skeleton-waveform {
-    background-color: #fff;
+    background-color: $background-color-1;
     border-radius: 8px;
     padding: 16px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 10%);
@@ -96,14 +96,14 @@ $skeleton-radius: 4px;
 }
 
 .cvat-audio-skeleton-regions {
-    background-color: #fff;
+    background-color: $background-color-1;
 }
 
 .cvat-audio-skeleton-regions-header {
     flex: 0 0 auto;
     padding: 8px 12px;
     border-bottom: 1px solid $skeleton-border;
-    background-color: #bebebe;
+    background-color: $objects-bar-tabs-color;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -130,7 +130,7 @@ $skeleton-radius: 4px;
     align-items: flex-start;
     gap: 8px;
     padding: 8px;
-    background-color: #f9fafb;
+    background-color: var(--cvat-background-color-2, #f9fafb);
     border: 1px solid $skeleton-border;
     border-radius: 4px;
 }
