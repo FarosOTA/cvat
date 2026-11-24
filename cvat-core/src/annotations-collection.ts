@@ -1074,10 +1074,18 @@ export default class Collection {
         from?: number;
         to?: number;
         delTrackKeyframesOnly?: boolean;
+        labelIDs?: number[];
+        sources?: Source[];
     }): void {
-        const { from, to, delTrackKeyframesOnly } = options ?? {};
+        const {
+            from, to, delTrackKeyframesOnly, labelIDs, sources,
+        } = options ?? {};
+        const matches = (object: AnnotationObject): boolean => (
+            (!labelIDs?.length || labelIDs.includes(object.label.id)) &&
+            (!sources?.length || sources.includes(object.source))
+        );
 
-        if (typeof from === 'undefined' && typeof to === 'undefined') {
+        if (typeof from === 'undefined' && typeof to === 'undefined' && !labelIDs?.length && !sources?.length) {
             this.shapes = {};
             this.tags = {};
             this.tracks = [];
@@ -1092,7 +1100,7 @@ export default class Collection {
             if (this.injection.dimension === DimensionType.DIMENSION_1D) {
                 this.intervals.slice(0).forEach((interval) => {
                     const intervalStop = interval.stop ?? this.stopFrame;
-                    if (interval.start <= stop && intervalStop >= start) {
+                    if (matches(interval) && interval.start <= stop && intervalStop >= start) {
                         this.intervals.splice(this.intervals.indexOf(interval), 1);
                         delete this.objects[interval.clientID];
                     }
@@ -1102,12 +1110,13 @@ export default class Collection {
 
             // If only a range of annotations need to be cleared
             for (let frame = start; frame <= stop; frame++) {
-                this.shapes[frame] = [];
-                this.tags[frame] = [];
+                [...(this.shapes[frame] ?? []), ...(this.tags[frame] ?? [])].forEach((object) => {
+                    if (matches(object)) object.removed = true;
+                });
             }
 
             this.tracks.slice(0).forEach((track) => {
-                if (track.frame <= stop) {
+                if (!track.removed && matches(track) && track.frame <= stop) {
                     if (delTrackKeyframesOnly) {
                         for (const keyframe of Object.keys(track.shapes)) {
                             if (+keyframe >= start && +keyframe <= stop) {
@@ -1127,10 +1136,12 @@ export default class Collection {
                         }
 
                         if (Object.keys(track.shapes).length === 0) {
-                            this.tracks.splice(this.tracks.indexOf(track), 1);
+                            // eslint-disable-next-line no-param-reassign
+                            track.removed = true;
                         }
-                    } else if (track.frame >= from) {
-                        this.tracks.splice(this.tracks.indexOf(track), 1);
+                    } else if (track.frame >= start) {
+                        // eslint-disable-next-line no-param-reassign
+                        track.removed = true;
                     }
                 }
             });

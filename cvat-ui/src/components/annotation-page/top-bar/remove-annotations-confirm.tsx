@@ -8,6 +8,8 @@ import Text from 'antd/lib/typography/Text';
 import InputNumber from 'antd/lib/input-number';
 import Checkbox from 'antd/lib/checkbox';
 import Collapse from 'antd/lib/collapse';
+import Select from 'antd/lib/select';
+import { Label, Source } from 'cvat-core-wrapper';
 
 import CVATTooltip from 'components/common/cvat-tooltip';
 
@@ -15,8 +17,12 @@ export interface RemoveAnnotationsConfirmProps {
     open: boolean;
     startFrame: number;
     stopFrame: number;
+    labels?: Label[];
     onClose(): void;
-    onRemove(from: number | undefined, to: number | undefined, removeOnlyKeyframes: boolean): void;
+    onRemove(
+        from: number | undefined, to: number | undefined, removeOnlyKeyframes: boolean,
+        labelIDs?: number[], sources?: Source[],
+    ): void;
 }
 
 function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Element {
@@ -24,18 +30,23 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
         open,
         startFrame,
         stopFrame,
+        labels = [],
         onClose,
         onRemove,
     } = props;
     const [removeFrom, setRemoveFrom] = useState<number | undefined>();
     const [removeUpTo, setRemoveUpTo] = useState<number | undefined>();
     const [removeOnlyKeyframes, setRemoveOnlyKeyframes] = useState(false);
+    const [labelIDs, setLabelIDs] = useState<number[]>([]);
+    const [sources, setSources] = useState<Source[]>([]);
 
     useEffect(() => {
         if (open) {
             setRemoveFrom(undefined);
             setRemoveUpTo(undefined);
             setRemoveOnlyKeyframes(false);
+            setLabelIDs([]);
+            setSources([]);
         }
     }, [open]);
 
@@ -43,7 +54,7 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
         <Modal
             destroyOnClose
             open={open}
-            title='Remove Annotations'
+            title='Annotation tools'
             className='cvat-modal-confirm-remove-annotation'
             okButtonProps={{
                 type: 'primary',
@@ -58,16 +69,48 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
                     removeFrom === undefined && removeUpTo === undefined ? undefined :
                         Math.max(removeFrom ?? startFrame, removeUpTo ?? stopFrame),
                     removeOnlyKeyframes,
+                    labelIDs,
+                    sources,
                 );
                 onClose();
             }}
         >
             <div>
-                <Text>You are about to remove all annotations from every frame. </Text>
-                <Text>If you want to remove them from certain frames only, select a range below. </Text>
-                <Text>Changes take effect only when you save the job.</Text>
-                <br />
-                <br />
+                <Text strong>Remove annotations</Text>
+                <p>
+                    Remove annotations matching all selected criteria. Multiple classes or sources match any
+                    selected value. Leave a criterion empty to include all values.
+                </p>
+                <Text>Changes are saved only when you save the job. This clears undo/redo history.</Text>
+                <p><Text strong>Classes</Text></p>
+                <Select
+                    aria-label='Classes'
+                    mode='multiple'
+                    allowClear
+                    style={{ width: '100%' }}
+                    placeholder='All classes'
+                    optionFilterProp='label'
+                    value={labelIDs}
+                    onChange={setLabelIDs}
+                    options={labels.map((label) => ({ value: label.id, label: label.name }))}
+                />
+                <p><Text strong>Annotation sources</Text></p>
+                <Select
+                    aria-label='Annotation sources'
+                    mode='multiple'
+                    allowClear
+                    style={{ width: '100%' }}
+                    placeholder='All sources'
+                    optionFilterProp='label'
+                    value={sources}
+                    onChange={setSources}
+                    options={Object.values(Source).map((source) => ({ value: source, label: source }))}
+                />
+                <p>
+                    {!labelIDs.length && !sources.length && removeFrom === undefined && removeUpTo === undefined ?
+                        'All annotations in this job will be removed.' :
+                        'Only annotations matching the selected classes, sources, and frame range will be removed.'}
+                </p>
                 <br />
                 <Collapse
                     bordered={false}
@@ -78,6 +121,9 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
                             <>
                                 <Text>Lower frame: </Text>
                                 <InputNumber
+                                    aria-label='Lower frame'
+                                    precision={0}
+                                    value={removeFrom}
                                     min={startFrame}
                                     max={stopFrame}
                                     onChange={(value) => {
@@ -86,6 +132,9 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
                                 />
                                 <Text>  Upper frame: </Text>
                                 <InputNumber
+                                    aria-label='Upper frame'
+                                    precision={0}
+                                    value={removeUpTo}
                                     min={startFrame}
                                     max={stopFrame}
                                     onChange={(value) => {
@@ -104,6 +153,12 @@ function RemoveAnnotationsConfirm(props: RemoveAnnotationsConfirmProps): JSX.Ele
                                         Delete only keyframes for tracks
                                     </Checkbox>
                                 </CVATTooltip>
+                                <p>
+                                    Bounds are inclusive; empty bounds use the job limits and reversed bounds
+                                    are swapped. By default, whole tracks are removed only when their start
+                                    frame is in range. Keyframe-only deletion can change interpolation outside
+                                    the range; it does not cut a gap in a track.
+                                </p>
                             </>
                         ),
                     }]}

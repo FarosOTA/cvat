@@ -1096,7 +1096,7 @@ Cypress.Commands.add('removeAnnotations', () => {
     cy.hideTooltips();
     cy.contains('.cvat-annotation-header-button', 'Menu').click();
     cy.get('.cvat-annotation-menu').within(() => {
-        cy.contains('Remove annotations').click();
+        cy.contains(/^(Annotation tools|Remove annotations)$/).click();
     });
     cy.get('.cvat-modal-confirm-remove-annotation').within(() => {
         cy.contains('button', 'Remove').click();

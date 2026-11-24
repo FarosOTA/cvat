@@ -14,7 +14,7 @@ import Icon from '@ant-design/icons';
 import { MenuProps } from 'antd/lib/menu';
 
 import { MainMenuIcon } from 'icons';
-import { Job, JobState } from 'cvat-core-wrapper';
+import { DimensionType, Job, JobState } from 'cvat-core-wrapper';
 import { usePlugins } from 'utils/hooks';
 
 import { openAnnotationsActionModal } from 'components/annotation-page/annotations-actions/annotations-actions-modal';
@@ -121,7 +121,7 @@ function AnnotationMenuComponent(props: Props): JSX.Element {
 
     menuItems.push([{
         key: Actions.REMOVE_ANNOTATIONS,
-        label: 'Remove annotations',
+        label: jobInstance.dimension === DimensionType.DIMENSION_1D ? 'Remove annotations' : 'Annotation tools',
         onClick: () => setRemoveAnnotationsConfirmOpen(true),
     }, 30]);
 
@@ -197,9 +197,12 @@ function AnnotationMenuComponent(props: Props): JSX.Element {
                 open={removeAnnotationsConfirmOpen}
                 startFrame={jobInstance.startFrame}
                 stopFrame={stopFrame}
+                labels={jobInstance.labels}
                 onClose={() => setRemoveAnnotationsConfirmOpen(false)}
-                onRemove={(removeFrom, removeUpTo, removeOnlyKeyframes) => {
-                    dispatch(removeAnnotationsAsyncAction(removeFrom, removeUpTo, removeOnlyKeyframes));
+                onRemove={(removeFrom, removeUpTo, removeOnlyKeyframes, labelIDs, sources) => {
+                    dispatch(removeAnnotationsAsyncAction(
+                        removeFrom, removeUpTo, removeOnlyKeyframes, labelIDs, sources,
+                    ));
                 }}
             />
             <Dropdown

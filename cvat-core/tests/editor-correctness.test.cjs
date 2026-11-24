@@ -69,6 +69,57 @@ function editor(frameNumbers = [0, 1, 2], { deleted = [], dimension = '2d' } = {
     return { collection, history, config, shape, states, ObjectState, label, skeleton, canvas, rle: core('rle-utils') };
 }
 
+test('annotation tools combine class/source selections with inclusive ranges and preserve unmatched objects', () => {
+    const { collection, shape } = editor([0, 1, 2, 3, 4]);
+    const tags = [
+        { id: 1, frame: 1, label_id: 1, source: 'auto' },
+        { id: 2, frame: 3, label_id: 2, source: 'semi-auto' },
+        { id: 3, frame: 2, label_id: 1, source: 'manual' },
+        { id: 4, frame: 0, label_id: 1, source: 'auto' },
+        { id: 5, frame: 4, label_id: 2, source: 'semi-auto' },
+    ].map((tag) => ({ ...tag, group: 0, attributes: [] }));
+    collection.import({ tags, shapes: tags.filter((tag) => tag.label_id === 1)
+        .map((tag) => shape('rectangle', [10, 10, 30, 30], tag)) });
+    collection.clear({ from: 1, to: 3, labelIDs: [1, 2], sources: ['auto', 'semi-auto'] });
+    assert.deepEqual(collection.export().tags.map((tag) => tag.id), [4, 3, 5]);
+    assert.deepEqual(collection.export().shapes.map((object) => object.id), [4, 3]);
+    assert.equal(collection.get(1, false, []).length, 0);
+    collection.clear({ labelIDs: [2], sources: ['manual'] });
+    assert.equal(collection.export().tags.length, 3, 'class and source must both match');
+    collection.clear({ labelIDs: [1] });
+    assert.deepEqual(collection.export().tags.map((tag) => tag.id), [5]);
+    assert.equal(collection.export().shapes.length, 0);
+    collection.clear({ sources: ['semi-auto'] });
+    assert.equal(collection.export().tags.length, 0, 'source-only deletion works without a frame range');
+});
+
+test('annotation tools retain track range semantics and filter keyframes by the parent source', () => {
+    const { collection, shape } = editor([0, 1, 2, 3, 4]);
+    collection.import({ tracks: [
+        { id: 1, frame: 0, source: 'auto' },
+        { id: 2, frame: 1, source: 'auto' },
+        { id: 3, frame: 1, source: 'manual' },
+        { id: 4, frame: 3, source: 'semi-auto' },
+    ].map((track) => ({
+        ...track, label_id: 1, group: 0, attributes: [],
+        shapes: [track.frame, 4].map((frame) => shape('rectangle', [10, 10, 30, 30], { frame })),
+    })) });
+    collection.clear({ from: 1, to: 3, sources: ['auto', 'semi-auto'] });
+    assert.deepEqual(collection.export().tracks.map((track) => track.id), [1, 3]);
+    collection.clear({ from: 0, to: 1, labelIDs: [1], sources: ['auto'], delTrackKeyframesOnly: true });
+    assert.deepEqual(collection.export().tracks.map((track) => track.shapes.map((item) => item.frame)), [[4], [1, 4]]);
+    const reloaded = editor([0, 1, 2, 3, 4]).collection;
+    reloaded.import(collection.export());
+    assert.deepEqual(reloaded.export().tracks.map((track) => ({
+        id: track.id, source: track.source, frames: track.shapes.map((item) => item.frame),
+    })), [{ id: 1, source: 'auto', frames: [4] }, { id: 3, source: 'manual', frames: [1, 4] }],
+    'filtered deletion survives serialization');
+    collection.clear({ from: 4, to: 4, sources: ['auto'], delTrackKeyframesOnly: true });
+    assert.deepEqual(collection.export().tracks.map((track) => track.id), [3], 'empty tracks are removed');
+    collection.clear({ to: 1, sources: ['manual'] });
+    assert.equal(collection.export().tracks.length, 0, 'an omitted lower bound includes the start of the job');
+});
+
 test('reverse tracks extend toward the job start, retain their upper boundary, and survive reload and undo', async () => {
     const { collection, history, ObjectState, label } = editor([50, 53, 57, 60, 63]);
     collection.put([new ObjectState({ objectType: 'track', shapeType: 'rectangle', label,

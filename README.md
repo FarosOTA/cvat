@@ -9,6 +9,7 @@ are not necessarily fork-specific. This checkout reports CVAT **2.74.1**.
 **Contents**
 
 - [Rectangle-track editing](#rectangle-track-editing)
+- [Annotation tools](#annotation-tools)
 - [Track timeline and navigation](#track-timeline-and-navigation)
 - [Picture controls](#picture-controls)
 - [Cursor-targeted annotation shortcuts](#cursor-targeted-annotation-shortcuts)
@@ -40,6 +41,25 @@ In the **Standard workspace**, select an unlocked, non-ground-truth rectangle tr
 - **Undo/redo:** Each batch or propagated transform is a single undoable action. Track identity,
   attributes, and other non-geometric annotation properties are retained.
 - **Track boundaries:** Use **Track start** and **Track end** to jump to the first or last visible frame.
+
+## Annotation tools
+
+In image/video annotation jobs, open **Menu → Annotation tools** to remove annotations by
+one or more **classes**, one or more **sources** (including `auto` and `semi-auto` together),
+an inclusive **frame range**, or any combination. Multiple values within a criterion are ORed;
+classes, sources, and the range are ANDed. Empty selections mean all classes/sources; empty
+range bounds use the job limits. Reversed bounds are swapped. With no criteria, all annotations
+in the current job are removed. This does not operate on other jobs or tasks.
+
+Shapes and tags are matched on their frame. Whole tracks are removed only if their start frame
+falls in the range. **Delete only keyframes for tracks** instead removes stored keyframes within
+the range from matching tracks, deleting a track if none remain. This can change interpolation
+outside the range; it does not trim tracks or cut gaps. Skeletons match their parent class and
+source. Source selection uses CVAT's stored source, not a guess about how an annotation was created.
+
+The dialog is the removal confirmation. **Remove** changes the local job and clears undo/redo
+history, as the upstream removal command does; save the job to persist the deletion. Cancel
+leaves annotations unchanged. Audio jobs retain their existing time-range removal dialog.
 
 ## Track timeline and navigation
 

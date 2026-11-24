@@ -486,6 +486,7 @@ export function updateCanvasBrushTools(config: {
 
 export function removeAnnotationsAsync(
     startFrame: number | undefined, stopFrame: number | undefined, delTrackKeyframesOnly: boolean,
+    labelIDs?: number[], sources?: Source[],
 ): ThunkAction {
     return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<void> => {
         try {
@@ -495,12 +496,15 @@ export function removeAnnotationsAsync(
                 from: startFrame,
                 to: stopFrame,
                 delTrackKeyframesOnly,
+                labelIDs,
+                sources,
             });
             await jobInstance.actions.clear();
             dispatch(fetchAnnotationsAsync());
 
             const state = getState();
-            if (!state.annotation.job.groundTruthInfo.groundTruthInstance) {
+            if (!state.annotation.job.groundTruthInfo.groundTruthInstance &&
+                startFrame === undefined && stopFrame === undefined && !labelIDs?.length && !sources?.length) {
                 getCore().config.globalObjectsCounter = 0;
             }
 
