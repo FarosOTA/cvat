@@ -137,7 +137,8 @@ fitting and reset-to-fit controls, subject to the existing minimum zoom limit.
 In 2D annotation workspaces, the labeled **Picture controls** button stays at the bottom-left of
 the canvas, including in fullscreen and with the objects sidebar collapsed. Open it for upstream
 **Brightness**, **Contrast**, **Saturation**, **Gamma**, and grid controls, plus fork-added
-**Black point** and **White point** sliders and numeric inputs and an **Invert colors** checkbox.
+**Black point** and **White point** sliders and numeric inputs, a **Sharpness** slider, and an
+**Invert colors** checkbox.
 The panel stays open while you annotate; click the button again to close it, or press **Escape**
 while focus is inside the controls.
 On shorter windows the panel scrolls.
@@ -151,10 +152,11 @@ levels at or above the white point become white; intermediate levels are mapped 
 The black point must remain below the white point. Adjustments affect only the displayed image,
 not annotations, source media, or exports. **Invert colors** is off by default and inverts the
 displayed image after the other color adjustments, including in the cursor magnifier. It does not
-invert annotation or grid colors. Preferences persist in this browser and across jobs;
-**Reset color settings** restores all color adjustments, including gamma, both points, and inversion.
-Non-default black or white points use browser-side pixel processing to avoid SVG canvas-filter
-rendering issues in Safari. Processing large frames can reduce playback speed.
+invert annotation or grid colors. **Sharpness** enhances edges in the displayed image and cursor
+magnifier. It ranges from **0** (off, the default) to **100** (strongest). Preferences persist in
+this browser and across jobs; **Reset color settings** also resets sharpness to 0.
+Sharpness and non-default black or white points use browser-side pixel processing. Processing
+large frames can reduce playback speed.
 
 ## Dark mode
 

@@ -171,12 +171,14 @@ context('Canvas color settings feature', () => {
         });
 
         it('Check reset of settings', () => {
+            cy.get('[role="slider"][aria-labelledby="cvat-sharpness-label"]').type('{end}');
             cy.get('.cvat-image-setups-reset-color-settings').find('button').click();
             const expectedResultInBackground = defaultValueInSidebar / 100;
             checkStateValuesInBackground(expectedResultInBackground);
             cy.get('#cvat_canvas_background').should('have.css', 'filter', 'brightness(1) contrast(1) saturate(1)');
             cy.get('.cvat-image-setups-black-point input').should('have.value', '0');
             cy.get('.cvat-image-setups-white-point input').should('have.value', '255');
+            cy.get('.cvat-image-setups-sharpness [role="slider"]').should('have.attr', 'aria-valuenow', '0');
             cy.checkSlidersValues(
                 '.cvat-canvas-image-setups-content', classNameSliders, defaultValueInSetting,
             );
@@ -187,6 +189,7 @@ context('Canvas color settings feature', () => {
 
         it('Check persisting image filters across jobs', () => {
             cy.get('.cvat-image-setups-invert-colors input').check();
+            cy.get('.cvat-image-setups-sharpness [role="slider"]').type('{end}');
             cy.get('.cvat-image-setups-black-point input').clear();
             cy.get('.cvat-image-setups-black-point input').type('-35{enter}');
             cy.get('.cvat-image-setups-white-point input').clear();
@@ -204,6 +207,7 @@ context('Canvas color settings feature', () => {
             cy.reload();
             cy.get('.cvat-canvas-image-setups-trigger').click();
             cy.get('.cvat-image-setups-invert-colors input').should('be.checked');
+            cy.get('.cvat-image-setups-sharpness [role="slider"]').should('have.attr', 'aria-valuenow', '100');
             cy.get('.cvat-image-setups-black-point input').should('have.value', '-35');
             cy.get('.cvat-image-setups-white-point input').should('have.value', '310');
             cy.get('#cvat_canvas_background').should('have.css', 'filter', 'none');

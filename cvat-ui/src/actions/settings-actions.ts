@@ -12,7 +12,9 @@ import {
 } from 'reducers';
 import { OrientationVisibility } from 'cvat-canvas3d-wrapper';
 import { getCore, SerializedImageFilter } from 'cvat-core-wrapper';
-import { ImageFilter, ImageFilterAlias, validPictureLevels } from 'utils/image-processing';
+import {
+    ImageFilter, ImageFilterAlias, MAX_SHARPNESS, validPictureLevels,
+} from 'utils/image-processing';
 import GammaCorrection, { GammaFilterOptions } from 'utils/fabric-wrapper/gamma-correction';
 import { resolveConflicts } from 'utils/conflict-detector';
 import { shortcutsActions } from './shortcuts-actions';
@@ -44,6 +46,7 @@ export enum SettingsActionTypes {
     CHANGE_BRIGHTNESS_LEVEL = 'CHANGE_BRIGHTNESS_LEVEL',
     CHANGE_CONTRAST_LEVEL = 'CHANGE_CONTRAST_LEVEL',
     CHANGE_SATURATION_LEVEL = 'CHANGE_SATURATION_LEVEL',
+    CHANGE_SHARPNESS = 'CHANGE_SHARPNESS',
     CHANGE_PICTURE_LEVELS = 'CHANGE_PICTURE_LEVELS',
     SWITCH_INVERT_COLORS = 'SWITCH_INVERT_COLORS',
     SWITCH_AUTO_SAVE = 'SWITCH_AUTO_SAVE',
@@ -74,6 +77,13 @@ export enum SettingsActionTypes {
     DISABLE_IMAGE_FILTER = 'DISABLE_IMAGE_FILTER',
     RESET_IMAGE_FILTERS = 'RESET_IMAGE_FILTERS',
     CHANGE_SHAPES_ORIENTATION_VISIBILITY = 'CHANGE_SHAPES_ORIENTATION_VISIBILITY',
+}
+
+export function changeSharpness(sharpness: number): AnyAction {
+    return {
+        type: SettingsActionTypes.CHANGE_SHARPNESS,
+        payload: { sharpness },
+    };
 }
 
 export function changePictureLevels(blackPoint: number, whitePoint: number): AnyAction {
@@ -601,6 +611,10 @@ export function restoreSettingsAsync(): ThunkAction {
                 }
                 if (key === 'frameFitMargin' &&
                     (!Number.isInteger(setValue) || setValue < 0 || setValue > 100)) {
+                    return;
+                }
+                if (key === 'sharpness' &&
+                    (!Number.isInteger(setValue) || setValue < 0 || setValue > MAX_SHARPNESS)) {
                     return;
                 }
                 if (key === 'repeatBrushSize' &&

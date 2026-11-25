@@ -71,7 +71,7 @@ import {
 import { reviewActions } from 'actions/review-actions';
 
 import { filterAnnotations } from 'utils/filter-annotations';
-import { ImageFilter, applyColorLevels } from 'utils/image-processing';
+import { ImageFilter, applyColorLevels, applySharpness } from 'utils/image-processing';
 import { ShortcutScope } from 'utils/enums';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import { subKeyMap } from 'utils/component-subkeymap';
@@ -114,6 +114,7 @@ interface StateToProps {
     brightnessLevel: number;
     contrastLevel: number;
     saturationLevel: number;
+    sharpness: number;
     blackPoint: number;
     whitePoint: number;
     invertColors: boolean;
@@ -237,6 +238,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 brightnessLevel,
                 contrastLevel,
                 saturationLevel,
+                sharpness,
                 blackPoint,
                 whitePoint,
                 invertColors,
@@ -318,6 +320,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         brightnessLevel: brightnessLevel / 100,
         contrastLevel: contrastLevel / 100,
         saturationLevel: saturationLevel / 100,
+        sharpness,
         blackPoint,
         whitePoint,
         invertColors,
@@ -849,6 +852,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             brightnessLevel,
             contrastLevel,
             saturationLevel,
+            sharpness,
             blackPoint,
             whitePoint,
             invertColors,
@@ -1016,30 +1020,34 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             }
         }
 
-        if (
+        const colorChanged = (
             brightnessLevel !== prevProps.brightnessLevel ||
             contrastLevel !== prevProps.contrastLevel ||
             saturationLevel !== prevProps.saturationLevel ||
             invertColors !== prevProps.invertColors ||
             blackPoint !== prevProps.blackPoint || whitePoint !== prevProps.whitePoint
-        ) {
+        );
+        const levelsActive = blackPoint !== 0 || whitePoint !== 255;
+        if (colorChanged) {
             canvasInstance.configure({
-                CSSImageFilter: blackPoint !== 0 || whitePoint !== 255 ? '' :
+                CSSImageFilter: levelsActive ? '' :
                     `brightness(${brightnessLevel}) contrast(${contrastLevel}) saturate(${saturationLevel})${
                         invertColors ? ' invert(1)' : ''}`,
             });
-            if (blackPoint !== 0 || whitePoint !== 255 || prevProps.blackPoint !== 0 || prevProps.whitePoint !== 255) {
-                // Levels and the preceding color adjustments are baked into display pixels.
-                // Avoid SVG-reference filters on the canvas, which can hide it in Safari.
-                for (const imageFilter of imageFilters) {
-                    imageFilter.modifier.currentProcessedImage = null;
-                }
-                canvasInstance.configure({ forceFrameUpdate: true });
-                this.debouncedUpdate();
+        }
+
+        const displayPixelsChanged = sharpness !== prevProps.sharpness || (
+            colorChanged && (levelsActive || prevProps.blackPoint !== 0 || prevProps.whitePoint !== 255)
+        );
+        if (displayPixelsChanged) {
+            // Reapply image filters when rebuilding display pixels, including when returning to defaults.
+            for (const imageFilter of imageFilters) {
+                imageFilter.modifier.currentProcessedImage = null;
             }
         }
 
-        if (prevProps.imageFilters !== imageFilters) {
+        const imageFiltersChanged = prevProps.imageFilters !== imageFilters;
+        if (displayPixelsChanged || imageFiltersChanged) {
             canvasInstance.configure({ forceFrameUpdate: true });
         }
 
@@ -1057,7 +1065,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             prevProps.renderData !== renderData || playbackStopped || qualityChanged
         ) {
             this.updateCanvas();
-        } else if (prevProps.imageFilters !== imageFilters) {
+        } else if (displayPixelsChanged || imageFiltersChanged) {
             // In case of frequent image filters changes, we apply debounced canvas update
             // that makes UI smoother
             this.debouncedUpdate();
@@ -1568,7 +1576,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         const {
             hiddenZLayers, annotations, frameData,
             workspace, frame, imageFilters, renderData, playing, jobInstance, bandwidthSavingPlayback,
-            blackPoint, whitePoint, brightnessLevel, contrastLevel, saturationLevel, invertColors,
+            sharpness, blackPoint, whitePoint, brightnessLevel, contrastLevel, saturationLevel, invertColors,
         } = this.props;
         const levelsActive = blackPoint !== 0 || whitePoint !== 255;
 
@@ -1600,7 +1608,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                                 imageFilter.modifier.currentProcessedImage !== frame
                             ));
 
-                            if (imageIsNotProcessed || levelsActive) {
+                            if (imageIsNotProcessed || levelsActive || sharpness > 0) {
                                 try {
                                     const { renderWidth, renderHeight, imageData: imageBitmap } = originalImage;
 
@@ -1612,6 +1620,9 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                                     const newImageData = imageFilters
                                         .reduce((oldImageData, activeImageModifier) => activeImageModifier
                                             .modifier.processImage(oldImageData, frame), imageData);
+                                    if (sharpness > 0) {
+                                        applySharpness(newImageData, sharpness);
+                                    }
                                     if (levelsActive) {
                                         applyColorLevels(
                                             newImageData,

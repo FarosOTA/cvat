@@ -20,13 +20,14 @@ import {
     changeBrightnessLevel,
     changeContrastLevel,
     changeSaturationLevel,
+    changeSharpness,
     changeGridSize,
     resetImageFilters,
     changePictureLevels,
     switchInvertColors,
 } from 'actions/settings-actions';
 import { clamp } from 'utils/math';
-import { MIN_BLACK_POINT, MAX_WHITE_POINT } from 'utils/image-processing';
+import { MIN_BLACK_POINT, MAX_WHITE_POINT, MAX_SHARPNESS } from 'utils/image-processing';
 import { GridColor, CombinedState, PlayerSettingsState } from 'reducers';
 import GammaFilter from './gamma-filter';
 
@@ -39,6 +40,7 @@ export default function ImageSetupsContent(): JSX.Element {
         brightnessLevel,
         contrastLevel,
         saturationLevel,
+        sharpness,
         blackPoint,
         whitePoint,
         invertColors,
@@ -222,6 +224,18 @@ export default function ImageSetupsContent(): JSX.Element {
                 </Checkbox>
             </Row>
             <GammaFilter />
+            <Row className='cvat-image-setups-sharpness' align='middle'>
+                <Col span={6}><Text id='cvat-sharpness-label' className='cvat-text-color'>Sharpness</Text></Col>
+                <Col span={12}>
+                    <Slider
+                        min={0}
+                        max={MAX_SHARPNESS}
+                        value={sharpness}
+                        {...{ ariaLabelledByForHandle: 'cvat-sharpness-label' }}
+                        onChange={(value: number) => dispatch(changeSharpness(value))}
+                    />
+                </Col>
+            </Row>
             <Row className='cvat-image-setups-reset-color-settings' justify='space-around'>
                 <Col>
                     <Button
@@ -231,6 +245,7 @@ export default function ImageSetupsContent(): JSX.Element {
                             dispatch(changeBrightnessLevel(defaultValue));
                             dispatch(changeContrastLevel(defaultValue));
                             dispatch(changeSaturationLevel(defaultValue));
+                            dispatch(changeSharpness(0));
                             dispatch(changePictureLevels(0, 255));
                             dispatch(switchInvertColors(false));
                             dispatch(resetImageFilters());

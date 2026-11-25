@@ -1087,6 +1087,7 @@ export interface PlayerSettingsState {
     brightnessLevel: number;
     contrastLevel: number;
     saturationLevel: number;
+    sharpness: number;
     blackPoint: number;
     whitePoint: number;
     invertColors: boolean;

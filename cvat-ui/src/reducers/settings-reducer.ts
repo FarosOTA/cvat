@@ -88,6 +88,7 @@ const defaultState: SettingsState = {
         brightnessLevel: 100,
         contrastLevel: 100,
         saturationLevel: 100,
+        sharpness: 0,
         blackPoint: 0,
         whitePoint: 255,
         invertColors: false,
@@ -344,6 +345,12 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                     ...state.player,
                     saturationLevel: action.payload.level,
                 },
+            };
+        }
+        case SettingsActionTypes.CHANGE_SHARPNESS: {
+            return {
+                ...state,
+                player: { ...state.player, sharpness: action.payload.sharpness },
             };
         }
         case SettingsActionTypes.SWITCH_INVERT_COLORS: {
